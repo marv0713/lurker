@@ -1,0 +1,37 @@
+cn:
+  name: A 股
+  role: primary_discovery
+  universe_sources:
+    - 沪深 300
+    - 中证 1000
+    - 科创 50
+    - 创业板核心指数
+    - 重点行业 ETF 成分股
+  filters:
+    exclude_st: true
+    exclude_beijing_exchange: true
+    min_avg_turnover_cny: 50000000
+
+us:
+  name: 美股
+  role: global_anchor
+  universe_sources:
+    - 主题字典核心龙头
+    - 行业 ETF
+    - 主题 ETF
+  filters:
+    min_market_cap_usd: 2000000000
+    min_avg_turnover_usd: 10000000
+
+hk:
+  name: 港股
+  role: mapping_supplement
+  universe_sources:
+    - 主题字典核心映射股
+    - A/H 映射股
+    - 中概和创新药核心公司
+  filters:
+    min_price_hkd: 1.0
+    min_avg_turnover_hkd: 20000000
+    exclude_shell_like: true
+    exclude_frequent_capital_actions: true

@@ -1,0 +1,45 @@
+stock_signal:
+  thresholds:
+    candidate: 70
+    high_priority: 85
+  weights:
+    return_20d: 15
+    return_60d: 15
+    return_120_180d: 15
+    double_bagger: 15
+    near_52w_high: 10
+    relative_market_strength: 10
+    relative_sector_strength: 10
+    turnover_expansion: 10
+
+sector_signal:
+  thresholds:
+    candidate: 65
+    main_candidate: 75
+    watchlist_pending: 85
+  weights:
+    sector_strength: 20
+    strong_stock_count: 20
+    new_high_ratio: 15
+    chain_diffusion: 20
+    cross_market_mapping: 15
+    turnover_persistence: 10
+
+ai_attribution:
+  weights:
+    reason_clarity: 20
+    industry_level: 20
+    news_consistency: 15
+    hard_evidence: 25
+    risk_identification: 10
+    counter_evidence: 10
+
+candidate_weights:
+  stock_first:
+    stock_score: 0.35
+    sector_score: 0.35
+    ai_score: 0.30
+  sector_first:
+    stock_score: 0.25
+    sector_score: 0.45
+    ai_score: 0.30

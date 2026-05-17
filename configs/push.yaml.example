@@ -1,0 +1,5 @@
+provider: pushplus
+pushplus:
+  token_env: PUSHPLUS_TOKEN
+server_chan:
+  send_key_env: SERVER_CHAN_SEND_KEY

@@ -1,0 +1,330 @@
+from lurker.cli import (
+    build_data_snapshot,
+    build_demo_report,
+    daily_job,
+    build_parser,
+    read_api_key_file,
+    parse_markets,
+    refresh_prices,
+    resolve_seed_pool,
+)
+
+
+def test_build_demo_report_returns_markdown():
+    report = build_demo_report(report_date="2026-05-17")
+
+    assert report.startswith("# 大趋势雷达日报")
+    assert "AI 算力基础设施" in report
+
+
+def test_parse_markets_from_comma_separated_value():
+    assert parse_markets("us,hk") == ["us", "hk"]
+    assert parse_markets("us") == ["us"]
+
+
+def test_data_snapshot_defaults_include_cn_market():
+    parser = build_parser()
+
+    args = parser.parse_args(["data-snapshot"])
+
+    assert args.markets == "cn,us,hk"
+
+
+def test_build_data_snapshot_uses_cached_seed_pool(monkeypatch, tmp_path):
+    calls = []
+    seed_pool_path = tmp_path / "resolved_seed_pool.json"
+    seed_pool_path.write_text(
+        """
+{
+  "generated_at": "2026-05-17T12:00:00+00:00",
+  "markets": {
+    "cn": {
+      "symbols": ["300308.SZ", "300502.SZ"],
+      "sources": {}
+    }
+  }
+}
+""",
+        encoding="utf-8",
+    )
+
+    def fake_loader(themes_path):
+        calls.append(("loader", themes_path))
+        return {"cn": ["SHOULD_NOT_USE"]}
+
+    def fake_collect(**kwargs):
+        calls.append(("collect", kwargs["seed_symbols"], kwargs["markets"]))
+        return [
+            {
+                "symbol": "300308.SZ",
+                "market": "cn",
+                "latest_close": 140.0,
+                "return_20d": 0.2,
+            }
+        ]
+
+    monkeypatch.setattr("lurker.cli.load_resolved_theme_seed_symbols", fake_loader)
+    monkeypatch.setattr("lurker.cli.collect_price_snapshots", fake_collect)
+
+    result = build_data_snapshot(
+        themes_path=tmp_path / "themes.yaml",
+        seed_pool_path=seed_pool_path,
+        markets=["cn"],
+        windows=[20],
+        period="6mo",
+        limit_per_market=1,
+    )
+
+    assert "| 300308.SZ | cn | 140.00 | 20.00% |" in result
+    assert calls == [
+        ("collect", {"cn": ["300308.SZ", "300502.SZ"]}, ["cn"]),
+    ]
+
+
+def test_build_data_snapshot_falls_back_to_live_resolution(monkeypatch, tmp_path):
+    calls = []
+
+    def fake_loader(themes_path):
+        calls.append(("loader", themes_path))
+        return {"cn": ["300308.SZ"]}
+
+    def fake_collect(**kwargs):
+        calls.append(("collect", kwargs["seed_symbols"], kwargs["markets"]))
+        return []
+
+    monkeypatch.setattr("lurker.cli.load_resolved_theme_seed_symbols", fake_loader)
+    monkeypatch.setattr("lurker.cli.collect_price_snapshots", fake_collect)
+
+    result = build_data_snapshot(
+        themes_path=tmp_path / "themes.yaml",
+        seed_pool_path=tmp_path / "missing.json",
+        markets=["cn"],
+        windows=[20],
+        period="6mo",
+        limit_per_market=1,
+    )
+
+    assert "No available data" in result
+    assert calls == [
+        ("loader", tmp_path / "themes.yaml"),
+        ("collect", {"cn": ["300308.SZ"]}, ["cn"]),
+    ]
+
+
+def test_resolve_seed_pool_writes_cache(monkeypatch, tmp_path):
+    output_path = tmp_path / "resolved_seed_pool.json"
+
+    def fake_builder(themes_path):
+        return {
+            "generated_at": "2026-05-17T12:00:00+00:00",
+            "markets": {"cn": {"symbols": ["300308.SZ"], "sources": {}}},
+        }
+
+    monkeypatch.setattr("lurker.cli.build_resolved_seed_pool", fake_builder)
+
+    message = resolve_seed_pool(themes_path=tmp_path / "themes.yaml", output_path=output_path)
+
+    assert "resolved seed pool" in message
+    assert output_path.exists()
+    assert "300308.SZ" in output_path.read_text(encoding="utf-8")
+
+
+def test_parser_has_resolve_seeds_command():
+    parser = build_parser()
+
+    args = parser.parse_args(["resolve-seeds", "--output", "data/processed/resolved_seed_pool.json"])
+
+    assert args.command == "resolve-seeds"
+    assert str(args.output) == "data/processed/resolved_seed_pool.json"
+
+
+def test_read_api_key_file_strips_whitespace(tmp_path):
+    key_path = tmp_path / "key"
+    key_path.write_text("gemini-secret\n", encoding="utf-8")
+
+    assert read_api_key_file(key_path) == "gemini-secret"
+
+
+def test_parser_has_run_daily_api_key_file_default():
+    parser = build_parser()
+
+    args = parser.parse_args(["run-daily"])
+
+    assert args.api_key_file.name == "key"
+
+
+def test_daily_job_refreshes_prices_and_writes_report(monkeypatch, tmp_path):
+    seed_pool_path = tmp_path / "resolved_seed_pool.json"
+    seed_pool_path.write_text(
+        """
+{
+  "generated_at": "2026-05-16T12:00:00+00:00",
+  "theme_mapping": {"300308.SZ": ["ai_infra"]},
+  "markets": {
+    "cn": {
+      "symbols": ["300308.SZ"],
+      "sources": {}
+    }
+  }
+}
+""",
+        encoding="utf-8",
+    )
+    price_snapshot_dir = tmp_path / "price_snapshots"
+    report_dir = tmp_path / "reports"
+
+    def fake_collector(**kwargs):
+        assert kwargs["seed_symbols"] == {"cn": ["300308.SZ"]}
+        assert kwargs["markets"] == ["cn"]
+        assert kwargs["windows"] == [20, 60]
+        assert kwargs["period"] == "6mo"
+        assert kwargs["limit_per_market"] == 1
+        return {
+            "generated_at": "2026-05-17T12:00:00+00:00",
+            "seed_pool_generated_at": "2026-05-16T12:00:00+00:00",
+            "markets": ["cn"],
+            "windows": [20, 60],
+            "snapshots": [{"symbol": "300308.SZ", "market": "cn", "latest_close": 140.0}],
+            "failures": [{"symbol": "000001.SZ", "market": "cn", "reason": "empty price data"}],
+        }
+
+    def fake_run_daily(**kwargs):
+        assert kwargs["snapshot_batch"]["snapshots"][0]["symbol"] == "300308.SZ"
+        assert kwargs["theme_mapping"] == {"300308.SZ": ["ai_infra"]}
+        assert kwargs["report_date"] == "2026-05-17"
+        assert kwargs["signal_threshold"] == 55
+        assert kwargs["main_limit"] == 8
+        return "# 大趋势雷达日报\n\n日报内容"
+
+    monkeypatch.setattr("lurker.cli.collect_price_snapshot_batch", fake_collector)
+    monkeypatch.setattr("lurker.cli.run_daily", fake_run_daily)
+
+    message = daily_job(
+        seed_pool_path=seed_pool_path,
+        price_snapshot_dir=price_snapshot_dir,
+        report_dir=report_dir,
+        markets=["cn"],
+        windows=[20, 60],
+        period="6mo",
+        limit_per_market=1,
+        report_date="2026-05-17",
+        signal_threshold=55,
+        main_limit=8,
+    )
+
+    assert (price_snapshot_dir / "2026-05-17.json").exists()
+    report_path = report_dir / "2026-05-17.md"
+    assert report_path.read_text(encoding="utf-8") == "# 大趋势雷达日报\n\n日报内容\n"
+    assert "snapshots=1" in message
+    assert "failures=1" in message
+    assert str(report_path) in message
+
+
+def test_refresh_prices_writes_snapshot(monkeypatch, tmp_path):
+    seed_pool_path = tmp_path / "resolved_seed_pool.json"
+    seed_pool_path.write_text(
+        """
+{
+  "generated_at": "2026-05-16T12:00:00+00:00",
+  "markets": {
+    "cn": {
+      "symbols": ["300308.SZ"],
+      "sources": {}
+    }
+  }
+}
+""",
+        encoding="utf-8",
+    )
+    output_dir = tmp_path / "price_snapshots"
+
+    def fake_collector(**kwargs):
+        assert kwargs["seed_symbols"] == {"cn": ["300308.SZ"]}
+        assert kwargs["seed_pool_generated_at"] == "2026-05-16T12:00:00+00:00"
+        return {
+            "generated_at": "2026-05-17T12:00:00+00:00",
+            "seed_pool_generated_at": "2026-05-16T12:00:00+00:00",
+            "markets": ["cn"],
+            "windows": [20],
+            "snapshots": [{"symbol": "300308.SZ", "market": "cn", "latest_close": 140.0}],
+            "failures": [],
+        }
+
+    monkeypatch.setattr("lurker.cli.collect_price_snapshot_batch", fake_collector)
+
+    message = refresh_prices(
+        seed_pool_path=seed_pool_path,
+        output_dir=output_dir,
+        markets=["cn"],
+        windows=[20],
+        period="6mo",
+        limit_per_market=1,
+        snapshot_date="2026-05-17",
+    )
+
+    assert "Wrote price snapshot" in message
+    assert "snapshots=1" in message
+    assert "failures=0" in message
+    assert (output_dir / "2026-05-17.json").exists()
+
+
+def test_data_snapshot_uses_latest_price_snapshot(monkeypatch, tmp_path):
+    seed_pool_path = tmp_path / "resolved_seed_pool.json"
+    seed_pool_path.write_text(
+        '{"generated_at": "2026-05-16T12:00:00+00:00", "markets": {}}',
+        encoding="utf-8",
+    )
+    snapshot_dir = tmp_path / "price_snapshots"
+    snapshot_dir.mkdir()
+    (snapshot_dir / "2026-05-17.json").write_text(
+        """
+{
+  "generated_at": "2026-05-17T12:00:00+00:00",
+  "windows": [20],
+  "snapshots": [
+    {"symbol": "300308.SZ", "market": "cn", "latest_close": 140.0, "return_20d": 0.2},
+    {"symbol": "NVDA", "market": "us", "latest_close": 1000.0, "return_20d": 0.1}
+  ]
+}
+""",
+        encoding="utf-8",
+    )
+
+    def fail_collect(**kwargs):
+        raise AssertionError("should read local price snapshot")
+
+    monkeypatch.setattr("lurker.cli.collect_price_snapshots", fail_collect)
+
+    result = build_data_snapshot(
+        themes_path=tmp_path / "themes.yaml",
+        seed_pool_path=seed_pool_path,
+        price_snapshot_dir=snapshot_dir,
+        markets=["cn"],
+        windows=[20],
+        period="6mo",
+        limit_per_market=1,
+    )
+
+    assert "| 300308.SZ | cn | 140.00 | 20.00% |" in result
+    assert "NVDA" not in result
+
+
+def test_parser_has_refresh_prices_command():
+    parser = build_parser()
+
+    args = parser.parse_args(["refresh-prices", "--markets", "cn", "--date", "2026-05-17"])
+
+    assert args.command == "refresh-prices"
+    assert args.markets == "cn"
+    assert args.date == "2026-05-17"
+
+
+def test_parser_has_daily_job_command():
+    parser = build_parser()
+
+    args = parser.parse_args(["daily-job", "--markets", "cn", "--date", "2026-05-17"])
+
+    assert args.command == "daily-job"
+    assert args.markets == "cn"
+    assert args.date == "2026-05-17"
+    assert args.report_dir.name == "reports"
