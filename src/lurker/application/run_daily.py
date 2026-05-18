@@ -39,6 +39,37 @@ _RECOMMENDATION_MAP: dict[str, str] = {
 }
 
 
+def _normalize_symbols(symbols: set[str] | list[str] | None) -> set[str]:
+    if not symbols:
+        return set()
+    return {symbol.strip().upper() for symbol in symbols if symbol and symbol.strip()}
+
+
+def _filter_suppressed_candidates(
+    ranked: dict[str, list[dict]],
+    suppressed_symbols: set[str],
+) -> tuple[dict[str, list[dict]], list[str]]:
+    if not suppressed_symbols:
+        return ranked, []
+
+    filtered: dict[str, list[dict]] = {}
+    hidden_symbols: set[str] = set()
+    for tier, candidates in ranked.items():
+        filtered[tier] = []
+        for candidate in candidates:
+            symbol = str(candidate.get("symbol", "")).upper()
+            if symbol in suppressed_symbols:
+                hidden_symbols.add(symbol)
+                continue
+            filtered[tier].append(candidate)
+
+    if not hidden_symbols:
+        return filtered, []
+
+    symbols_text = "、".join(sorted(hidden_symbols))
+    return filtered, [f"本地屏蔽列表已隐藏 {len(hidden_symbols)} 条：{symbols_text}"]
+
+
 def _build_candidate(
     signal: StockSignal,
     ai_score: int,
@@ -71,6 +102,8 @@ def run_daily(
     report_date: str | None = None,
     signal_threshold: int = 60,
     main_limit: int = 10,
+    low_score_watch_limit: int = 5,
+    suppressed_symbols: set[str] | list[str] | None = None,
 ) -> str:
     """执行每日完整 pipeline，返回 Markdown 日报字符串。
 
@@ -80,6 +113,8 @@ def run_daily(
         report_date: 报告日期字符串，默认 today。
         signal_threshold: scan_signals 过滤阈值，默认 60。
         main_limit: 主候选数量上限，默认 10。
+        low_score_watch_limit: 从 archive 中展示的低分观察样本数量，默认 5。
+        suppressed_symbols: 本地屏蔽标的集合，不进入日报展示。
 
     Returns:
         Markdown 格式的每日日报字符串。
@@ -105,6 +140,7 @@ def run_daily(
             report_date=today,
             main_cards=["今日无个股触发强度信号。"],
             secondary_leads=[],
+            low_score_watch_samples=[],
             watchlist_changes=[],
             risk_alerts=risk_alerts,
         )
@@ -151,6 +187,10 @@ def run_daily(
 
     # Step 3: 候选排序
     ranked = rank_candidates(candidates, main_limit=main_limit)
+    ranked, watchlist_changes = _filter_suppressed_candidates(
+        ranked,
+        _normalize_symbols(suppressed_symbols),
+    )
 
     # Step 4: 渲染主候选趋势卡片
     main_cards: list[str] = []
@@ -178,11 +218,19 @@ def run_daily(
         for c in ranked["secondary"]
     ]
 
+    low_score_watch_samples: list[str] = [
+        (
+            f"{c['symbol']} ({c['market'].upper()})：总分 {c['total_score']}，"
+            f"个股分 {c['stock_score']}，{c['ai_recommendation']}，低分观察"
+        )
+        for c in ranked["archive"][:low_score_watch_limit]
+    ]
 
     return render_daily_report(
         report_date=today,
         main_cards=main_cards,
         secondary_leads=secondary_leads,
-        watchlist_changes=[],
+        low_score_watch_samples=low_score_watch_samples,
+        watchlist_changes=watchlist_changes,
         risk_alerts=risk_alerts,
     )

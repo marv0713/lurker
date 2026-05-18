@@ -1,8 +1,15 @@
+import json
+
 from lurker.cli import (
     build_data_snapshot,
     build_demo_report,
+    build_run_daily,
+    append_report_archive_index,
+    build_strategy_report,
     daily_job,
     build_parser,
+    list_reports,
+    load_suppressed_symbols,
     read_api_key_file,
     parse_markets,
     refresh_prices,
@@ -145,12 +152,91 @@ def test_read_api_key_file_strips_whitespace(tmp_path):
     assert read_api_key_file(key_path) == "gemini-secret"
 
 
+def test_load_suppressed_symbols_from_yaml(tmp_path):
+    path = tmp_path / "suppressed_symbols.yaml"
+    path.write_text(
+        """
+symbols:
+  - 300308.SZ
+  - 300054.sz
+""",
+        encoding="utf-8",
+    )
+
+    assert load_suppressed_symbols(path) == {"300308.SZ", "300054.SZ"}
+
+
 def test_parser_has_run_daily_api_key_file_default():
     parser = build_parser()
 
     args = parser.parse_args(["run-daily"])
 
     assert args.api_key_file.name == "key"
+
+
+def test_parser_has_strategy_config_default():
+    parser = build_parser()
+
+    args = parser.parse_args(["run-daily"])
+
+    assert args.strategy_config.name == "strategies.yaml"
+    assert args.cadence == "daily"
+
+
+def test_build_strategy_report_runs_enabled_long_term_strategy():
+    report = build_strategy_report(
+        snapshot_batch={"markets": ["cn"], "windows": [20], "snapshots": [], "failures": []},
+        theme_mapping={},
+        attributor=None,
+        report_date="2026-05-18",
+        signal_threshold=60,
+        main_limit=10,
+        low_score_watch_limit=5,
+        suppressed_symbols=set(),
+        strategy_config_path=None,
+        strategy_names=["long_term_trend"],
+        strategy_cadence=None,
+    )
+
+    assert "# 大趋势雷达日报" in report
+    assert "无个股触发" in report
+
+
+def test_build_run_daily_uses_strategy_config_when_provided(tmp_path):
+    snapshot_dir = tmp_path / "snapshots"
+    snapshot_dir.mkdir()
+    (snapshot_dir / "2026-05-18.json").write_text(
+        """
+{
+  "generated_at": "2026-05-18T12:00:00+00:00",
+  "markets": ["cn"],
+  "windows": [20],
+  "snapshots": [],
+  "failures": []
+}
+""",
+        encoding="utf-8",
+    )
+    strategy_config = tmp_path / "strategies.yaml"
+    strategy_config.write_text(
+        """
+strategies:
+  long_term_trend:
+    enabled: true
+    cadence: daily
+    universe: resolved_seed_pool
+""",
+        encoding="utf-8",
+    )
+
+    report = build_run_daily(
+        price_snapshot_dir=snapshot_dir,
+        report_date="2026-05-18",
+        strategy_config_path=strategy_config,
+        strategy_cadence="daily",
+    )
+
+    assert "# 大趋势雷达日报" in report
 
 
 def test_daily_job_refreshes_prices_and_writes_report(monkeypatch, tmp_path):
@@ -194,10 +280,13 @@ def test_daily_job_refreshes_prices_and_writes_report(monkeypatch, tmp_path):
         assert kwargs["report_date"] == "2026-05-17"
         assert kwargs["signal_threshold"] == 55
         assert kwargs["main_limit"] == 8
+        assert kwargs["suppressed_symbols"] == {"300308.SZ"}
         return "# 大趋势雷达日报\n\n日报内容"
 
     monkeypatch.setattr("lurker.cli.collect_price_snapshot_batch", fake_collector)
     monkeypatch.setattr("lurker.cli.run_daily", fake_run_daily)
+    suppressed_symbols_path = tmp_path / "suppressed_symbols.yaml"
+    suppressed_symbols_path.write_text("symbols:\n  - 300308.SZ\n", encoding="utf-8")
 
     message = daily_job(
         seed_pool_path=seed_pool_path,
@@ -210,6 +299,7 @@ def test_daily_job_refreshes_prices_and_writes_report(monkeypatch, tmp_path):
         report_date="2026-05-17",
         signal_threshold=55,
         main_limit=8,
+        suppressed_symbols_path=suppressed_symbols_path,
     )
 
     assert (price_snapshot_dir / "2026-05-17.json").exists()
@@ -218,6 +308,88 @@ def test_daily_job_refreshes_prices_and_writes_report(monkeypatch, tmp_path):
     assert "snapshots=1" in message
     assert "failures=1" in message
     assert str(report_path) in message
+    candidates_path = report_dir / "2026-05-17.candidates.json"
+    assert candidates_path.exists()
+    assert "300308.SZ" in candidates_path.read_text(encoding="utf-8")
+    index_path = report_dir / "index.json"
+    assert index_path.exists()
+    assert "2026-05-17" in index_path.read_text(encoding="utf-8")
+
+
+def test_append_report_archive_index_upserts_by_date(tmp_path):
+    report_dir = tmp_path / "reports"
+    report_dir.mkdir()
+    report_path = report_dir / "2026-05-17.md"
+    candidate_path = report_dir / "2026-05-17.candidates.json"
+
+    append_report_archive_index(
+        report_dir=report_dir,
+        report_date="2026-05-17",
+        report_path=report_path,
+        candidates_path=candidate_path,
+        snapshot_path=tmp_path / "snapshots" / "2026-05-17.json",
+        strategies=["long_term_trend"],
+        markets=["cn"],
+        windows=[20, 60],
+        snapshot_count=1,
+        failure_count=0,
+    )
+    append_report_archive_index(
+        report_dir=report_dir,
+        report_date="2026-05-17",
+        report_path=report_path,
+        candidates_path=candidate_path,
+        snapshot_path=tmp_path / "snapshots" / "2026-05-17.json",
+        strategies=["long_term_trend"],
+        markets=["cn"],
+        windows=[20, 60],
+        snapshot_count=2,
+        failure_count=1,
+    )
+
+    index_data = json.loads((report_dir / "index.json").read_text(encoding="utf-8"))
+
+    assert index_data["schema_version"] == 1
+    assert len(index_data["reports"]) == 1
+    assert index_data["reports"][0]["snapshot_count"] == 2
+    assert index_data["reports"][0]["failure_count"] == 1
+
+
+def test_list_reports_renders_recent_archive_entries(tmp_path):
+    report_dir = tmp_path / "reports"
+    report_dir.mkdir()
+    (report_dir / "index.json").write_text(
+        """
+{
+  "schema_version": 1,
+  "reports": [
+    {
+      "date": "2026-05-17",
+      "report_path": "/tmp/2026-05-17.md",
+      "candidates_path": "/tmp/2026-05-17.candidates.json",
+      "strategies": ["long_term_trend"],
+      "snapshot_count": 1,
+      "failure_count": 0
+    },
+    {
+      "date": "2026-05-18",
+      "report_path": "/tmp/2026-05-18.md",
+      "candidates_path": "/tmp/2026-05-18.candidates.json",
+      "strategies": ["long_term_trend", "short_term_setup"],
+      "snapshot_count": 2,
+      "failure_count": 1
+    }
+  ]
+}
+""",
+        encoding="utf-8",
+    )
+
+    output = list_reports(report_dir=report_dir, limit=1)
+
+    assert "2026-05-18" in output
+    assert "short_term_setup" in output
+    assert "2026-05-17" not in output
 
 
 def test_refresh_prices_writes_snapshot(monkeypatch, tmp_path):
@@ -328,3 +500,12 @@ def test_parser_has_daily_job_command():
     assert args.markets == "cn"
     assert args.date == "2026-05-17"
     assert args.report_dir.name == "reports"
+
+
+def test_parser_has_list_reports_command():
+    parser = build_parser()
+
+    args = parser.parse_args(["list-reports", "--limit", "3"])
+
+    assert args.command == "list-reports"
+    assert args.limit == 3

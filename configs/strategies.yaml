@@ -1,0 +1,31 @@
+strategies:
+  long_term_trend:
+    enabled: true
+    cadence: daily
+    universe: resolved_seed_pool
+    title: 中长期趋势雷达
+    params:
+      signal_threshold: 60
+      main_limit: 10
+      low_score_watch_limit: 5
+
+  short_term_setup:
+    enabled: false
+    cadence: daily
+    universe: active_a_share_pool
+    title: 短期交易雷达
+    params: {}
+
+  exit_alert:
+    enabled: false
+    cadence: daily
+    universe: watchlist
+    title: 卖点与减仓提醒
+    params: {}
+
+  deep_research:
+    enabled: false
+    cadence: weekly
+    universe: main_candidates
+    title: 深度复核
+    params: {}

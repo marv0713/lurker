@@ -1,6 +1,9 @@
 import argparse
+import json
 from datetime import date
 from pathlib import Path
+
+import yaml
 
 from lurker.application.price_snapshot import (
     FilePriceSnapshotStore,
@@ -10,6 +13,15 @@ from lurker.application.price_snapshot import (
     select_price_snapshot_rows,
 )
 from lurker.application.run_daily import run_daily
+from lurker.application.strategy_runner import (
+    StrategyContext,
+    build_default_strategy_configs,
+    load_strategy_configs,
+    parse_strategy_names,
+    render_strategy_results,
+    run_strategies,
+    select_strategy_configs,
+)
 from lurker.ingest.constituents import load_resolved_theme_seed_symbols
 from lurker.pipeline import rank_candidates
 from lurker.reports.daily_report import render_daily_report
@@ -34,6 +46,25 @@ def read_api_key_file(path: Path | None) -> str | None:
         return None
     key = path.read_text(encoding="utf-8").strip()
     return key or None
+
+
+def load_suppressed_symbols(path: Path | None) -> set[str]:
+    if path is None or not path.exists():
+        return set()
+
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if isinstance(data, list):
+        raw_symbols = data
+    elif isinstance(data, dict):
+        raw_symbols = data.get("symbols", [])
+    else:
+        raw_symbols = []
+
+    return {
+        str(symbol).strip().upper()
+        for symbol in raw_symbols
+        if str(symbol).strip()
+    }
 
 
 def build_demo_report(report_date: str) -> str:
@@ -163,6 +194,148 @@ def build_attributor(api_key: str | None, model: str | None, base_url: str | Non
     return StubAttributor()
 
 
+def build_candidate_history(
+    *,
+    report_date: str,
+    snapshot_path: Path,
+    report_path: Path,
+    snapshot_batch: dict,
+) -> dict:
+    observed_symbols = [
+        {
+            "symbol": snapshot.get("symbol"),
+            "market": snapshot.get("market"),
+            "latest_close": snapshot.get("latest_close"),
+            "returns": {
+                key: value
+                for key, value in snapshot.items()
+                if key.startswith("return_")
+            },
+        }
+        for snapshot in snapshot_batch.get("snapshots", [])
+    ]
+    return {
+        "schema_version": 1,
+        "report_date": report_date,
+        "snapshot_path": str(snapshot_path),
+        "report_path": str(report_path),
+        "markets": snapshot_batch.get("markets", []),
+        "windows": snapshot_batch.get("windows", []),
+        "observed_symbols": observed_symbols,
+        "failures": snapshot_batch.get("failures", []),
+    }
+
+
+def append_report_archive_index(
+    *,
+    report_dir: Path,
+    report_date: str,
+    report_path: Path,
+    candidates_path: Path,
+    snapshot_path: Path,
+    strategies: list[str],
+    markets: list[str],
+    windows: list[int],
+    snapshot_count: int,
+    failure_count: int,
+) -> Path:
+    report_dir.mkdir(parents=True, exist_ok=True)
+    index_path = report_dir / "index.json"
+    if index_path.exists():
+        index_data = json.loads(index_path.read_text(encoding="utf-8"))
+    else:
+        index_data = {"schema_version": 1, "reports": []}
+
+    entry = {
+        "date": report_date,
+        "report_path": str(report_path),
+        "candidates_path": str(candidates_path),
+        "snapshot_path": str(snapshot_path),
+        "strategies": strategies,
+        "markets": markets,
+        "windows": windows,
+        "snapshot_count": snapshot_count,
+        "failure_count": failure_count,
+    }
+    reports = [
+        report
+        for report in index_data.get("reports", [])
+        if report.get("date") != report_date
+    ]
+    reports.append(entry)
+    reports.sort(key=lambda report: report.get("date", ""))
+    index_data["schema_version"] = 1
+    index_data["reports"] = reports
+    index_path.write_text(
+        json.dumps(index_data, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return index_path
+
+
+def list_reports(*, report_dir: Path, limit: int = 10) -> str:
+    index_path = report_dir / "index.json"
+    if not index_path.exists():
+        return f"没有找到日报索引：{index_path}"
+
+    index_data = json.loads(index_path.read_text(encoding="utf-8"))
+    reports = sorted(
+        index_data.get("reports", []),
+        key=lambda report: report.get("date", ""),
+        reverse=True,
+    )[:limit]
+    if not reports:
+        return "日报索引为空。"
+
+    lines = ["| Date | Strategies | Snapshots | Failures | Report |", "|---|---|---:|---:|---|"]
+    for report in reports:
+        strategies = ", ".join(report.get("strategies", [])) or "-"
+        lines.append(
+            f"| {report.get('date', '-')} | {strategies} | "
+            f"{report.get('snapshot_count', 0)} | {report.get('failure_count', 0)} | "
+            f"{report.get('report_path', '-')} |"
+        )
+    return "\n".join(lines)
+
+
+def build_strategy_report(
+    *,
+    snapshot_batch: dict,
+    theme_mapping: dict[str, list[str]],
+    attributor,
+    report_date: str,
+    signal_threshold: int,
+    main_limit: int,
+    low_score_watch_limit: int,
+    suppressed_symbols: set[str],
+    strategy_config_path: Path | None,
+    strategy_names: list[str] | None,
+    strategy_cadence: str | None,
+) -> str:
+    configs = load_strategy_configs(strategy_config_path)
+    if not configs and strategy_names:
+        configs = build_default_strategy_configs(strategy_names)
+    selected_configs = select_strategy_configs(
+        configs,
+        names=strategy_names,
+        cadence=strategy_cadence,
+    )
+    context = StrategyContext(
+        snapshot_batch=snapshot_batch,
+        theme_mapping=theme_mapping,
+        report_date=report_date,
+        attributor=attributor,
+        suppressed_symbols=suppressed_symbols,
+        runtime_params={
+            "signal_threshold": signal_threshold,
+            "main_limit": main_limit,
+            "low_score_watch_limit": low_score_watch_limit,
+        },
+    )
+    results = run_strategies(context=context, configs=selected_configs)
+    return render_strategy_results(report_date=report_date, results=results)
+
+
 def daily_job(
     *,
     seed_pool_path: Path,
@@ -175,6 +348,11 @@ def daily_job(
     report_date: str | None = None,
     signal_threshold: int = 60,
     main_limit: int = 10,
+    low_score_watch_limit: int = 5,
+    suppressed_symbols_path: Path | None = None,
+    strategy_config_path: Path | None = None,
+    strategy_names: list[str] | None = None,
+    strategy_cadence: str | None = None,
     api_key: str | None = None,
     model: str | None = None,
     base_url: str | None = None,
@@ -193,22 +371,71 @@ def daily_job(
         snapshot_batch,
         snapshot_date=job_date,
     )
-    report = run_daily(
-        snapshot_batch=snapshot_batch,
-        theme_mapping=seed_pool.get("theme_mapping", {}),
-        attributor=build_attributor(api_key, model, base_url),
-        report_date=job_date,
-        signal_threshold=signal_threshold,
-        main_limit=main_limit,
-    )
+    attributor = build_attributor(api_key, model, base_url)
+    suppressed_symbols = load_suppressed_symbols(suppressed_symbols_path)
+    if strategy_config_path is None and strategy_names is None:
+        report = run_daily(
+            snapshot_batch=snapshot_batch,
+            theme_mapping=seed_pool.get("theme_mapping", {}),
+            attributor=attributor,
+            report_date=job_date,
+            signal_threshold=signal_threshold,
+            main_limit=main_limit,
+            low_score_watch_limit=low_score_watch_limit,
+            suppressed_symbols=suppressed_symbols,
+        )
+    else:
+        report = build_strategy_report(
+            snapshot_batch=snapshot_batch,
+            theme_mapping=seed_pool.get("theme_mapping", {}),
+            attributor=attributor,
+            report_date=job_date,
+            signal_threshold=signal_threshold,
+            main_limit=main_limit,
+            low_score_watch_limit=low_score_watch_limit,
+            suppressed_symbols=suppressed_symbols,
+            strategy_config_path=strategy_config_path,
+            strategy_names=strategy_names,
+            strategy_cadence=strategy_cadence,
+        )
     report_dir.mkdir(parents=True, exist_ok=True)
     report_path = report_dir / f"{job_date}.md"
     report_path.write_text(report.rstrip() + "\n", encoding="utf-8")
+    candidates_path = report_dir / f"{job_date}.candidates.json"
+    candidates_path.write_text(
+        json.dumps(
+            build_candidate_history(
+                report_date=job_date,
+                snapshot_path=snapshot_path,
+                report_path=report_path,
+                snapshot_batch=snapshot_batch,
+            ),
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    selected_strategies = strategy_names or ["long_term_trend"]
+    index_path = append_report_archive_index(
+        report_dir=report_dir,
+        report_date=job_date,
+        report_path=report_path,
+        candidates_path=candidates_path,
+        snapshot_path=snapshot_path,
+        strategies=selected_strategies,
+        markets=snapshot_batch.get("markets", markets),
+        windows=snapshot_batch.get("windows", windows),
+        snapshot_count=len(snapshot_batch["snapshots"]),
+        failure_count=len(snapshot_batch["failures"]),
+    )
 
     return (
         f"Wrote price snapshot to {snapshot_path} "
         f"(snapshots={len(snapshot_batch['snapshots'])}, failures={len(snapshot_batch['failures'])})\n"
-        f"Wrote daily report to {report_path}"
+        f"Wrote daily report to {report_path}\n"
+        f"Wrote candidate history to {candidates_path}\n"
+        f"Updated report archive index at {index_path}"
     )
 
 
@@ -230,6 +457,11 @@ def build_run_daily(
     report_date: str | None = None,
     signal_threshold: int = 60,
     main_limit: int = 10,
+    low_score_watch_limit: int = 5,
+    suppressed_symbols_path: Path | None = None,
+    strategy_config_path: Path | None = None,
+    strategy_names: list[str] | None = None,
+    strategy_cadence: str | None = None,
     api_key: str | None = None,
     model: str | None = None,
     base_url: str | None = None,
@@ -245,13 +477,31 @@ def build_run_daily(
         pool_data = json.loads(seed_pool.read_text(encoding="utf-8"))
         theme_mapping = pool_data.get("theme_mapping", {})
 
-    return run_daily(
+    attributor = build_attributor(api_key, model, base_url)
+    suppressed_symbols = load_suppressed_symbols(suppressed_symbols_path)
+    if strategy_config_path is None and strategy_names is None:
+        return run_daily(
+            snapshot_batch=snapshot_batch,
+            attributor=attributor,
+            theme_mapping=theme_mapping,
+            report_date=report_date,
+            signal_threshold=signal_threshold,
+            main_limit=main_limit,
+            low_score_watch_limit=low_score_watch_limit,
+            suppressed_symbols=suppressed_symbols,
+        )
+    return build_strategy_report(
         snapshot_batch=snapshot_batch,
-        attributor=build_attributor(api_key, model, base_url),
         theme_mapping=theme_mapping,
-        report_date=report_date,
+        attributor=attributor,
+        report_date=report_date or date.today().isoformat(),
         signal_threshold=signal_threshold,
         main_limit=main_limit,
+        low_score_watch_limit=low_score_watch_limit,
+        suppressed_symbols=suppressed_symbols,
+        strategy_config_path=strategy_config_path,
+        strategy_names=strategy_names,
+        strategy_cadence=strategy_cadence,
     )
 
 
@@ -310,6 +560,34 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=10,
         help="主候选最大条数（默认 10）",
+    )
+    run_daily_cmd.add_argument(
+        "--low-score-watch-limit",
+        type=int,
+        default=5,
+        help="低分观察样本最大条数（默认 5）",
+    )
+    run_daily_cmd.add_argument(
+        "--suppressed-symbols",
+        type=Path,
+        default=ROOT / "configs" / "suppressed_symbols.yaml",
+        help="本地屏蔽标的 YAML（默认 configs/suppressed_symbols.yaml）",
+    )
+    run_daily_cmd.add_argument(
+        "--strategy-config",
+        type=Path,
+        default=ROOT / "configs" / "strategies.yaml",
+        help="策略配置 YAML（默认 configs/strategies.yaml）",
+    )
+    run_daily_cmd.add_argument(
+        "--strategies",
+        default=None,
+        help="只运行指定策略，逗号分隔；默认运行配置中启用且符合 cadence 的策略",
+    )
+    run_daily_cmd.add_argument(
+        "--cadence",
+        default="daily",
+        help="运行指定频率的策略；传 all 可忽略频率过滤",
     )
     run_daily_cmd.add_argument(
         "--api-key",
@@ -376,6 +654,19 @@ def build_parser() -> argparse.ArgumentParser:
     daily.add_argument("--date", default=None, help="报告日期，默认 today")
     daily.add_argument("--signal-threshold", type=int, default=60)
     daily.add_argument("--main-limit", type=int, default=10)
+    daily.add_argument("--low-score-watch-limit", type=int, default=5)
+    daily.add_argument(
+        "--suppressed-symbols",
+        type=Path,
+        default=ROOT / "configs" / "suppressed_symbols.yaml",
+    )
+    daily.add_argument(
+        "--strategy-config",
+        type=Path,
+        default=ROOT / "configs" / "strategies.yaml",
+    )
+    daily.add_argument("--strategies", default=None)
+    daily.add_argument("--cadence", default="daily")
     daily.add_argument("--api-key", default=None)
     daily.add_argument(
         "--api-key-file",
@@ -384,6 +675,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     daily.add_argument("--model", default=None)
     daily.add_argument("--base-url", default=None)
+
+    list_reports_cmd = subparsers.add_parser(
+        "list-reports",
+        help="列出已归档的每日日报",
+    )
+    list_reports_cmd.add_argument(
+        "--report-dir",
+        type=Path,
+        default=ROOT / "data" / "reports",
+    )
+    list_reports_cmd.add_argument("--limit", type=int, default=10)
 
     return parser
 
@@ -419,6 +721,11 @@ def main() -> None:
                 report_date=args.date,
                 signal_threshold=args.signal_threshold,
                 main_limit=args.main_limit,
+                low_score_watch_limit=args.low_score_watch_limit,
+                suppressed_symbols_path=args.suppressed_symbols,
+                strategy_config_path=args.strategy_config,
+                strategy_names=parse_strategy_names(args.strategies),
+                strategy_cadence=None if args.cadence == "all" else args.cadence,
                 api_key=api_key,
                 model=args.model,
                 base_url=args.base_url,
@@ -454,11 +761,20 @@ def main() -> None:
                 report_date=args.date,
                 signal_threshold=args.signal_threshold,
                 main_limit=args.main_limit,
+                low_score_watch_limit=args.low_score_watch_limit,
+                suppressed_symbols_path=args.suppressed_symbols,
+                strategy_config_path=args.strategy_config,
+                strategy_names=parse_strategy_names(args.strategies),
+                strategy_cadence=None if args.cadence == "all" else args.cadence,
                 api_key=api_key,
                 model=args.model,
                 base_url=args.base_url,
             )
         )
+        return
+
+    if args.command == "list-reports":
+        print(list_reports(report_dir=args.report_dir, limit=args.limit))
         return
 
     print(build_demo_report(report_date="2026-05-17"))

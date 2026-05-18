@@ -395,6 +395,87 @@
   - `data/processed/price_snapshots/2026-05-17.json`
   - `data/reports/2026-05-17.md`
 
+### 阶段 20：低分观察样本与候选历史
+- **状态：** complete
+- 执行的操作：
+  - 用户确认先不做常驻 agent、feedback 和 IM 推送，改为每天手动运行日报并与 Codex 复盘。
+  - 2026-05-18 正式运行 `daily-job`：`snapshots=30, failures=1`，`signal_threshold=50` 下无主候选。
+  - 使用同一快照将 `signal_threshold` 降到 15 复跑，`300308.SZ` 和 `300054.SZ` 进入信号扫描，但综合分仅 `14.2`，因低于 50 进入 archive，不展示。
+  - 明确阶段 20 最小目标：日报增加“低分观察样本”，并保存每日候选/观察样本 JSON，为后续重复推送控制铺底。
+  - `run_daily()` 新增 `low_score_watch_limit`，从 `ranked["archive"]` 中选取低分观察样本进入日报。
+  - `render_daily_report()` 新增“低分观察样本”章节。
+  - `daily-job` 新增 `YYYY-MM-DD.candidates.json`，记录本次观察标的、收益窗口、失败项、快照路径和报告路径。
+  - CLI 新增 `--low-score-watch-limit`，手动跑日报时可调整低分观察样本数量。
+  - 用 2026-05-18 快照复跑 `run-daily --signal-threshold 15 --low-score-watch-limit 5`，日报已显示 `300054.SZ` 和 `300308.SZ` 两条低分观察样本。
+- 创建/修改的文件：
+  - `README.md`
+  - `src/lurker/application/run_daily.py`
+  - `src/lurker/reports/daily_report.py`
+  - `src/lurker/cli.py`
+  - `tests/test_run_daily.py`
+  - `tests/test_cli.py`
+  - `task_plan.md`
+  - `progress.md`
+
+### 阶段 21：本地屏蔽列表
+- **状态：** complete
+- 执行的操作：
+  - 新增 `configs/suppressed_symbols.yaml`，默认空列表，用于记录“不再展示”的标的。
+  - `run_daily()` 新增 `suppressed_symbols`，对主候选、次级线索和低分观察样本统一过滤。
+  - 被过滤的标的不会出现在候选展示行里，日报会在“观察池变化”提示本地屏蔽列表已隐藏若干条。
+  - CLI 新增 `--suppressed-symbols`，`run-daily` 和 `daily-job` 默认读取 `configs/suppressed_symbols.yaml`。
+  - README 增加本地屏蔽列表用法。
+  - 用 2026-05-18 快照和临时屏蔽文件复跑，`300308.SZ` 已从低分观察样本中隐藏，日报保留“本地屏蔽列表已隐藏 1 条”提示。
+- 创建/修改的文件：
+  - `configs/suppressed_symbols.yaml`
+  - `README.md`
+  - `src/lurker/application/run_daily.py`
+  - `src/lurker/cli.py`
+  - `tests/test_run_daily.py`
+  - `tests/test_cli.py`
+  - `task_plan.md`
+  - `findings.md`
+  - `progress.md`
+
+### 阶段 22：多策略框架
+- **状态：** complete
+- 执行的操作：
+  - 新增 `configs/strategies.yaml`，将 `long_term_trend` 设为启用的 daily 策略。
+  - 在配置中注册 `short_term_setup`、`exit_alert`、`deep_research` 三个禁用占位策略，后续可逐步实现。
+  - 新增 `src/lurker/application/strategy_runner.py`，包含 `StrategyConfig`、`StrategyContext`、`StrategyResult`、配置加载、策略选择、运行器和多策略报告拼装。
+  - 将现有中长期趋势日报包成 `LongTermTrendStrategy`，复用 `run_daily()`，不改变现有评分和报告逻辑。
+  - CLI 新增 `--strategy-config`、`--strategies`、`--cadence`，命令行默认读取 `configs/strategies.yaml`。
+  - `daily_job()` / `build_run_daily()` 保持函数直接调用的旧路径兼容；当传入策略配置或策略名时走多策略框架。
+  - README 增加策略配置和选择运行说明。
+  - 用 2026-05-18 快照运行 `run-daily --strategies long_term_trend --cadence daily`，策略框架下仍输出原有中长期趋势日报结构。
+- 创建/修改的文件：
+  - `configs/strategies.yaml`
+  - `README.md`
+  - `src/lurker/application/strategy_runner.py`
+  - `src/lurker/cli.py`
+  - `tests/test_strategy_runner.py`
+  - `tests/test_cli.py`
+  - `task_plan.md`
+  - `findings.md`
+  - `progress.md`
+
+### 阶段 24：日报归档索引
+- **状态：** complete
+- 执行的操作：
+  - 新增 `append_report_archive_index()`，`daily-job` 写完日报和候选历史后同步更新 `data/reports/index.json`。
+  - 索引记录 `date`、`report_path`、`candidates_path`、`snapshot_path`、`strategies`、`markets`、`windows`、`snapshot_count`、`failure_count`。
+  - 索引按日期 upsert，重复运行同一天会更新同一条记录，不会堆重复项。
+  - 新增 `list_reports()` 和 CLI 命令 `lurker list-reports --limit N`，用于查看最近归档日报。
+  - README 增加归档索引和查看日报命令说明。
+  - 用 2026-05-18 已生成日报写入真实 `data/reports/index.json`，并验证 `lurker list-reports --limit 5` 可列出该日报。
+- 创建/修改的文件：
+  - `README.md`
+  - `src/lurker/cli.py`
+  - `tests/test_cli.py`
+  - `task_plan.md`
+  - `findings.md`
+  - `progress.md`
+
 ## 错误日志
 | 时间戳 | 错误 | 尝试次数 | 解决方案 |
 |--------|------|---------|---------|
@@ -422,18 +503,33 @@
 | run_daily 无信号 | 空快照 | 日报含「无个股触发」提示 | 通过 | pass |
 | run_daily 有强势信号 | 高涨幅快照，threshold=0 | 日报含「主候选」区 | 通过 | pass |
 | run_daily failures 提醒 | 含 failures 的批次 | 风险提醒含失败数量 | 通过 | pass |
-| 全量测试 | `.venv/bin/python -m pytest -q` | 通过 | 83 passed | pass |
+| 全量测试 | `.venv/bin/python -m pytest -q` | 通过 | 84 passed | pass |
 | Lint 检查 | `.venv/bin/python -m ruff check src tests` | 通过 | All checks passed | pass |
 | 真实端到端链路 | `refresh-prices --markets us,hk --limit 3` 后运行 `run-daily` | 日报正常输出 | snapshots=6, failures=0，日报正常 | pass |
 | 每日闭环小样本 | `lurker daily-job --markets cn,us,hk --limit 1 --period 6mo --windows 20,60,120 --signal-threshold 0 --main-limit 3 --api-key-file tests/key --date 2026-05-17` | 写入快照和日报，失败进入风险提醒 | snapshots=2, failures=1，日报已落盘 | pass |
 | A 股多源兜底验证 | `fetch_cn_prices("300308.SZ", "6mo")` | Eastmoney 失败时仍返回日线 | BaoStock 兜底成功，返回 118 行 | pass |
 | 多源每日闭环复跑 | `lurker daily-job --markets cn,us,hk --limit 1 --period 6mo --windows 20,60,120 --signal-threshold 0 --main-limit 3 --api-key-file tests/key --date 2026-05-17` | A 股失败被兜底 | snapshots=3, failures=0 | pass |
+| 低分观察样本 | archive 中含低分线索，`low_score_watch_limit=2` | 日报出现“低分观察样本”并列出标的 | 通过 | pass |
+| 候选历史 JSON | `daily-job` 写日报 | 同日 `.candidates.json` 写入观察标的 | 通过 | pass |
+| 2026-05-18 低阈值真实复跑 | `run-daily --signal-threshold 15 --low-score-watch-limit 5` | 低分观察样本显示真实标的 | `300054.SZ`、`300308.SZ` 已显示 | pass |
+| 本地屏蔽列表 | `suppressed_symbols={"300308.SZ"}` | 候选展示行不出现该标的，并提示本地屏蔽 | 通过 | pass |
+| 屏蔽 YAML 读取 | `configs/suppressed_symbols.yaml` 风格输入 | 标准化为大写 symbol 集合 | 通过 | pass |
+| 2026-05-18 屏蔽真实复跑 | 临时屏蔽 `300308.SZ` 后运行低阈值日报 | 低分观察样本隐藏该标的 | 只剩 `300054.SZ`，并提示隐藏 1 条 | pass |
+| 策略配置加载 | `configs/strategies.yaml` 风格输入 | 解析为 StrategyConfig | 通过 | pass |
+| 策略选择 | enabled/name/cadence 组合 | 只选择应运行策略 | 通过 | pass |
+| 多策略报告拼装 | 多个 StrategyResult | 输出多策略日报结构 | 通过 | pass |
+| CLI 策略入口 | `run-daily` 默认参数 | 包含 `strategies.yaml` 和 cadence | 通过 | pass |
+| 2026-05-18 策略真实复跑 | `run-daily --strategies long_term_trend --cadence daily` | 保持原有中长期日报结构 | 已生成 `2026-05-18-strategy-long-term.md` | pass |
+| 日报归档索引 | 同一天重复 append | upsert 同一条记录 | 通过 | pass |
+| 日报列表 | `list-reports --limit 1` | 只显示最近一条 | 通过 | pass |
+| daily-job 索引写入 | 写日报和 candidates 后 | 同步生成 `index.json` | 通过 | pass |
+| 真实归档列表 | 写入 2026-05-18 索引后运行 `lurker list-reports --limit 5` | 列出 2026-05-18 日报 | 通过 | pass |
 
 ## 五问重启检查
 | 问题 | 答案 |
 |------|------|
-| 我在哪里？ | 阶段 19 完成。A 股行情已从 AkShare 单源升级为 `Tushare -> AkShare/Eastmoney -> BaoStock` 多源 fallback；每日小样本闭环已做到 `failures=0`。 |
-| 我要去哪里？ | 下一步优先：配置 Tushare token 作为稳定主源，或继续做推送和候选历史复盘。 |
+| 我在哪里？ | 阶段 24 已完成。日报现在有按日文件和 `data/reports/index.json` 归档索引，可用 `lurker list-reports` 查看。 |
+| 我要去哪里？ | 下一步：实现短期交易雷达的股票池，例如 active A 股池，再接突破/回踩/卖点扫描策略。 |
 | 目标是什么？ | 构建本地自用的大趋势投资雷达 MVP，先验证发现异动趋势候选能力 |
 | 我学到了什么？ | 见 `findings.md` |
 | 我做了什么？ | 见上方阶段日志 |

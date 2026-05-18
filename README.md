@@ -36,7 +36,7 @@ The local `key` file, `.env`, generated snapshots, and generated reports are ign
 - US and HK curated pools for anchor validation and cross-market mapping
 - Stock strength, double-bagger, sector breadth, and candidate ranking
 - AI attribution only after deterministic rules trigger a candidate
-- Daily report with main candidates, secondary leads, and watchlist changes
+- Daily report with main candidates, secondary leads, low-score watch samples, and watchlist changes
 
 ## Run demo report
 
@@ -75,15 +75,50 @@ Price snapshots are stored under `data/processed/price_snapshots/YYYY-MM-DD.json
 Generate the daily report from local snapshots. If `--api-key` and `GEMINI_API_KEY` are not set, the CLI reads a local `key` file in the project root and uses Gemini's OpenAI-compatible endpoint with `gemini-2.5-flash` by default:
 
 ```bash
-.venv/bin/lurker run-daily --signal-threshold 0 --main-limit 10
+.venv/bin/lurker run-daily --signal-threshold 0 --main-limit 10 --low-score-watch-limit 5
 ```
 
 The `key` file is local-only and ignored by git.
 
-Run the full local daily loop, refreshing price snapshots and writing the Markdown report to `data/reports/YYYY-MM-DD.md`:
+To hide symbols you no longer want to see in the report, add them to `configs/suppressed_symbols.yaml`:
+
+```yaml
+symbols:
+  - 300308.SZ
+```
+
+The daily report will remove those symbols from main candidates, secondary leads, and low-score watch samples, while noting that local suppression was applied.
+
+Run the full local daily loop, refreshing price snapshots and writing the Markdown report to `data/reports/YYYY-MM-DD.md` plus a structured observation history at `data/reports/YYYY-MM-DD.candidates.json`:
 
 ```bash
-.venv/bin/lurker daily-job --markets cn,us,hk --limit 5 --period 6mo --windows 20,60,120
+.venv/bin/lurker daily-job --markets cn,us,hk --limit 5 --period 6mo --windows 20,60,120 --low-score-watch-limit 5 --suppressed-symbols configs/suppressed_symbols.yaml
+```
+
+When the signal threshold is lowered, weak early clues that still fail candidate ranking are shown under `低分观察样本`. They are for manual review and later duplicate-control history, not buy recommendations.
+
+`daily-job` also updates `data/reports/index.json`, which is a lightweight archive index for daily review.
+
+List recent archived reports:
+
+```bash
+.venv/bin/lurker list-reports --limit 10
+```
+
+## Strategies
+
+Daily report generation now goes through `configs/strategies.yaml` when using the CLI. The first implemented strategy is `long_term_trend`; short-term setup, exit alerts, and deep research are registered as disabled placeholders so they can be added without rewriting the daily pipeline.
+
+Run only selected strategies:
+
+```bash
+.venv/bin/lurker run-daily --strategies long_term_trend --cadence daily
+```
+
+Ignore cadence and run selected strategies directly:
+
+```bash
+.venv/bin/lurker run-daily --strategies long_term_trend --cadence all
 ```
 
 ## Local schedule
