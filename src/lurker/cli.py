@@ -200,10 +200,12 @@ def build_candidate_history(
     snapshot_path: Path,
     report_path: Path,
     snapshot_batch: dict,
+    symbol_names: dict[str, str] | None = None,
 ) -> dict:
     observed_symbols = [
         {
             "symbol": snapshot.get("symbol"),
+            "name": (symbol_names or {}).get(str(snapshot.get("symbol", "")).upper()),
             "market": snapshot.get("market"),
             "latest_close": snapshot.get("latest_close"),
             "returns": {
@@ -302,6 +304,7 @@ def build_strategy_report(
     *,
     snapshot_batch: dict,
     theme_mapping: dict[str, list[str]],
+    symbol_names: dict[str, str],
     attributor,
     report_date: str,
     signal_threshold: int,
@@ -323,6 +326,7 @@ def build_strategy_report(
     context = StrategyContext(
         snapshot_batch=snapshot_batch,
         theme_mapping=theme_mapping,
+        symbol_names=symbol_names,
         report_date=report_date,
         attributor=attributor,
         suppressed_symbols=suppressed_symbols,
@@ -373,10 +377,12 @@ def daily_job(
     )
     attributor = build_attributor(api_key, model, base_url)
     suppressed_symbols = load_suppressed_symbols(suppressed_symbols_path)
+    symbol_names = seed_pool.get("symbol_names", {})
     if strategy_config_path is None and strategy_names is None:
         report = run_daily(
             snapshot_batch=snapshot_batch,
             theme_mapping=seed_pool.get("theme_mapping", {}),
+            symbol_names=symbol_names,
             attributor=attributor,
             report_date=job_date,
             signal_threshold=signal_threshold,
@@ -388,6 +394,7 @@ def daily_job(
         report = build_strategy_report(
             snapshot_batch=snapshot_batch,
             theme_mapping=seed_pool.get("theme_mapping", {}),
+            symbol_names=symbol_names,
             attributor=attributor,
             report_date=job_date,
             signal_threshold=signal_threshold,
@@ -409,6 +416,7 @@ def daily_job(
                 snapshot_path=snapshot_path,
                 report_path=report_path,
                 snapshot_batch=snapshot_batch,
+                symbol_names=symbol_names,
             ),
             ensure_ascii=False,
             indent=2,
@@ -472,10 +480,12 @@ def build_run_daily(
         return "没有找到本地行情快照，请先运行 `lurker refresh-prices`。"
 
     theme_mapping = {}
+    symbol_names = {}
     if seed_pool and seed_pool.exists():
         import json
         pool_data = json.loads(seed_pool.read_text(encoding="utf-8"))
         theme_mapping = pool_data.get("theme_mapping", {})
+        symbol_names = pool_data.get("symbol_names", {})
 
     attributor = build_attributor(api_key, model, base_url)
     suppressed_symbols = load_suppressed_symbols(suppressed_symbols_path)
@@ -484,6 +494,7 @@ def build_run_daily(
             snapshot_batch=snapshot_batch,
             attributor=attributor,
             theme_mapping=theme_mapping,
+            symbol_names=symbol_names,
             report_date=report_date,
             signal_threshold=signal_threshold,
             main_limit=main_limit,
@@ -493,6 +504,7 @@ def build_run_daily(
     return build_strategy_report(
         snapshot_batch=snapshot_batch,
         theme_mapping=theme_mapping,
+        symbol_names=symbol_names,
         attributor=attributor,
         report_date=report_date or date.today().isoformat(),
         signal_threshold=signal_threshold,

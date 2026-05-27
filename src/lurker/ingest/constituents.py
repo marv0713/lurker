@@ -11,6 +11,7 @@ from lurker.universe.seed_pool import build_seed_symbols, collect_seed_sources
 CnIndexFetcher = Callable[[str], pd.DataFrame]
 CnIndexResolver = Callable[[str], list[str]]
 CnEtfResolver = Callable[[str], list[str]]
+CnSymbolNameResolver = Callable[[list[str]], dict[str, str]]
 
 CN_INDEX_SOURCES: dict[str, tuple[str, str]] = {
     "沪深300": ("csindex", "000300"),
@@ -64,6 +65,37 @@ def normalize_cn_index_constituents(raw: pd.DataFrame) -> list[str]:
     if "代码" in raw.columns:
         return sorted({format_cn_stock_symbol(code) for code in raw["代码"]})
     raise ValueError(f"Unsupported CN index constituent columns: {list(raw.columns)}")
+
+
+def resolve_cn_symbol_names(
+    symbols: list[str],
+    *,
+    fetcher: Callable[[], pd.DataFrame] = ak.stock_info_a_code_name,
+) -> dict[str, str]:
+    if not symbols:
+        return {}
+
+    try:
+        raw = fetcher()
+    except Exception:
+        return {}
+
+    if raw.empty:
+        return {}
+
+    code_column = "code" if "code" in raw.columns else "代码" if "代码" in raw.columns else None
+    name_column = "name" if "name" in raw.columns else "名称" if "名称" in raw.columns else None
+    if code_column is None or name_column is None:
+        return {}
+
+    wanted = {symbol.upper() for symbol in symbols}
+    names: dict[str, str] = {}
+    for _, row in raw.iterrows():
+        symbol = format_cn_stock_symbol(str(row[code_column])).upper()
+        name = str(row[name_column]).strip()
+        if symbol in wanted and name:
+            names[symbol] = name
+    return names
 
 
 def resolve_cn_index_constituents(

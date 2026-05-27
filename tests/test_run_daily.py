@@ -184,6 +184,53 @@ def test_run_daily_shows_low_score_watch_samples_from_archive():
     assert "低分观察" in report
 
 
+def test_run_daily_shows_symbol_name_in_watch_samples():
+    snapshots = [
+        {
+            "symbol": "300308.SZ",
+            "market": "cn",
+            "latest_close": 100.0,
+            "return_20d": 0.40,
+            "return_60d": 0.80,
+            "return_180d": 0.32,
+        },
+        {
+            "symbol": "300054.SZ",
+            "market": "cn",
+            "latest_close": 100.0,
+            "return_20d": 0.35,
+            "return_60d": 0.60,
+            "return_180d": 0.31,
+        },
+        {
+            "symbol": "300003.SZ",
+            "market": "cn",
+            "latest_close": 100.0,
+            "return_20d": -0.20,
+            "return_60d": -0.30,
+            "return_180d": -0.10,
+        },
+    ]
+    batch = {
+        "generated_at": "2026-05-18T00:00:00+00:00",
+        "markets": ["cn"],
+        "windows": [20, 60, 180],
+        "snapshots": snapshots,
+        "failures": [],
+    }
+
+    report = run_daily(
+        snapshot_batch=batch,
+        attributor=StubAttributor(),
+        report_date="2026-05-18",
+        signal_threshold=15,
+        low_score_watch_limit=1,
+        symbol_names={"300308.SZ": "中际旭创"},
+    )
+
+    assert "中际旭创 (300308.SZ, CN)" in report
+
+
 def test_run_daily_hides_suppressed_symbols_from_watch_samples():
     snapshots = [
         {

@@ -41,6 +41,39 @@ themes:
     assert pool["markets"]["us"]["symbols"] == ["NVDA"]
 
 
+def test_build_resolved_seed_pool_includes_symbol_names(tmp_path):
+    themes_path = tmp_path / "themes.yaml"
+    themes_path.write_text(
+        """
+themes:
+  - id: ai_infra
+    markets:
+      cn:
+        seed_indexes: [创业板指]
+        seed_symbols: [300308.SZ]
+      us:
+        seed_symbols: [NVDA]
+""",
+        encoding="utf-8",
+    )
+
+    pool = build_resolved_seed_pool(
+        themes_path,
+        generated_at="2026-05-17T12:00:00+00:00",
+        cn_index_resolver=lambda index_name: ["300502.SZ"] if index_name == "创业板指" else [],
+        cn_etf_resolver=lambda etf_name: [],
+        cn_symbol_name_resolver=lambda symbols: {
+            "300308.SZ": "中际旭创",
+            "300502.SZ": "新易盛",
+        },
+    )
+
+    assert pool["symbol_names"] == {
+        "300308.SZ": "中际旭创",
+        "300502.SZ": "新易盛",
+    }
+
+
 def test_save_and_load_resolved_seed_pool(tmp_path):
     path = tmp_path / "resolved_seed_pool.json"
     pool = {

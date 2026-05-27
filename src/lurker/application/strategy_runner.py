@@ -24,6 +24,7 @@ class StrategyContext:
     report_date: str | None
     attributor: Any
     suppressed_symbols: set[str]
+    symbol_names: dict[str, str] = field(default_factory=dict)
     runtime_params: dict[str, Any] = field(default_factory=dict)
 
 
@@ -144,6 +145,7 @@ class LongTermTrendStrategy:
         markdown = run_daily(
             snapshot_batch=context.snapshot_batch,
             theme_mapping=context.theme_mapping,
+            symbol_names=context.symbol_names,
             attributor=context.attributor,
             report_date=context.report_date,
             signal_threshold=int(params.get("signal_threshold", 60)),

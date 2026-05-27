@@ -5,9 +5,11 @@ from typing import Any
 
 from lurker.ingest.constituents import (
     CnIndexResolver,
+    CnSymbolNameResolver,
     load_theme_seed_sources,
     resolve_cn_index_constituents,
     resolve_cn_etf_constituents,
+    resolve_cn_symbol_names,
 )
 
 CnEtfResolver = Any # Can type properly if needed
@@ -33,6 +35,7 @@ def build_resolved_seed_pool(
     generated_at: str | None = None,
     cn_index_resolver: CnIndexResolver = resolve_cn_index_constituents,
     cn_etf_resolver: Any = resolve_cn_etf_constituents,
+    cn_symbol_name_resolver: CnSymbolNameResolver = resolve_cn_symbol_names,
 ) -> ResolvedSeedPool:
     from lurker.config import load_themes
     themes = load_themes(themes_path)
@@ -98,10 +101,14 @@ def build_resolved_seed_pool(
     for symbol in theme_mapping:
         theme_mapping[symbol] = sorted(list(set(theme_mapping[symbol])))
 
+    cn_symbols = markets.get("cn", {}).get("symbols", [])
+    symbol_names = cn_symbol_name_resolver(cn_symbols) if cn_symbols else {}
+
     return {
         "generated_at": generated_at or datetime.now(UTC).isoformat(),
         "markets": markets,
         "theme_mapping": theme_mapping,
+        "symbol_names": symbol_names,
     }
 
 

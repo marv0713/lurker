@@ -70,10 +70,20 @@ def _filter_suppressed_candidates(
     return filtered, [f"本地屏蔽列表已隐藏 {len(hidden_symbols)} 条：{symbols_text}"]
 
 
+def _display_symbol(symbol: str, market: str, symbol_names: dict[str, str] | None = None) -> str:
+    normalized_symbol = symbol.upper()
+    name = (symbol_names or {}).get(normalized_symbol)
+    market_text = market.upper()
+    if name:
+        return f"{name} ({symbol}, {market_text})"
+    return f"{symbol} ({market_text})"
+
+
 def _build_candidate(
     signal: StockSignal,
     ai_score: int,
     attribution_summary: str,
+    symbol_names: dict[str, str] | None = None,
     theme_id: str | None = None,
     sector_score: int | None = None,
 ) -> dict:
@@ -87,6 +97,7 @@ def _build_candidate(
         "ai_recommendation": "观察",  # StubAttributor 下默认"观察"，真实 LLM 后从归因映射
         # 额外字段，供报告渲染使用
         "symbol": signal.symbol,
+        "name": (symbol_names or {}).get(signal.symbol.upper()),
         "market": signal.market,
         "double_bagger_class": signal.double_bagger_class,
         "attribution_summary": attribution_summary,
@@ -104,6 +115,7 @@ def run_daily(
     main_limit: int = 10,
     low_score_watch_limit: int = 5,
     suppressed_symbols: set[str] | list[str] | None = None,
+    symbol_names: dict[str, str] | None = None,
 ) -> str:
     """执行每日完整 pipeline，返回 Markdown 日报字符串。
 
@@ -176,6 +188,7 @@ def run_daily(
             signal,
             ai_score,
             attribution_result.reason_summary,
+            symbol_names=symbol_names,
             theme_id=best_theme,
             sector_score=best_sector_score,
         )
@@ -200,7 +213,7 @@ def run_daily(
             for k, v in c.get("returns", {}).items()
         ]
         card = render_trend_card(
-            theme=f"{c['symbol']} ({c['market'].upper()})",
+            theme=_display_symbol(c["symbol"], c["market"], symbol_names),
             status="主候选",
             stage="发现",
             total_score=c["total_score"],
@@ -214,13 +227,16 @@ def run_daily(
 
     # Step 5: 次级线索
     secondary_leads: list[str] = [
-        f"{c['symbol']} ({c['market'].upper()})：总分 {c['total_score']}，{c['ai_recommendation']}，保留观察"
+        (
+            f"{_display_symbol(c['symbol'], c['market'], symbol_names)}："
+            f"总分 {c['total_score']}，{c['ai_recommendation']}，保留观察"
+        )
         for c in ranked["secondary"]
     ]
 
     low_score_watch_samples: list[str] = [
         (
-            f"{c['symbol']} ({c['market'].upper()})：总分 {c['total_score']}，"
+            f"{_display_symbol(c['symbol'], c['market'], symbol_names)}：总分 {c['total_score']}，"
             f"个股分 {c['stock_score']}，{c['ai_recommendation']}，低分观察"
         )
         for c in ranked["archive"][:low_score_watch_limit]

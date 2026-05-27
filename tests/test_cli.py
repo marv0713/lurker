@@ -187,6 +187,7 @@ def test_build_strategy_report_runs_enabled_long_term_strategy():
     report = build_strategy_report(
         snapshot_batch={"markets": ["cn"], "windows": [20], "snapshots": [], "failures": []},
         theme_mapping={},
+        symbol_names={},
         attributor=None,
         report_date="2026-05-18",
         signal_threshold=60,
@@ -314,6 +315,60 @@ def test_daily_job_refreshes_prices_and_writes_report(monkeypatch, tmp_path):
     index_path = report_dir / "index.json"
     assert index_path.exists()
     assert "2026-05-17" in index_path.read_text(encoding="utf-8")
+
+
+def test_daily_job_candidate_history_includes_symbol_names(monkeypatch, tmp_path):
+    seed_pool_path = tmp_path / "resolved_seed_pool.json"
+    seed_pool_path.write_text(
+        """
+{
+  "generated_at": "2026-05-16T12:00:00+00:00",
+  "theme_mapping": {"300308.SZ": ["ai_infra"]},
+  "symbol_names": {"300308.SZ": "中际旭创"},
+  "markets": {
+    "cn": {
+      "symbols": ["300308.SZ"],
+      "sources": {}
+    }
+  }
+}
+""",
+        encoding="utf-8",
+    )
+    price_snapshot_dir = tmp_path / "price_snapshots"
+    report_dir = tmp_path / "reports"
+
+    def fake_collector(**kwargs):
+        return {
+            "generated_at": "2026-05-17T12:00:00+00:00",
+            "seed_pool_generated_at": "2026-05-16T12:00:00+00:00",
+            "markets": ["cn"],
+            "windows": [20],
+            "snapshots": [{"symbol": "300308.SZ", "market": "cn", "latest_close": 140.0}],
+            "failures": [],
+        }
+
+    def fake_run_daily(**kwargs):
+        assert kwargs["symbol_names"] == {"300308.SZ": "中际旭创"}
+        return "# 大趋势雷达日报\n\n日报内容"
+
+    monkeypatch.setattr("lurker.cli.collect_price_snapshot_batch", fake_collector)
+    monkeypatch.setattr("lurker.cli.run_daily", fake_run_daily)
+
+    daily_job(
+        seed_pool_path=seed_pool_path,
+        price_snapshot_dir=price_snapshot_dir,
+        report_dir=report_dir,
+        markets=["cn"],
+        windows=[20],
+        period="6mo",
+        limit_per_market=1,
+        report_date="2026-05-17",
+        strategy_config_path=None,
+    )
+
+    history = json.loads((report_dir / "2026-05-17.candidates.json").read_text(encoding="utf-8"))
+    assert history["observed_symbols"][0]["name"] == "中际旭创"
 
 
 def test_append_report_archive_index_upserts_by_date(tmp_path):
