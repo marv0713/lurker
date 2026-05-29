@@ -64,6 +64,8 @@ def test_select_strategy_configs_filters_enabled_names_and_cadence():
     )
 
 
+from lurker.reports.models import DailyReport
+
 def test_render_strategy_results_composes_multiple_sections():
     report = render_strategy_results(
         report_date="2026-05-18",
@@ -71,20 +73,19 @@ def test_render_strategy_results_composes_multiple_sections():
             StrategyResult(
                 name="long_term_trend",
                 title="中长期趋势雷达",
-                markdown="## 今日主候选\n\n- A",
+                report=DailyReport(report_date="2026-05-18", main_candidates_count=0, content_md="## 今日主候选\n\n- A"),
             ),
             StrategyResult(
                 name="short_term_setup",
                 title="短期交易雷达",
-                markdown="## 买点观察\n\n- B",
+                report=DailyReport(report_date="2026-05-18", main_candidates_count=0, content_md="## 买点观察\n\n- B"),
             ),
         ],
     )
-
-    assert "# 多策略雷达日报" in report
-    assert "## 中长期趋势雷达" in report
-    assert "## 短期交易雷达" in report
-    assert "## 今日主候选" in report
+    assert "## 中长期趋势雷达" in report.content_md
+    assert "## 短期交易雷达" in report.content_md
+    assert "- A" in report.content_md
+    assert "- B" in report.content_md
 
 
 def test_strategy_context_carries_shared_runtime_inputs():

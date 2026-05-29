@@ -28,11 +28,13 @@ class StrategyContext:
     runtime_params: dict[str, Any] = field(default_factory=dict)
 
 
+from lurker.reports.models import DailyReport
+
 @dataclass
 class StrategyResult:
     name: str
     title: str
-    markdown: str
+    report: DailyReport
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -110,29 +112,29 @@ def _strip_report_title(markdown: str) -> str:
     return markdown.strip()
 
 
-def render_strategy_results(report_date: str, results: list[StrategyResult]) -> str:
+def render_strategy_results(report_date: str, results: list[StrategyResult]) -> DailyReport:
     if not results:
-        return f"""# 多策略雷达日报
-
-日期：{report_date}
-
-今日无启用策略。
-"""
+        return DailyReport(
+            report_date=report_date,
+            main_candidates_count=0,
+            content_md=f"# 多策略雷达日报\n\n日期：{report_date}\n\n今日无启用策略。\n",
+        )
 
     if len(results) == 1 and results[0].name == "long_term_trend":
-        return results[0].markdown
+        return results[0].report
 
+    total_candidates = sum(r.report.main_candidates_count for r in results)
     sections = []
     for result in results:
-        body = _strip_report_title(result.markdown)
+        body = _strip_report_title(result.report.content_md)
         sections.append(f"## {result.title}\n\n{body}")
 
-    return f"""# 多策略雷达日报
-
-日期：{report_date}
-
-{chr(10).join(sections)}
-"""
+    content = f"# 多策略雷达日报\n\n日期：{report_date}\n\n{chr(10).join(sections)}\n"
+    return DailyReport(
+        report_date=report_date,
+        main_candidates_count=total_candidates,
+        content_md=content,
+    )
 
 
 class LongTermTrendStrategy:
@@ -142,7 +144,7 @@ class LongTermTrendStrategy:
         from lurker.application.run_daily import run_daily
 
         params = merge_strategy_params(config, context.runtime_params)
-        markdown = run_daily(
+        report = run_daily(
             snapshot_batch=context.snapshot_batch,
             theme_mapping=context.theme_mapping,
             symbol_names=context.symbol_names,
@@ -156,7 +158,7 @@ class LongTermTrendStrategy:
         return StrategyResult(
             name=self.name,
             title=config.title or "中长期趋势雷达",
-            markdown=markdown,
+            report=report,
             metadata={"cadence": config.cadence, "universe": config.universe},
         )
 
@@ -181,7 +183,11 @@ def run_strategies(
                 StrategyResult(
                     name=config.name,
                     title=config.title or config.name,
-                    markdown=f"策略 `{config.name}` 尚未实现。",
+                    report=DailyReport(
+                        report_date=context.report_date or "",
+                        main_candidates_count=0,
+                        content_md=f"策略 `{config.name}` 尚未实现。"
+                    ),
                     metadata={"status": "missing"},
                 )
             )

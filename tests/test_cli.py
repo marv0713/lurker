@@ -1,5 +1,6 @@
 import json
 
+from lurker.reports.models import DailyReport
 from lurker.cli import (
     build_data_snapshot,
     build_demo_report,
@@ -20,8 +21,8 @@ from lurker.cli import (
 def test_build_demo_report_returns_markdown():
     report = build_demo_report(report_date="2026-05-17")
 
-    assert report.startswith("# 大趋势雷达日报")
-    assert "AI 算力基础设施" in report
+    assert report.content_md.startswith("# 大趋势雷达日报")
+    assert "AI 算力基础设施" in report.content_md
 
 
 def test_parse_markets_from_comma_separated_value():
@@ -199,8 +200,8 @@ def test_build_strategy_report_runs_enabled_long_term_strategy():
         strategy_cadence=None,
     )
 
-    assert "# 大趋势雷达日报" in report
-    assert "无个股触发" in report
+    assert "# 大趋势雷达日报" in report.content_md
+    assert "无个股触发" in report.content_md
 
 
 def test_build_run_daily_uses_strategy_config_when_provided(tmp_path):
@@ -282,7 +283,7 @@ def test_daily_job_refreshes_prices_and_writes_report(monkeypatch, tmp_path):
         assert kwargs["signal_threshold"] == 55
         assert kwargs["main_limit"] == 8
         assert kwargs["suppressed_symbols"] == {"300308.SZ"}
-        return "# 大趋势雷达日报\n\n日报内容"
+        return DailyReport(report_date="2026-05-17", main_candidates_count=1, content_md="# 大趋势雷达日报\n\n日报内容")
 
     monkeypatch.setattr("lurker.cli.collect_price_snapshot_batch", fake_collector)
     monkeypatch.setattr("lurker.cli.run_daily", fake_run_daily)
@@ -350,7 +351,7 @@ def test_daily_job_candidate_history_includes_symbol_names(monkeypatch, tmp_path
 
     def fake_run_daily(**kwargs):
         assert kwargs["symbol_names"] == {"300308.SZ": "中际旭创"}
-        return "# 大趋势雷达日报\n\n日报内容"
+        return DailyReport(report_date="2026-05-17", main_candidates_count=1, content_md="# 大趋势雷达日报\n\n日报内容")
 
     monkeypatch.setattr("lurker.cli.collect_price_snapshot_batch", fake_collector)
     monkeypatch.setattr("lurker.cli.run_daily", fake_run_daily)

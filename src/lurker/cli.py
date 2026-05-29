@@ -25,6 +25,7 @@ from lurker.application.strategy_runner import (
 from lurker.ingest.constituents import load_resolved_theme_seed_symbols
 from lurker.pipeline import rank_candidates
 from lurker.reports.daily_report import render_daily_report
+from lurker.reports.models import DailyReport
 from lurker.reports.trend_card import render_trend_card
 from lurker.universe.resolved_seed_pool import (
     build_resolved_seed_pool,
@@ -67,7 +68,7 @@ def load_suppressed_symbols(path: Path | None) -> set[str]:
     }
 
 
-def build_demo_report(report_date: str) -> str:
+def build_demo_report(report_date: str) -> DailyReport:
     ranked = rank_candidates(
         [
             {
@@ -100,15 +101,18 @@ def build_demo_report(report_date: str) -> str:
         risks=["估值偏高"],
         next_checks=["跟踪订单是否进入财报"],
     )
-    return render_daily_report(
+    content = render_daily_report(
         report_date=report_date,
         main_cards=[card],
-        secondary_leads=[
-            f"{candidate['theme']}：{candidate['ai_recommendation']}，保留观察"
-            for candidate in ranked["secondary"]
-        ],
-        watchlist_changes=["数据中心电力进入观察池"],
-        risk_alerts=["部分光模块标的短期交易拥挤"],
+        secondary_leads=["中际旭创 (300308.SZ, CN)：总分 75，【升级】推荐，保留观察"],
+        low_score_watch_samples=["北方华创 (002371.SZ, CN)：总分 50，个股分 40，【观察】，低分观察"],
+        watchlist_changes=[],
+        risk_alerts=[],
+    )
+    return DailyReport(
+        report_date=report_date,
+        main_candidates_count=1,
+        content_md=content,
     )
 
 
@@ -407,7 +411,7 @@ def daily_job(
         )
     report_dir.mkdir(parents=True, exist_ok=True)
     report_path = report_dir / f"{job_date}.md"
-    report_path.write_text(report.rstrip() + "\n", encoding="utf-8")
+    report_path.write_text(report.content_md.rstrip() + "\n", encoding="utf-8")
     candidates_path = report_dir / f"{job_date}.candidates.json"
     candidates_path.write_text(
         json.dumps(
@@ -441,15 +445,22 @@ def daily_job(
     push_msg = ""
     import os
     pushplus_token = os.environ.get("PUSHPLUS_TOKEN")
+    
+    # Simple factory logic for Notifier
+    notifier = None
     if pushplus_token:
-        try:
-            from lurker.reports.pushplus import send_pushplus
-            title = f"Lurker 趋势雷达日报 ({job_date})"
-            resp = send_pushplus(token=pushplus_token, title=title, content=report)
-            resp.raise_for_status()
+        from lurker.notification.pushplus_notifier import PushPlusNotifier
+        notifier = PushPlusNotifier(token=pushplus_token)
+    else:
+        from lurker.notification.notifier import StubNotifier
+        notifier = StubNotifier()
+
+    try:
+        notifier.send(title=report.push_title, markdown_content=report.content_md)
+        if pushplus_token:
             push_msg = "\nPushed report to PushPlus successfully."
-        except Exception as e:
-            push_msg = f"\nFailed to push to PushPlus: {e}"
+    except Exception as e:
+        push_msg = f"\nFailed to push report: {e}"
 
     return (
         f"Wrote price snapshot to {snapshot_path} "
@@ -514,7 +525,7 @@ def build_run_daily(
             main_limit=main_limit,
             low_score_watch_limit=low_score_watch_limit,
             suppressed_symbols=suppressed_symbols,
-        )
+        ).content_md
     return build_strategy_report(
         snapshot_batch=snapshot_batch,
         theme_mapping=theme_mapping,
@@ -528,7 +539,7 @@ def build_run_daily(
         strategy_config_path=strategy_config_path,
         strategy_names=strategy_names,
         strategy_cadence=strategy_cadence,
-    )
+    ).content_md
 
 
 def build_parser() -> argparse.ArgumentParser:

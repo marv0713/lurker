@@ -6,6 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
   "akshare>=1.14.0",
   "baostock>=0.8.9",
+  "markdown-it-py>=3.0.0",
   "openai>=1.30.0",
   "pandas>=2.2.0",
   "pydantic>=2.7.0",

@@ -24,6 +24,7 @@ from lurker.ai.attributor import Attributor, StubAttributor
 from lurker.application.rank_candidates import rank_candidates
 from lurker.application.signal_scan import StockSignal, scan_signals
 from lurker.reports.daily_report import render_daily_report
+from lurker.reports.models import DailyReport
 from lurker.reports.trend_card import render_trend_card
 
 
@@ -116,7 +117,7 @@ def run_daily(
     low_score_watch_limit: int = 5,
     suppressed_symbols: set[str] | list[str] | None = None,
     symbol_names: dict[str, str] | None = None,
-) -> str:
+) -> DailyReport:
     """执行每日完整 pipeline，返回 Markdown 日报字符串。
 
     Args:
@@ -148,7 +149,7 @@ def run_daily(
         risk_alerts.append(f"本次快照有 {len(failures)} 只标的行情获取失败，信号可能不完整。")
 
     if not signals:
-        return render_daily_report(
+        content = render_daily_report(
             report_date=today,
             main_cards=["今日无个股触发强度信号。"],
             secondary_leads=[],
@@ -156,6 +157,12 @@ def run_daily(
             watchlist_changes=[],
             risk_alerts=risk_alerts,
         )
+        return DailyReport(
+            report_date=today,
+            main_candidates_count=0,
+            content_md=content,
+        )
+
 
     from lurker.ingest.news import fetch_recent_news
     from lurker.application.sector_scan import compute_theme_scores
@@ -242,11 +249,16 @@ def run_daily(
         for c in ranked["archive"][:low_score_watch_limit]
     ]
 
-    return render_daily_report(
+    content = render_daily_report(
         report_date=today,
         main_cards=main_cards,
         secondary_leads=secondary_leads,
         low_score_watch_samples=low_score_watch_samples,
         watchlist_changes=watchlist_changes,
         risk_alerts=risk_alerts,
+    )
+    return DailyReport(
+        report_date=today,
+        main_candidates_count=len(ranked["main"]),
+        content_md=content,
     )

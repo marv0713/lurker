@@ -99,8 +99,8 @@ def test_run_daily_with_no_signals_returns_report():
         "failures": [],
     }
     report = run_daily(snapshot_batch=batch, report_date="2026-05-17")
-    assert "大趋势雷达日报" in report
-    assert "无个股触发" in report
+    assert "大趋势雷达日报" in report.content_md
+    assert "无个股触发" in report.content_md
 
 
 def test_run_daily_with_strong_signals_produces_main_candidates():
@@ -119,8 +119,8 @@ def test_run_daily_with_strong_signals_produces_main_candidates():
         report_date="2026-05-17",
         signal_threshold=0,
     )
-    assert "大趋势雷达日报" in report
-    assert "主候选" in report
+    assert "大趋势雷达日报" in report.content_md
+    assert "主候选" in report.content_md
 
 
 def test_run_daily_failures_appear_in_risk_alerts():
@@ -133,7 +133,7 @@ def test_run_daily_failures_appear_in_risk_alerts():
         "failures": [{"symbol": "FAIL01.SZ", "market": "cn", "reason": "timeout"}],
     }
     report = run_daily(snapshot_batch=batch, report_date="2026-05-17")
-    assert "1 只标的行情获取失败" in report
+    assert "1 只标的行情获取失败" in report.content_md
 
 
 def test_run_daily_shows_low_score_watch_samples_from_archive():
@@ -179,9 +179,9 @@ def test_run_daily_shows_low_score_watch_samples_from_archive():
         low_score_watch_limit=2,
     )
 
-    assert "## 低分观察样本" in report
-    assert "300308.SZ" in report
-    assert "低分观察" in report
+    assert "## 低分观察样本" in report.content_md
+    assert "300308.SZ" in report.content_md
+    assert "低分观察" in report.content_md
 
 
 def test_run_daily_shows_symbol_name_in_watch_samples():
@@ -228,7 +228,7 @@ def test_run_daily_shows_symbol_name_in_watch_samples():
         symbol_names={"300308.SZ": "中际旭创"},
     )
 
-    assert "中际旭创 (300308.SZ, CN)" in report
+    assert "中际旭创 (300308.SZ, CN)" in report.content_md
 
 
 def test_run_daily_hides_suppressed_symbols_from_watch_samples():
@@ -275,6 +275,6 @@ def test_run_daily_hides_suppressed_symbols_from_watch_samples():
         suppressed_symbols={"300308.SZ"},
     )
 
-    assert "300308.SZ (CN)" not in report
-    assert "300054.SZ" in report
-    assert "本地屏蔽列表" in report
+    assert "300308.SZ (CN)" not in report.content_md
+    assert "300054.SZ" in report.content_md
+    assert "本地屏蔽列表" in report.content_md
