@@ -438,12 +438,26 @@ def daily_job(
         failure_count=len(snapshot_batch["failures"]),
     )
 
+    push_msg = ""
+    import os
+    pushplus_token = os.environ.get("PUSHPLUS_TOKEN")
+    if pushplus_token:
+        try:
+            from lurker.reports.pushplus import send_pushplus
+            title = f"Lurker 趋势雷达日报 ({job_date})"
+            resp = send_pushplus(token=pushplus_token, title=title, content=report)
+            resp.raise_for_status()
+            push_msg = "\nPushed report to PushPlus successfully."
+        except Exception as e:
+            push_msg = f"\nFailed to push to PushPlus: {e}"
+
     return (
         f"Wrote price snapshot to {snapshot_path} "
         f"(snapshots={len(snapshot_batch['snapshots'])}, failures={len(snapshot_batch['failures'])})\n"
         f"Wrote daily report to {report_path}\n"
         f"Wrote candidate history to {candidates_path}\n"
         f"Updated report archive index at {index_path}"
+        + push_msg
     )
 
 
