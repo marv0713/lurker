@@ -24,6 +24,7 @@ class StrategyContext:
     report_date: str | None
     attributor: Any
     suppressed_symbols: set[str]
+    flow_snapshot: dict[str, Any] | None = None
     symbol_names: dict[str, str] = field(default_factory=dict)
     runtime_params: dict[str, Any] = field(default_factory=dict)
 
@@ -163,7 +164,29 @@ class LongTermTrendStrategy:
         )
 
 
+class ProfessionalFlowDailyStrategy:
+    name = "professional_flow_daily"
+
+    def run(self, context: StrategyContext, config: StrategyConfig) -> StrategyResult:
+        from lurker.application.professional_flow_daily import run_professional_flow_daily
+
+        report = run_professional_flow_daily(
+            price_snapshot=context.snapshot_batch,
+            flow_snapshot=context.flow_snapshot,
+            theme_mapping=context.theme_mapping,
+            symbol_names=context.symbol_names,
+            report_date=context.report_date or "",
+        )
+        return StrategyResult(
+            name=self.name,
+            title=config.title or "职业资金雷达日报",
+            report=report,
+            metadata={"cadence": config.cadence, "universe": config.universe},
+        )
+
+
 DEFAULT_STRATEGIES: dict[str, Strategy] = {
+    ProfessionalFlowDailyStrategy.name: ProfessionalFlowDailyStrategy(),
     LongTermTrendStrategy.name: LongTermTrendStrategy(),
 }
 

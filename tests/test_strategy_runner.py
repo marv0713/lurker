@@ -91,6 +91,7 @@ def test_render_strategy_results_composes_multiple_sections():
 def test_strategy_context_carries_shared_runtime_inputs():
     context = StrategyContext(
         snapshot_batch={"snapshots": []},
+        flow_snapshot={"market_flow": {"main_net_inflow": 1}},
         theme_mapping={"300308.SZ": ["ai_infra"]},
         report_date="2026-05-18",
         attributor=None,
@@ -99,4 +100,11 @@ def test_strategy_context_carries_shared_runtime_inputs():
     )
 
     assert context.theme_mapping["300308.SZ"] == ["ai_infra"]
+    assert context.flow_snapshot["market_flow"]["main_net_inflow"] == 1
     assert context.runtime_params["main_limit"] == 10
+
+
+def test_professional_flow_strategy_is_registered():
+    from lurker.application.strategy_runner import DEFAULT_STRATEGIES
+
+    assert "professional_flow_daily" in DEFAULT_STRATEGIES

@@ -4,6 +4,7 @@ from lurker.reports.models import DailyReport
 from lurker.cli import (
     build_data_snapshot,
     build_demo_report,
+    build_notifier_from_env,
     build_run_daily,
     append_report_archive_index,
     build_strategy_report,
@@ -13,6 +14,7 @@ from lurker.cli import (
     load_suppressed_symbols,
     read_api_key_file,
     parse_markets,
+    refresh_flows,
     refresh_prices,
     resolve_seed_pool,
 )
@@ -202,6 +204,63 @@ def test_build_strategy_report_runs_enabled_long_term_strategy():
 
     assert "# 大趋势雷达日报" in report.content_md
     assert "无个股触发" in report.content_md
+
+
+def test_build_strategy_report_runs_professional_flow_strategy():
+    report = build_strategy_report(
+        snapshot_batch={
+            "markets": ["cn"],
+            "windows": [20, 60],
+            "snapshots": [
+                {
+                    "symbol": "300308.SZ",
+                    "market": "cn",
+                    "return_20d": 0.3,
+                    "return_60d": 0.6,
+                    "return_120d": 0.8,
+                },
+                {
+                    "symbol": "300054.SZ",
+                    "market": "cn",
+                    "return_20d": 0.1,
+                    "return_60d": 0.1,
+                    "return_120d": 0.1,
+                },
+            ],
+            "failures": [],
+        },
+        flow_snapshot={
+            "market_flow": {"main_net_inflow": 1.0, "super_large_net_inflow": 1.0},
+            "sector_flows": [{"name": "ai_infra", "main_net_inflow": 100.0, "rank": 1}],
+            "stock_flows": [
+                {
+                    "symbol": "300308.SZ",
+                    "name": "中际旭创",
+                    "main_net_inflow": 100.0,
+                    "super_large_net_inflow": 50.0,
+                    "main_net_inflow_5d": 100.0,
+                    "main_net_inflow_10d": 100.0,
+                }
+            ],
+            "margin": {"margin_balance_change": 1.0},
+            "core_etfs": [],
+            "failures": [],
+        },
+        theme_mapping={"300308.SZ": ["ai_infra"]},
+        symbol_names={"300308.SZ": "中际旭创"},
+        attributor=None,
+        report_date="2026-06-04",
+        signal_threshold=60,
+        main_limit=10,
+        low_score_watch_limit=5,
+        suppressed_symbols=set(),
+        strategy_config_path=None,
+        strategy_names=["professional_flow_daily"],
+        strategy_cadence=None,
+    )
+
+    assert "# 职业资金雷达日报" in report.content_md
+    assert "中际旭创" in report.content_md
 
 
 def test_build_run_daily_uses_strategy_config_when_provided(tmp_path):
@@ -496,6 +555,30 @@ def test_refresh_prices_writes_snapshot(monkeypatch, tmp_path):
     assert (output_dir / "2026-05-17.json").exists()
 
 
+def test_refresh_flows_writes_snapshot(monkeypatch, tmp_path):
+    output_dir = tmp_path / "flow_snapshots"
+
+    def fake_collector(**kwargs):
+        return {
+            "schema_version": 1,
+            "generated_at": "2026-06-04T00:00:00+00:00",
+            "market": "cn",
+            "market_flow": {"main_net_inflow": 1.0},
+            "sector_flows": [],
+            "stock_flows": [],
+            "margin": {},
+            "core_etfs": [],
+            "failures": [],
+        }
+
+    monkeypatch.setattr("lurker.cli.collect_flow_snapshot", fake_collector)
+
+    message = refresh_flows(output_dir=output_dir, snapshot_date="2026-06-04")
+
+    assert "Wrote flow snapshot" in message
+    assert (output_dir / "2026-06-04.json").exists()
+
+
 def test_data_snapshot_uses_latest_price_snapshot(monkeypatch, tmp_path):
     seed_pool_path = tmp_path / "resolved_seed_pool.json"
     seed_pool_path.write_text(
@@ -545,6 +628,27 @@ def test_parser_has_refresh_prices_command():
     assert args.command == "refresh-prices"
     assert args.markets == "cn"
     assert args.date == "2026-05-17"
+
+
+def test_parser_has_refresh_flows_command():
+    parser = build_parser()
+
+    args = parser.parse_args(["refresh-flows", "--date", "2026-06-04"])
+
+    assert args.command == "refresh-flows"
+    assert args.date == "2026-06-04"
+
+
+def test_build_notifier_from_env_can_build_composite(monkeypatch):
+    monkeypatch.setenv("PUSHPLUS_TOKEN", "push-token")
+    monkeypatch.setenv("SMTP_HOST", "smtp.example.com")
+    monkeypatch.setenv("SMTP_PORT", "587")
+    monkeypatch.setenv("SMTP_FROM", "from@example.com")
+    monkeypatch.setenv("EMAIL_TO", "to@example.com")
+
+    notifier = build_notifier_from_env()
+
+    assert type(notifier).__name__ == "CompositeNotifier"
 
 
 def test_parser_has_daily_job_command():

@@ -1,9 +1,16 @@
 strategies:
-  long_term_trend:
+  professional_flow_daily:
     enabled: true
     cadence: daily
     universe: resolved_seed_pool
-    title: 中长期趋势雷达
+    title: 职业资金雷达日报
+    params: {}
+
+  long_term_trend:
+    enabled: false
+    cadence: daily
+    universe: resolved_seed_pool
+    title: 中长期趋势雷达（Legacy）
     params:
       signal_threshold: 60
       main_limit: 10

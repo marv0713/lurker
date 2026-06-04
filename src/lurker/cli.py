@@ -12,6 +12,10 @@ from lurker.application.price_snapshot import (
     render_price_snapshot,
     select_price_snapshot_rows,
 )
+from lurker.application.flow_snapshot import (
+    FileFlowSnapshotStore,
+    collect_flow_snapshot,
+)
 from lurker.application.run_daily import run_daily
 from lurker.application.strategy_runner import (
     StrategyContext,
@@ -176,6 +180,22 @@ def refresh_prices(
     )
 
 
+def refresh_flows(
+    *,
+    output_dir: Path,
+    snapshot_date: str | None = None,
+) -> str:
+    batch = collect_flow_snapshot()
+    output_path = FileFlowSnapshotStore(output_dir).save(
+        batch,
+        snapshot_date=snapshot_date or date.today().isoformat(),
+    )
+    return (
+        f"Wrote flow snapshot to {output_path} "
+        f"(failures={len(batch.get('failures', []))})"
+    )
+
+
 def build_attributor(api_key: str | None, model: str | None, base_url: str | None):
     from lurker.ai.attributor import GEMINI_BASE_URL, GEMINI_DEFAULT_MODEL, GeminiAttributor, StubAttributor
 
@@ -318,6 +338,7 @@ def build_strategy_report(
     strategy_config_path: Path | None,
     strategy_names: list[str] | None,
     strategy_cadence: str | None,
+    flow_snapshot: dict | None = None,
 ) -> str:
     configs = load_strategy_configs(strategy_config_path)
     if not configs and strategy_names:
@@ -329,6 +350,7 @@ def build_strategy_report(
     )
     context = StrategyContext(
         snapshot_batch=snapshot_batch,
+        flow_snapshot=flow_snapshot,
         theme_mapping=theme_mapping,
         symbol_names=symbol_names,
         report_date=report_date,
@@ -344,11 +366,60 @@ def build_strategy_report(
     return render_strategy_results(report_date=report_date, results=results)
 
 
+def _env_bool(value: str | None, *, default: bool) -> bool:
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def build_notifier_from_env():
+    import os
+
+    notifiers = []
+    pushplus_token = os.environ.get("PUSHPLUS_TOKEN")
+    if pushplus_token:
+        from lurker.notification.pushplus_notifier import PushPlusNotifier
+
+        notifiers.append(PushPlusNotifier(token=pushplus_token))
+
+    smtp_host = os.environ.get("SMTP_HOST")
+    smtp_from = os.environ.get("SMTP_FROM")
+    email_to = os.environ.get("EMAIL_TO")
+    if smtp_host and smtp_from and email_to:
+        from lurker.notification.email_notifier import EmailNotifier
+
+        recipients = [recipient.strip() for recipient in email_to.split(",") if recipient.strip()]
+        notifiers.append(
+            EmailNotifier(
+                host=smtp_host,
+                port=int(os.environ.get("SMTP_PORT", "587")),
+                username=os.environ.get("SMTP_USER"),
+                password=os.environ.get("SMTP_PASSWORD"),
+                sender=smtp_from,
+                recipients=recipients,
+                use_tls=_env_bool(os.environ.get("SMTP_USE_TLS"), default=True),
+                use_ssl=_env_bool(os.environ.get("SMTP_USE_SSL"), default=False),
+            )
+        )
+
+    if not notifiers:
+        from lurker.notification.notifier import StubNotifier
+
+        return StubNotifier()
+    if len(notifiers) == 1:
+        return notifiers[0]
+
+    from lurker.notification.notifier import CompositeNotifier
+
+    return CompositeNotifier(notifiers)
+
+
 def daily_job(
     *,
     seed_pool_path: Path,
     price_snapshot_dir: Path,
     report_dir: Path,
+    flow_snapshot_dir: Path | None = None,
     markets: list[str],
     windows: list[int],
     period: str,
@@ -379,6 +450,15 @@ def daily_job(
         snapshot_batch,
         snapshot_date=job_date,
     )
+    flow_snapshot = None
+    flow_snapshot_path = None
+    if strategy_config_path is not None or strategy_names is not None:
+        flow_snapshot = collect_flow_snapshot()
+        resolved_flow_snapshot_dir = flow_snapshot_dir or ROOT / "data" / "processed" / "flow_snapshots"
+        flow_snapshot_path = FileFlowSnapshotStore(resolved_flow_snapshot_dir).save(
+            flow_snapshot,
+            snapshot_date=job_date,
+        )
     attributor = build_attributor(api_key, model, base_url)
     suppressed_symbols = load_suppressed_symbols(suppressed_symbols_path)
     symbol_names = seed_pool.get("symbol_names", {})
@@ -397,6 +477,7 @@ def daily_job(
     else:
         report = build_strategy_report(
             snapshot_batch=snapshot_batch,
+            flow_snapshot=flow_snapshot,
             theme_mapping=seed_pool.get("theme_mapping", {}),
             symbol_names=symbol_names,
             attributor=attributor,
@@ -428,7 +509,19 @@ def daily_job(
         + "\n",
         encoding="utf-8",
     )
-    selected_strategies = strategy_names or ["long_term_trend"]
+    if strategy_names:
+        selected_strategies = strategy_names
+    elif strategy_config_path is not None:
+        selected_strategies = [
+            config.name
+            for config in select_strategy_configs(
+                load_strategy_configs(strategy_config_path),
+                names=None,
+                cadence=strategy_cadence,
+            )
+        ]
+    else:
+        selected_strategies = ["long_term_trend"]
     index_path = append_report_archive_index(
         report_dir=report_dir,
         report_date=job_date,
@@ -443,28 +536,25 @@ def daily_job(
     )
 
     push_msg = ""
-    import os
-    pushplus_token = os.environ.get("PUSHPLUS_TOKEN")
-    
-    # Simple factory logic for Notifier
-    notifier = None
-    if pushplus_token:
-        from lurker.notification.pushplus_notifier import PushPlusNotifier
-        notifier = PushPlusNotifier(token=pushplus_token)
-    else:
-        from lurker.notification.notifier import StubNotifier
-        notifier = StubNotifier()
+    notifier = build_notifier_from_env()
 
     try:
         notifier.send(title=report.push_title, markdown_content=report.content_md)
-        if pushplus_token:
-            push_msg = "\nPushed report to PushPlus successfully."
+        if type(notifier).__name__ != "StubNotifier":
+            push_msg = "\nPushed report successfully."
     except Exception as e:
         push_msg = f"\nFailed to push report: {e}"
 
     return (
         f"Wrote price snapshot to {snapshot_path} "
         f"(snapshots={len(snapshot_batch['snapshots'])}, failures={len(snapshot_batch['failures'])})\n"
+        + (
+            f"\nWrote flow snapshot to {flow_snapshot_path} "
+            f"(failures={len((flow_snapshot or {}).get('failures', []))})"
+            if flow_snapshot_path is not None
+            else ""
+        )
+        + "\n"
         f"Wrote daily report to {report_path}\n"
         f"Wrote candidate history to {candidates_path}\n"
         f"Updated report archive index at {index_path}"
@@ -486,6 +576,7 @@ def resolve_seed_pool(*, themes_path: Path, output_path: Path) -> str:
 def build_run_daily(
     *,
     price_snapshot_dir: Path,
+    flow_snapshot_dir: Path | None = None,
     seed_pool: Path | None = None,
     report_date: str | None = None,
     signal_threshold: int = 60,
@@ -526,8 +617,12 @@ def build_run_daily(
             low_score_watch_limit=low_score_watch_limit,
             suppressed_symbols=suppressed_symbols,
         ).content_md
+    flow_snapshot = None
+    if flow_snapshot_dir is not None:
+        flow_snapshot = FileFlowSnapshotStore(flow_snapshot_dir).load_latest()
     return build_strategy_report(
         snapshot_batch=snapshot_batch,
+        flow_snapshot=flow_snapshot,
         theme_mapping=theme_mapping,
         symbol_names=symbol_names,
         attributor=attributor,
@@ -579,6 +674,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--price-snapshots",
         type=Path,
         default=ROOT / "data" / "processed" / "price_snapshots",
+    )
+    run_daily_cmd.add_argument(
+        "--flow-snapshots",
+        type=Path,
+        default=ROOT / "data" / "processed" / "flow_snapshots",
     )
     run_daily_cmd.add_argument(
         "--seed-pool",
@@ -665,6 +765,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     refresh.add_argument("--date", default=None)
 
+    refresh_flow = subparsers.add_parser("refresh-flows")
+    refresh_flow.add_argument(
+        "--output-dir",
+        type=Path,
+        default=ROOT / "data" / "processed" / "flow_snapshots",
+    )
+    refresh_flow.add_argument("--date", default=None)
+
     daily = subparsers.add_parser(
         "daily-job",
         help="刷新本地行情快照，生成并落盘每日 Markdown 日报",
@@ -682,6 +790,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--price-snapshots",
         type=Path,
         default=ROOT / "data" / "processed" / "price_snapshots",
+    )
+    daily.add_argument(
+        "--flow-snapshots",
+        type=Path,
+        default=ROOT / "data" / "processed" / "flow_snapshots",
     )
     daily.add_argument(
         "--report-dir",
@@ -754,6 +867,7 @@ def main() -> None:
         print(
             build_run_daily(
                 price_snapshot_dir=args.price_snapshots,
+                flow_snapshot_dir=args.flow_snapshots,
                 seed_pool=args.seed_pool,
                 report_date=args.date,
                 signal_threshold=args.signal_threshold,
@@ -784,12 +898,22 @@ def main() -> None:
         )
         return
 
+    if args.command == "refresh-flows":
+        print(
+            refresh_flows(
+                output_dir=args.output_dir,
+                snapshot_date=args.date,
+            )
+        )
+        return
+
     if args.command == "daily-job":
         api_key = args.api_key or read_api_key_file(args.api_key_file)
         print(
             daily_job(
                 seed_pool_path=args.seed_pool,
                 price_snapshot_dir=args.price_snapshots,
+                flow_snapshot_dir=args.flow_snapshots,
                 report_dir=args.report_dir,
                 markets=parse_markets(args.markets),
                 windows=[int(window) for window in parse_markets(args.windows)],

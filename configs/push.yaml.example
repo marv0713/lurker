@@ -1,5 +1,16 @@
-provider: pushplus
+providers:
+  - pushplus
+  - email
+
 pushplus:
   token_env: PUSHPLUS_TOKEN
-server_chan:
-  send_key_env: SERVER_CHAN_SEND_KEY
+
+email:
+  smtp_host_env: SMTP_HOST
+  smtp_port_env: SMTP_PORT
+  smtp_user_env: SMTP_USER
+  smtp_password_env: SMTP_PASSWORD
+  smtp_from_env: SMTP_FROM
+  recipients_env: EMAIL_TO
+  smtp_use_tls_env: SMTP_USE_TLS
+  smtp_use_ssl_env: SMTP_USE_SSL
