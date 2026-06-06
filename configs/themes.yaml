@@ -7,11 +7,6 @@ themes:
         seed_indexes: [科创 50, 创业板指]
         seed_etfs: [通信 ETF, 人工智能 ETF]
         seed_symbols: [300308.SZ, 300502.SZ]
-      us:
-        seed_etfs: [SMH, SOXX, AIQ]
-        seed_symbols: [NVDA, AVGO, ANET]
-      hk:
-        seed_symbols: [0700.HK, 9988.HK]
     chain:
       upstream: [光芯片, PCB, 电源]
       midstream: [光模块, 交换机, 液冷]
@@ -27,11 +22,6 @@ themes:
         seed_indexes: [科创 50, 创业板指]
         seed_etfs: [创新药 ETF, 生物医药 ETF]
         seed_symbols: [688235.SH, 300760.SZ]
-      us:
-        seed_etfs: [XBI, IBB]
-        seed_symbols: [MRNA, VRTX, REGN]
-      hk:
-        seed_symbols: [06160.HK, 01801.HK, 09926.HK]
     chain:
       upstream: [CXO, 原料药]
       midstream: [创新药, 临床管线]

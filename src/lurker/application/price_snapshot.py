@@ -46,6 +46,7 @@ def collect_price_snapshots(
     fetcher: PriceFetcher | None = None,
     fetchers: MarketFetchers | None = None,
     limit_per_market: int | None = None,
+    markets_config: dict[str, Any] | None = None,
 ) -> list[dict[str, float | str]]:
     return collect_price_snapshot_batch(
         seed_symbols=seed_symbols,
@@ -55,6 +56,7 @@ def collect_price_snapshots(
         fetcher=fetcher,
         fetchers=fetchers,
         limit_per_market=limit_per_market,
+        markets_config=markets_config,
     )["snapshots"]
 
 
@@ -69,6 +71,8 @@ def collect_price_snapshot_batch(
     limit_per_market: int | None = None,
     generated_at: str | None = None,
     seed_pool_generated_at: str | None = None,
+    markets_config: dict[str, Any] | None = None,
+    db_session: Any = None,
 ) -> PriceSnapshotBatch:
     snapshots: list[dict[str, float | str]] = []
     failures: list[dict[str, str]] = []
@@ -101,6 +105,51 @@ def collect_price_snapshot_batch(
             if closes.empty:
                 failures.append({"symbol": symbol, "market": market, "reason": "empty close data"})
                 continue
+
+            # Apply market config filters
+            if markets_config and market in markets_config:
+                filters = markets_config[market].get("filters", {})
+
+                # Filter: min_price_hkd
+                latest_close = float(closes.iloc[-1])
+                min_price_hkd = filters.get("min_price_hkd")
+                if min_price_hkd is not None and market == "hk" and latest_close < min_price_hkd:
+                    continue
+
+                # Calculate average daily turnover
+                if "close" in prices.columns and "volume" in prices.columns:
+                    avg_turnover = float((prices["close"] * prices["volume"]).mean())
+                else:
+                    avg_turnover = 0.0
+
+                # Filter: min_avg_turnover_cny, min_avg_turnover_usd, min_avg_turnover_hkd
+                min_turnover = (
+                    filters.get("min_avg_turnover_cny")
+                    or filters.get("min_avg_turnover_usd")
+                    or filters.get("min_avg_turnover_hkd")
+                )
+                if min_turnover is not None and avg_turnover < min_turnover:
+                    continue
+
+            # Save historical prices to db if db_session is provided
+            if db_session is not None:
+                from lurker.storage.models import PriceDaily
+                for _, row in prices.iterrows():
+                    if pd.isna(row["trade_date"]) or pd.isna(row["open"]) or pd.isna(row["close"]):
+                        continue
+                    p_daily = PriceDaily(
+                        symbol=symbol,
+                        trade_date=row["trade_date"],
+                        open=float(row["open"]),
+                        high=float(row["high"]),
+                        low=float(row["low"]),
+                        close=float(row["close"]),
+                        adj_close=float(row["adj_close"]),
+                        volume=int(row["volume"]) if not pd.isna(row["volume"]) else 0,
+                    )
+                    db_session.merge(p_daily)
+                db_session.commit()
+
             returns = calculate_returns(closes, window_list)
             snapshots.append(
                 {

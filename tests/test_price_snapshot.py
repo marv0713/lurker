@@ -171,3 +171,69 @@ def test_file_price_snapshot_store_saves_and_loads_latest(tmp_path):
 
     assert output_path == tmp_path / "2026-05-17.json"
     assert store.load_latest() == snapshot
+
+
+def test_collect_price_snapshot_batch_applies_market_filters():
+    markets_config = {
+        "hk": {
+            "filters": {
+                "min_price_hkd": 5.0,
+                "min_avg_turnover_hkd": 100000
+            }
+        },
+        "us": {
+            "filters": {
+                "min_avg_turnover_usd": 500000
+            }
+        }
+    }
+
+    # NVDA: close=140, avg turnover = ((100+120+140)/3) * ((1000+1200+2000)/3) = 120 * 1400 = 168000
+    # AVGO: close=140, but let's mock it separately or check turnover filters
+    # Let's write a custom fetcher for this test
+    def custom_fetcher(symbol: str, period: str) -> pd.DataFrame:
+        if symbol == "LOW_PRICE.HK":
+            price = 2.0
+            volume = 1000
+        elif symbol == "LOW_TURNOVER.HK":
+            price = 10.0
+            volume = 1000  # avg turnover = 10 * 1000 = 10000 < 100000
+        elif symbol == "OK.HK":
+            price = 10.0
+            volume = 20000 # avg turnover = 10 * 20000 = 200000 >= 100000
+        elif symbol == "LOW_TURNOVER.US":
+            price = 100.0
+            volume = 1000  # avg turnover = 100 * 1000 = 100000 < 500000
+        else: # OK.US
+            price = 100.0
+            volume = 10000 # avg turnover = 100 * 10000 = 1000000 >= 500000
+        
+        return pd.DataFrame({
+            "symbol": [symbol],
+            "trade_date": [pd.Timestamp("2026-05-15").date()],
+            "open": [price],
+            "high": [price],
+            "low": [price],
+            "close": [price],
+            "adj_close": [price],
+            "volume": [volume],
+        })
+
+    batch = collect_price_snapshot_batch(
+        seed_symbols={
+            "hk": ["LOW_PRICE.HK", "LOW_TURNOVER.HK", "OK.HK"],
+            "us": ["LOW_TURNOVER.US", "OK.US"]
+        },
+        markets=["hk", "us"],
+        windows=[1],
+        period="1d",
+        fetcher=custom_fetcher,
+        markets_config=markets_config
+    )
+
+    symbols = [s["symbol"] for s in batch["snapshots"]]
+    assert "OK.HK" in symbols
+    assert "OK.US" in symbols
+    assert "LOW_PRICE.HK" not in symbols
+    assert "LOW_TURNOVER.HK" not in symbols
+    assert "LOW_TURNOVER.US" not in symbols

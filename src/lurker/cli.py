@@ -3,6 +3,7 @@ import json
 from datetime import date
 from pathlib import Path
 
+from typing import Any
 import yaml
 
 from lurker.application.price_snapshot import (
@@ -120,6 +121,24 @@ def build_demo_report(report_date: str) -> DailyReport:
     )
 
 
+def save_symbols_to_db(seed_pool: dict, session) -> None:
+    from lurker.storage.models import Symbol
+    markets = seed_pool.get("markets", {})
+    symbol_names = seed_pool.get("symbol_names", {})
+    for market_code, market_pool in markets.items():
+        symbols = market_pool.get("symbols", [])
+        for sym in symbols:
+            name = symbol_names.get(sym, sym)
+            db_symbol = Symbol(
+                symbol=sym,
+                name=name,
+                market=market_code,
+                asset_type="stock",
+                is_active=True
+            )
+            session.merge(db_symbol)
+
+
 def build_data_snapshot(
     *,
     themes_path: Path,
@@ -129,6 +148,7 @@ def build_data_snapshot(
     windows: list[int],
     period: str,
     limit_per_market: int | None,
+    markets_path: Path | None = None,
 ) -> str:
     if price_snapshot_dir is not None:
         store = FilePriceSnapshotStore(price_snapshot_dir)
@@ -138,15 +158,21 @@ def build_data_snapshot(
             return render_price_snapshot(snapshots, windows=windows)
 
     if seed_pool_path.exists():
-        seed_symbols = extract_seed_symbols(load_resolved_seed_pool(seed_pool_path))
+        seed_pool = load_resolved_seed_pool(seed_pool_path)
+        seed_symbols = extract_seed_symbols(seed_pool)
     else:
         seed_symbols = load_resolved_theme_seed_symbols(themes_path)
+
+    from lurker.config import load_markets
+    markets_cfg = load_markets(markets_path) if markets_path else None
+
     snapshots = collect_price_snapshots(
         seed_symbols=seed_symbols,
         markets=markets,
         windows=windows,
         period=period,
         limit_per_market=limit_per_market,
+        markets_config=markets_cfg,
     )
     return render_price_snapshot(snapshots, windows=windows)
 
@@ -160,16 +186,35 @@ def refresh_prices(
     period: str,
     limit_per_market: int | None,
     snapshot_date: str | None = None,
+    markets_path: Path | None = None,
+    db_path: Path | None = None,
 ) -> str:
     seed_pool = load_resolved_seed_pool(seed_pool_path)
-    batch = collect_price_snapshot_batch(
-        seed_symbols=extract_seed_symbols(seed_pool),
-        markets=markets,
-        windows=windows,
-        period=period,
-        limit_per_market=limit_per_market,
-        seed_pool_generated_at=seed_pool.get("generated_at"),
-    )
+    from lurker.config import load_markets
+    markets_cfg = load_markets(markets_path) if markets_path else None
+
+    session = None
+    if db_path:
+        from lurker.storage.db import init_db, create_session
+        engine = init_db(db_path)
+        session = create_session(engine)
+        save_symbols_to_db(seed_pool, session)
+
+    try:
+        batch = collect_price_snapshot_batch(
+            seed_symbols=extract_seed_symbols(seed_pool),
+            markets=markets,
+            windows=windows,
+            period=period,
+            limit_per_market=limit_per_market,
+            seed_pool_generated_at=seed_pool.get("generated_at"),
+            markets_config=markets_cfg,
+            db_session=session,
+        )
+    finally:
+        if session:
+            session.close()
+
     output_path = FilePriceSnapshotStore(output_dir).save(
         batch,
         snapshot_date=snapshot_date or date.today().isoformat(),
@@ -184,7 +229,11 @@ def refresh_flows(
     *,
     output_dir: Path,
     snapshot_date: str | None = None,
+    db_path: Path | None = None,
 ) -> str:
+    if db_path:
+        from lurker.storage.db import init_db
+        init_db(db_path)
     batch = collect_flow_snapshot()
     output_path = FileFlowSnapshotStore(output_dir).save(
         batch,
@@ -339,7 +388,9 @@ def build_strategy_report(
     strategy_names: list[str] | None,
     strategy_cadence: str | None,
     flow_snapshot: dict | None = None,
-) -> str:
+    scoring_config: dict | None = None,
+    db_session: Any = None,
+) -> DailyReport:
     configs = load_strategy_configs(strategy_config_path)
     if not configs and strategy_names:
         configs = build_default_strategy_configs(strategy_names)
@@ -360,10 +411,13 @@ def build_strategy_report(
             "signal_threshold": signal_threshold,
             "main_limit": main_limit,
             "low_score_watch_limit": low_score_watch_limit,
+            "scoring_config": scoring_config,
         },
+        db_session=db_session,
     )
     results = run_strategies(context=context, configs=selected_configs)
     return render_strategy_results(report_date=report_date, results=results)
+
 
 
 def _env_bool(value: str | None, *, default: bool) -> bool:
@@ -435,17 +489,38 @@ def daily_job(
     api_key: str | None = None,
     model: str | None = None,
     base_url: str | None = None,
+    scoring_config_path: Path | None = None,
+    markets_path: Path | None = None,
+    db_path: Path | None = None,
 ) -> str:
     job_date = report_date or date.today().isoformat()
     seed_pool = load_resolved_seed_pool(seed_pool_path)
-    snapshot_batch = collect_price_snapshot_batch(
-        seed_symbols=extract_seed_symbols(seed_pool),
-        markets=markets,
-        windows=windows,
-        period=period,
-        limit_per_market=limit_per_market,
-        seed_pool_generated_at=seed_pool.get("generated_at"),
-    )
+
+    from lurker.config import load_markets
+    markets_cfg = load_markets(markets_path) if markets_path else None
+
+    session = None
+    if db_path:
+        from lurker.storage.db import init_db, create_session
+        engine = init_db(db_path)
+        session = create_session(engine)
+        # Populate symbols from seed pool
+        save_symbols_to_db(seed_pool, session)
+
+    try:
+        snapshot_batch = collect_price_snapshot_batch(
+            seed_symbols=extract_seed_symbols(seed_pool),
+            markets=markets,
+            windows=windows,
+            period=period,
+            limit_per_market=limit_per_market,
+            seed_pool_generated_at=seed_pool.get("generated_at"),
+            markets_config=markets_cfg,
+            db_session=session,
+        )
+    finally:
+        pass
+
     snapshot_path = FilePriceSnapshotStore(price_snapshot_dir).save(
         snapshot_batch,
         snapshot_date=job_date,
@@ -461,6 +536,15 @@ def daily_job(
         )
     attributor = build_attributor(api_key, model, base_url)
     suppressed_symbols = load_suppressed_symbols(suppressed_symbols_path)
+
+    from lurker.config import load_scoring
+    scoring = {}
+    if scoring_config_path and scoring_config_path.exists():
+        try:
+            scoring = load_scoring(scoring_config_path)
+        except Exception as e:
+            print(f"Warning: failed to load scoring config from {scoring_config_path}: {e}")
+
     symbol_names = seed_pool.get("symbol_names", {})
     if strategy_config_path is None and strategy_names is None:
         report = run_daily(
@@ -473,6 +557,8 @@ def daily_job(
             main_limit=main_limit,
             low_score_watch_limit=low_score_watch_limit,
             suppressed_symbols=suppressed_symbols,
+            scoring_config=scoring,
+            db_session=session,
         )
     else:
         report = build_strategy_report(
@@ -489,9 +575,31 @@ def daily_job(
             strategy_config_path=strategy_config_path,
             strategy_names=strategy_names,
             strategy_cadence=strategy_cadence,
+            scoring_config=scoring,
+            db_session=session,
         )
+
+    # Save final report to Report table
+    if session:
+        from lurker.storage.models import Report
+        import datetime
+        t_date = datetime.datetime.strptime(job_date, "%Y-%m-%d").date()
+        db_report = session.query(Report).filter_by(report_date=t_date, report_type="daily").first()
+        if db_report:
+            db_report.content = report.content_md
+        else:
+            db_report = Report(
+                report_date=t_date,
+                report_type="daily",
+                content=report.content_md,
+            )
+            session.add(db_report)
+        session.commit()
+        session.close()
+
     report_dir.mkdir(parents=True, exist_ok=True)
     report_path = report_dir / f"{job_date}.md"
+
     report_path.write_text(report.content_md.rstrip() + "\n", encoding="utf-8")
     candidates_path = report_dir / f"{job_date}.candidates.json"
     candidates_path.write_text(
@@ -535,15 +643,48 @@ def daily_job(
         failure_count=len(snapshot_batch["failures"]),
     )
 
+    # 校验数据完整性与数据质量 (Verify data integrity and quality before pushing)
+    price_count = len(snapshot_batch.get("snapshots", []))
+    has_flow_data = bool(
+        (flow_snapshot or {}).get("market_flow")
+        or (flow_snapshot or {}).get("sector_flows")
+        or (flow_snapshot or {}).get("stock_flows")
+    )
+    flow_failures = (flow_snapshot or {}).get("failures", [])
+
+    # 检查是否有严重的资金流抓取报错（排除频率超限等非致命错误）
+    has_critical_flow_failure = False
+    critical_reasons = []
+    for f in flow_failures:
+        reason = f.get("reason", "")
+        if "频率超限" not in reason and "limit" not in reason.lower():
+            has_critical_flow_failure = True
+            critical_reasons.append(f"{f.get('source')}: {reason}")
+
+    is_valid = True
+    validation_error = ""
+    if price_count == 0:
+        is_valid = False
+        validation_error = "价格数据快照为空，数据加载失败"
+    elif flow_snapshot_path is not None and not has_flow_data:
+        is_valid = False
+        validation_error = "资金流快照为空，抓取失败"
+    elif flow_snapshot_path is not None and has_critical_flow_failure:
+        is_valid = False
+        validation_error = f"资金流抓取存在致命错误 ({', '.join(critical_reasons)})"
+
     push_msg = ""
     notifier = build_notifier_from_env()
 
-    try:
-        notifier.send(title=report.push_title, markdown_content=report.content_md)
-        if type(notifier).__name__ != "StubNotifier":
-            push_msg = "\nPushed report successfully."
-    except Exception as e:
-        push_msg = f"\nFailed to push report: {e}"
+    if is_valid:
+        try:
+            notifier.send(title=report.push_title, markdown_content=report.content_md)
+            if type(notifier).__name__ != "StubNotifier":
+                push_msg = "\nPushed report successfully."
+        except Exception as e:
+            push_msg = f"\nFailed to push report: {e}"
+    else:
+        push_msg = f"\nSkipped pushing report: validation failed ({validation_error})."
 
     return (
         f"Wrote price snapshot to {snapshot_path} "
@@ -562,9 +703,21 @@ def daily_job(
     )
 
 
-def resolve_seed_pool(*, themes_path: Path, output_path: Path) -> str:
-    pool = build_resolved_seed_pool(themes_path)
+def resolve_seed_pool(*, themes_path: Path, output_path: Path, markets_path: Path | None = None, db_path: Path | None = None) -> str:
+    import inspect
+    sig = inspect.signature(build_resolved_seed_pool)
+    if "markets_path" in sig.parameters:
+        pool = build_resolved_seed_pool(themes_path, markets_path=markets_path)
+    else:
+        pool = build_resolved_seed_pool(themes_path)
     save_resolved_seed_pool(pool, output_path)
+
+    if db_path:
+        from lurker.storage.db import init_db, create_session
+        engine = init_db(db_path)
+        with create_session(engine) as session:
+            save_symbols_to_db(pool, session)
+
     markets = pool.get("markets", {})
     counts = ", ".join(
         f"{market}={len(market_pool.get('symbols', []))}"
@@ -589,6 +742,8 @@ def build_run_daily(
     api_key: str | None = None,
     model: str | None = None,
     base_url: str | None = None,
+    scoring_config_path: Path | None = None,
+    db_path: Path | None = None,
 ) -> str:
     store = FilePriceSnapshotStore(price_snapshot_dir)
     snapshot_batch = store.load_latest()
@@ -605,36 +760,113 @@ def build_run_daily(
 
     attributor = build_attributor(api_key, model, base_url)
     suppressed_symbols = load_suppressed_symbols(suppressed_symbols_path)
-    if strategy_config_path is None and strategy_names is None:
-        return run_daily(
+
+    from lurker.config import load_scoring
+    scoring = {}
+    if scoring_config_path and scoring_config_path.exists():
+        try:
+            scoring = load_scoring(scoring_config_path)
+        except Exception as e:
+            print(f"Warning: failed to load scoring config from {scoring_config_path}: {e}")
+
+    session = None
+    if db_path:
+        from lurker.storage.db import init_db, create_session
+        engine = init_db(db_path)
+        session = create_session(engine)
+        # Populate symbols just in case
+        if theme_mapping:
+            save_symbols_to_db({"markets": {"cn": {"symbols": list(theme_mapping.keys())}}, "symbol_names": symbol_names}, session)
+
+    try:
+        if strategy_config_path is None and strategy_names is None:
+            return run_daily(
+                snapshot_batch=snapshot_batch,
+                attributor=attributor,
+                theme_mapping=theme_mapping,
+                symbol_names=symbol_names,
+                report_date=report_date,
+                signal_threshold=signal_threshold,
+                main_limit=main_limit,
+                low_score_watch_limit=low_score_watch_limit,
+                suppressed_symbols=suppressed_symbols,
+                scoring_config=scoring,
+                db_session=session,
+            ).content_md
+        flow_snapshot = None
+        if flow_snapshot_dir is not None:
+            flow_snapshot = FileFlowSnapshotStore(flow_snapshot_dir).load_latest()
+        return build_strategy_report(
             snapshot_batch=snapshot_batch,
-            attributor=attributor,
+            flow_snapshot=flow_snapshot,
             theme_mapping=theme_mapping,
             symbol_names=symbol_names,
-            report_date=report_date,
+            attributor=attributor,
+            report_date=report_date or date.today().isoformat(),
             signal_threshold=signal_threshold,
             main_limit=main_limit,
             low_score_watch_limit=low_score_watch_limit,
             suppressed_symbols=suppressed_symbols,
+            strategy_config_path=strategy_config_path,
+            strategy_names=strategy_names,
+            strategy_cadence=strategy_cadence,
+            scoring_config=scoring,
+            db_session=session,
         ).content_md
-    flow_snapshot = None
-    if flow_snapshot_dir is not None:
-        flow_snapshot = FileFlowSnapshotStore(flow_snapshot_dir).load_latest()
-    return build_strategy_report(
-        snapshot_batch=snapshot_batch,
-        flow_snapshot=flow_snapshot,
-        theme_mapping=theme_mapping,
-        symbol_names=symbol_names,
-        attributor=attributor,
-        report_date=report_date or date.today().isoformat(),
-        signal_threshold=signal_threshold,
-        main_limit=main_limit,
-        low_score_watch_limit=low_score_watch_limit,
-        suppressed_symbols=suppressed_symbols,
-        strategy_config_path=strategy_config_path,
-        strategy_names=strategy_names,
-        strategy_cadence=strategy_cadence,
-    ).content_md
+    finally:
+        if session:
+            session.close()
+
+
+
+def weekly_report(
+    *,
+    flow_snapshot_dir: Path,
+    report_dir: Path,
+    report_date: str | None = None,
+    lookback_days: int = 5,
+    sector_limit: int = 10,
+    stock_limit: int = 20,
+    db_path: Path | None = None,
+) -> str:
+    from lurker.application.weekly_flow_report import build_weekly_flow_report
+    job_date = report_date or date.today().isoformat()
+
+    report = build_weekly_flow_report(
+        flow_snapshot_dir=flow_snapshot_dir,
+        report_date=job_date,
+        lookback_days=lookback_days,
+        sector_limit=sector_limit,
+        stock_limit=stock_limit,
+    )
+
+    # Save to report directory
+    report_dir.mkdir(parents=True, exist_ok=True)
+    report_path = report_dir / f"weekly_{job_date}.md"
+    report_path.write_text(report.content_md.rstrip() + "\n", encoding="utf-8")
+
+    # Save to database
+    if db_path:
+        from lurker.storage.db import init_db, create_session
+        from lurker.storage.models import Report
+        import datetime
+        t_date = datetime.datetime.strptime(job_date, "%Y-%m-%d").date()
+        engine = init_db(db_path)
+        with create_session(engine) as session:
+            db_report = session.query(Report).filter_by(report_date=t_date, report_type="weekly").first()
+            if db_report:
+                db_report.content = report.content_md
+            else:
+                db_report = Report(
+                    report_date=t_date,
+                    report_type="weekly",
+                    content=report.content_md,
+                )
+                session.add(db_report)
+            session.commit()
+
+    return f"Wrote weekly flow report to {report_path}\n\n{report.content_md}"
+
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -642,7 +874,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command")
 
     snapshot = subparsers.add_parser("data-snapshot")
-    snapshot.add_argument("--markets", default="cn,us,hk")
+    snapshot.add_argument("--markets", default="cn")
     snapshot.add_argument("--period", default="1y")
     snapshot.add_argument("--windows", default="20,60,120,180")
     snapshot.add_argument("--limit", type=int, default=5)
@@ -657,6 +889,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=ROOT / "data" / "processed" / "price_snapshots",
     )
+    snapshot.add_argument(
+        "--markets-path",
+        type=Path,
+        default=ROOT / "configs" / "markets.yaml",
+    )
 
     resolve_seeds = subparsers.add_parser("resolve-seeds")
     resolve_seeds.add_argument("--themes", type=Path, default=ROOT / "configs" / "themes.yaml")
@@ -664,6 +901,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--output",
         type=Path,
         default=ROOT / "data" / "processed" / "resolved_seed_pool.json",
+    )
+    resolve_seeds.add_argument(
+        "--markets-path",
+        type=Path,
+        default=ROOT / "configs" / "markets.yaml",
+    )
+    resolve_seeds.add_argument(
+        "--db-path",
+        type=Path,
+        default=ROOT / "data" / "lurker.sqlite",
     )
 
     run_daily_cmd = subparsers.add_parser(
@@ -717,6 +964,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="策略配置 YAML（默认 configs/strategies.yaml）",
     )
     run_daily_cmd.add_argument(
+        "--scoring-config",
+        type=Path,
+        default=ROOT / "configs" / "scoring.yaml",
+        help="打分配置 YAML（默认 configs/scoring.yaml）",
+    )
+    run_daily_cmd.add_argument(
         "--strategies",
         default=None,
         help="只运行指定策略，逗号分隔；默认运行配置中启用且符合 cadence 的策略",
@@ -747,9 +1000,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="LLM API base_url（默认 Gemini OpenAI-compatible 端点）",
     )
+    run_daily_cmd.add_argument(
+        "--db-path",
+        type=Path,
+        default=ROOT / "data" / "lurker.sqlite",
+    )
 
     refresh = subparsers.add_parser("refresh-prices")
-    refresh.add_argument("--markets", default="cn,us,hk")
+    refresh.add_argument("--markets", default="cn")
     refresh.add_argument("--period", default="1y")
     refresh.add_argument("--windows", default="20,60,120,180")
     refresh.add_argument("--limit", type=int, default=5)
@@ -764,6 +1022,16 @@ def build_parser() -> argparse.ArgumentParser:
         default=ROOT / "data" / "processed" / "price_snapshots",
     )
     refresh.add_argument("--date", default=None)
+    refresh.add_argument(
+        "--markets-path",
+        type=Path,
+        default=ROOT / "configs" / "markets.yaml",
+    )
+    refresh.add_argument(
+        "--db-path",
+        type=Path,
+        default=ROOT / "data" / "lurker.sqlite",
+    )
 
     refresh_flow = subparsers.add_parser("refresh-flows")
     refresh_flow.add_argument(
@@ -772,12 +1040,17 @@ def build_parser() -> argparse.ArgumentParser:
         default=ROOT / "data" / "processed" / "flow_snapshots",
     )
     refresh_flow.add_argument("--date", default=None)
+    refresh_flow.add_argument(
+        "--db-path",
+        type=Path,
+        default=ROOT / "data" / "lurker.sqlite",
+    )
 
     daily = subparsers.add_parser(
         "daily-job",
         help="刷新本地行情快照，生成并落盘每日 Markdown 日报",
     )
-    daily.add_argument("--markets", default="cn,us,hk")
+    daily.add_argument("--markets", default="cn")
     daily.add_argument("--period", default="1y")
     daily.add_argument("--windows", default="20,60,120,180")
     daily.add_argument("--limit", type=int, default=5)
@@ -815,6 +1088,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=ROOT / "configs" / "strategies.yaml",
     )
+    daily.add_argument(
+        "--scoring-config",
+        type=Path,
+        default=ROOT / "configs" / "scoring.yaml",
+        help="打分配置 YAML（默认 configs/scoring.yaml）",
+    )
     daily.add_argument("--strategies", default=None)
     daily.add_argument("--cadence", default="daily")
     daily.add_argument("--api-key", default=None)
@@ -825,6 +1104,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     daily.add_argument("--model", default=None)
     daily.add_argument("--base-url", default=None)
+    daily.add_argument(
+        "--markets-path",
+        type=Path,
+        default=ROOT / "configs" / "markets.yaml",
+    )
+    daily.add_argument(
+        "--db-path",
+        type=Path,
+        default=ROOT / "data" / "lurker.sqlite",
+    )
 
     list_reports_cmd = subparsers.add_parser(
         "list-reports",
@@ -837,10 +1126,51 @@ def build_parser() -> argparse.ArgumentParser:
     )
     list_reports_cmd.add_argument("--limit", type=int, default=10)
 
+    weekly_cmd = subparsers.add_parser(
+        "weekly-report",
+        help="生成周报（从本地资金快照聚合）",
+    )
+    weekly_cmd.add_argument(
+        "--flow-snapshots",
+        type=Path,
+        default=ROOT / "data" / "processed" / "flow_snapshots",
+    )
+    weekly_cmd.add_argument(
+        "--report-dir",
+        type=Path,
+        default=ROOT / "data" / "reports",
+    )
+    weekly_cmd.add_argument("--date", default=None, help="报告日期，默认 today")
+    weekly_cmd.add_argument("--lookback", type=int, default=5, help="回溯天数，默认 5")
+    weekly_cmd.add_argument("--sector-limit", type=int, default=10, help="周报板块数量上限")
+    weekly_cmd.add_argument("--stock-limit", type=int, default=20, help="周报个股数量上限")
+    weekly_cmd.add_argument(
+        "--db-path",
+        type=Path,
+        default=ROOT / "data" / "lurker.sqlite",
+    )
+
     return parser
 
 
 def main() -> None:
+    # Load env vars from .env file in project root if present
+    env_path = ROOT / ".env"
+    if env_path.exists():
+        import os
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" in line:
+                key, val = line.split("=", 1)
+                key = key.strip()
+                val = val.strip()
+                if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+                    val = val[1:-1]
+                if key and key not in os.environ:
+                    os.environ[key] = val
+
     parser = build_parser()
     args = parser.parse_args()
 
@@ -854,12 +1184,20 @@ def main() -> None:
                 windows=[int(window) for window in parse_markets(args.windows)],
                 period=args.period,
                 limit_per_market=args.limit,
+                markets_path=args.markets_path,
             )
         )
         return
 
     if args.command == "resolve-seeds":
-        print(resolve_seed_pool(themes_path=args.themes, output_path=args.output))
+        print(
+            resolve_seed_pool(
+                themes_path=args.themes,
+                output_path=args.output,
+                markets_path=args.markets_path,
+                db_path=args.db_path,
+            )
+        )
         return
 
     if args.command == "run-daily":
@@ -880,6 +1218,8 @@ def main() -> None:
                 api_key=api_key,
                 model=args.model,
                 base_url=args.base_url,
+                scoring_config_path=args.scoring_config,
+                db_path=args.db_path,
             )
         )
         return
@@ -894,6 +1234,8 @@ def main() -> None:
                 period=args.period,
                 limit_per_market=args.limit,
                 snapshot_date=args.date,
+                markets_path=args.markets_path,
+                db_path=args.db_path,
             )
         )
         return
@@ -903,6 +1245,7 @@ def main() -> None:
             refresh_flows(
                 output_dir=args.output_dir,
                 snapshot_date=args.date,
+                db_path=args.db_path,
             )
         )
         return
@@ -930,6 +1273,23 @@ def main() -> None:
                 api_key=api_key,
                 model=args.model,
                 base_url=args.base_url,
+                scoring_config_path=args.scoring_config,
+                markets_path=args.markets_path,
+                db_path=args.db_path,
+            )
+        )
+        return
+
+    if args.command == "weekly-report":
+        print(
+            weekly_report(
+                flow_snapshot_dir=args.flow_snapshots,
+                report_dir=args.report_dir,
+                report_date=args.date,
+                lookback_days=args.lookback,
+                sector_limit=args.sector_limit,
+                stock_limit=args.stock_limit,
+                db_path=args.db_path,
             )
         )
         return

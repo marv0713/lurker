@@ -26,6 +26,7 @@ def render_professional_flow_report(
     setup_watch: list[dict[str, Any]],
     invalidation_alerts: list[str],
     data_quality: list[str],
+    conclusion: str | None = None,
 ) -> str:
     sector_lines = [
         f"{item['name']}：主力净流入 {_format_money(item.get('main_net_inflow'))}，{item.get('label', '主线')}"
@@ -46,14 +47,14 @@ def render_professional_flow_report(
         for item in setup_watch
     ]
 
-    conclusion = f"今日状态：{market_temperature}。"
-    return f"""# 职业资金雷达日报
+    effective_conclusion = conclusion or f"今日状态：{market_temperature}。"
+    return fr"""# 职业资金雷达日报
 
 日期：{report_date}
 
 ## 一句话结论
 
-{conclusion}
+{effective_conclusion}
 
 ## 市场资金温度
 

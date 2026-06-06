@@ -80,13 +80,15 @@ def scan_signals(
     snapshots: list[dict[str, Any]],
     windows: list[int],
     threshold: int = 60,
+    scoring_config: dict | None = None,
 ) -> list[StockSignal]:
     """从 price snapshot rows 批量计算个股信号。
 
     Args:
         snapshots: collect_price_snapshot_batch 返回的 snapshots 列表。
-        windows: 计算收益的窗口列表（需与快照一致，e.g. [20, 60, 120, 180]）。
+        windows: 计算收益 of windows（需与快照一致，e.g. [20, 60, 120, 180]）。
         threshold: 低于该信号分的个股被过滤，不进入候选流水线。
+        scoring_config: 包含打分规则权重的字典。
 
     Returns:
         通过阈值过滤的 StockSignal 列表，按信号分降序排列。
@@ -121,7 +123,8 @@ def scan_signals(
                 "turnover_expansion": 0.0,
             }
 
-            score = score_stock_strength(metrics)
+            score = score_stock_strength(metrics, config=scoring_config)
+
             if score < threshold:
                 continue
 

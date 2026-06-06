@@ -117,6 +117,8 @@ def run_daily(
     low_score_watch_limit: int = 5,
     suppressed_symbols: set[str] | list[str] | None = None,
     symbol_names: dict[str, str] | None = None,
+    scoring_config: dict | None = None,
+    db_session: Any = None,
 ) -> DailyReport:
     """执行每日完整 pipeline，返回 Markdown 日报字符串。
 
@@ -128,6 +130,8 @@ def run_daily(
         main_limit: 主候选数量上限，默认 10。
         low_score_watch_limit: 从 archive 中展示的低分观察样本数量，默认 5。
         suppressed_symbols: 本地屏蔽标的集合，不进入日报展示。
+        scoring_config: 包含打分规则权重的字典。
+        db_session: 数据库会话，用于持久化运行结果。
 
     Returns:
         Markdown 格式的每日日报字符串。
@@ -140,7 +144,7 @@ def run_daily(
     snapshots: list[dict[str, Any]] = snapshot_batch.get("snapshots", [])
 
     # Step 1: 信号扫描
-    signals: list[StockSignal] = scan_signals(snapshots, windows, threshold=signal_threshold)
+    signals: list[StockSignal] = scan_signals(snapshots, windows, threshold=signal_threshold, scoring_config=scoring_config)
 
     # failures 统计放在 early return 前，确保无信号时也能提示
     failures: list[dict] = snapshot_batch.get("failures", [])
@@ -157,21 +161,44 @@ def run_daily(
             watchlist_changes=[],
             risk_alerts=risk_alerts,
         )
+        if db_session is not None:
+            from lurker.storage.models import Report
+            from datetime import datetime
+            t_date = datetime.strptime(today, "%Y-%m-%d").date()
+            # Clear candidates for this date
+            from lurker.storage.models import Candidate, AIAttribution
+            existing_candidates = db_session.query(Candidate).filter_by(trade_date=t_date).all()
+            for ec in existing_candidates:
+                db_session.query(AIAttribution).filter_by(candidate_id=ec.candidate_id).delete()
+                db_session.delete(ec)
+            
+            db_report = db_session.query(Report).filter_by(report_date=t_date, report_type="daily").first()
+            if db_report:
+                db_report.content = content
+            else:
+                db_report = Report(
+                    report_date=t_date,
+                    report_type="daily",
+                    content=content,
+                )
+                db_session.add(db_report)
+            db_session.commit()
+
         return DailyReport(
             report_date=today,
             main_candidates_count=0,
             content_md=content,
         )
 
-
     from lurker.ingest.news import fetch_recent_news
     from lurker.application.sector_scan import compute_theme_scores
 
     # 计算板块联动分
-    theme_scores = compute_theme_scores(signals, theme_mapping or {})
+    theme_scores = compute_theme_scores(signals, theme_mapping or {}, scoring_config=scoring_config)
 
     # Step 2: 逐信号归因 + 组装候选
     candidates: list[dict] = []
+    attributions_by_symbol = {}
     for signal in signals:
         # 在送入归因前抓取新闻喂料
         news_items = fetch_recent_news(signal.symbol, signal.market, limit=3)
@@ -179,6 +206,7 @@ def run_daily(
             signal.extra_sources = news_items
 
         attribution_result, ai_score = attributor.attribute(signal)
+        attributions_by_symbol[signal.symbol] = attribution_result
 
         # 找到个股所属得分最高的主题
         best_theme = None
@@ -257,6 +285,64 @@ def run_daily(
         watchlist_changes=watchlist_changes,
         risk_alerts=risk_alerts,
     )
+
+    if db_session is not None:
+        from lurker.storage.models import Candidate, AIAttribution, Report
+        from datetime import datetime
+        t_date = datetime.strptime(today, "%Y-%m-%d").date()
+
+        # Delete existing candidates for this date
+        existing_candidates = db_session.query(Candidate).filter_by(trade_date=t_date).all()
+        for ec in existing_candidates:
+            db_session.query(AIAttribution).filter_by(candidate_id=ec.candidate_id).delete()
+            db_session.delete(ec)
+        db_session.flush()
+
+        # Save candidates and attributions
+        for tier_name, tier_list in ranked.items():
+            for c in tier_list:
+                db_candidate = Candidate(
+                    trade_date=t_date,
+                    theme_id=c.get("theme", ""),
+                    primary_symbols=[c.get("symbol", "")],
+                    expanded_symbols=[],
+                    stock_score=c.get("stock_score", 0.0),
+                    sector_score=c.get("sector_score", 0.0),
+                    ai_score=c.get("ai_score", 0.0),
+                    total_score=c.get("total_score", 0.0),
+                    visibility_tier=c.get("visibility_tier", "archive"),
+                    status="active",
+                )
+                db_session.add(db_candidate)
+                db_session.flush()
+
+                symbol = c.get("symbol")
+                attr_res = attributions_by_symbol.get(symbol)
+                if attr_res:
+                    db_attr = AIAttribution(
+                        candidate_id=db_candidate.candidate_id,
+                        classification=getattr(attr_res, "classification", "证据不足型"),
+                        reason_summary=getattr(attr_res, "reason_summary", ""),
+                        evidence_types=getattr(attr_res, "evidence", []),
+                        risk_flags=getattr(attr_res, "risk_flags", []),
+                        upgrade_recommendation=getattr(attr_res, "upgrade_recommendation", "观察"),
+                        missing_evidence=getattr(attr_res, "missing_evidence", []),
+                        source_refs=getattr(attr_res, "source_refs", []),
+                    )
+                    db_session.add(db_attr)
+
+        db_report = db_session.query(Report).filter_by(report_date=t_date, report_type="daily").first()
+        if db_report:
+            db_report.content = content
+        else:
+            db_report = Report(
+                report_date=t_date,
+                report_type="daily",
+                content=content,
+            )
+            db_session.add(db_report)
+        db_session.commit()
+
     return DailyReport(
         report_date=today,
         main_candidates_count=len(ranked["main"]),

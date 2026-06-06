@@ -27,6 +27,7 @@ class StrategyContext:
     flow_snapshot: dict[str, Any] | None = None
     symbol_names: dict[str, str] = field(default_factory=dict)
     runtime_params: dict[str, Any] = field(default_factory=dict)
+    db_session: Any = None
 
 
 from lurker.reports.models import DailyReport
@@ -155,6 +156,8 @@ class LongTermTrendStrategy:
             main_limit=int(params.get("main_limit", 10)),
             low_score_watch_limit=int(params.get("low_score_watch_limit", 5)),
             suppressed_symbols=context.suppressed_symbols,
+            scoring_config=params.get("scoring_config"),
+            db_session=context.db_session,
         )
         return StrategyResult(
             name=self.name,
@@ -162,6 +165,7 @@ class LongTermTrendStrategy:
             report=report,
             metadata={"cadence": config.cadence, "universe": config.universe},
         )
+
 
 
 class ProfessionalFlowDailyStrategy:

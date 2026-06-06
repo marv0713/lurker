@@ -36,9 +36,11 @@ def build_resolved_seed_pool(
     cn_index_resolver: CnIndexResolver = resolve_cn_index_constituents,
     cn_etf_resolver: Any = resolve_cn_etf_constituents,
     cn_symbol_name_resolver: CnSymbolNameResolver = resolve_cn_symbol_names,
+    markets_path: str | Path | None = None,
 ) -> ResolvedSeedPool:
-    from lurker.config import load_themes
+    from lurker.config import load_themes, load_markets
     themes = load_themes(themes_path)
+    markets_cfg = load_markets(markets_path) if markets_path else {}
 
     sources_by_market = load_theme_seed_sources(themes_path)
     markets: dict[str, Any] = {}
@@ -67,6 +69,13 @@ def build_resolved_seed_pool(
         index_symbols = [symbol for symbols in index_sources.values() for symbol in symbols]
         etf_symbols = [symbol for symbols in etf_sources.values() for symbol in symbols]
         symbols = merge_symbols(manual_symbols, sorted(index_symbols), sorted(etf_symbols))
+
+        # Filter out Beijing Exchange (.BJ) if exclude_beijing_exchange is set
+        if markets_cfg and market in markets_cfg:
+            market_filters = markets_cfg[market].get("filters", {})
+            if market_filters.get("exclude_beijing_exchange"):
+                symbols = [s for s in symbols if not s.upper().endswith(".BJ")]
+
         if not symbols and not unresolved:
             continue
 
@@ -104,12 +113,35 @@ def build_resolved_seed_pool(
     cn_symbols = markets.get("cn", {}).get("symbols", [])
     symbol_names = cn_symbol_name_resolver(cn_symbols) if cn_symbols else {}
 
+    # Filter out ST stocks if exclude_st is set
+    if markets_cfg and "cn" in markets_cfg and cn_symbols:
+        cn_filters = markets_cfg["cn"].get("filters", {})
+        if cn_filters.get("exclude_st"):
+            st_prefixes = ("ST", "*ST", "SST", "S*ST")
+            filtered_cn_symbols = []
+            for s in cn_symbols:
+                name = symbol_names.get(s, "")
+                if name.upper().startswith(st_prefixes):
+                    if s in theme_mapping:
+                        del theme_mapping[s]
+                    continue
+                filtered_cn_symbols.append(s)
+            
+            markets["cn"]["symbols"] = filtered_cn_symbols
+            sources = markets["cn"]["sources"]
+            sources["manual"] = [s for s in sources["manual"] if s in filtered_cn_symbols]
+            for idx, list_s in list(sources["indexes"].items()):
+                sources["indexes"][idx] = [s for s in list_s if s in filtered_cn_symbols]
+            for etf, list_s in list(sources["etfs"].items()):
+                sources["etfs"][etf] = [s for s in list_s if s in filtered_cn_symbols]
+
     return {
         "generated_at": generated_at or datetime.now(UTC).isoformat(),
         "markets": markets,
         "theme_mapping": theme_mapping,
         "symbol_names": symbol_names,
     }
+
 
 
 def save_resolved_seed_pool(pool: ResolvedSeedPool, path: str | Path) -> None:

@@ -1,0 +1,8 @@
+# 长期自选观察池 (Personal Watchlist)
+# 雷达每天会对这里的股票进行“异常检测体检”（放量异动、高位回撤、跑输大盘）
+# 支持跨市场标的混合填写
+
+watchlist:
+  - symbol: 300308.SZ
+    market: cn
+    name: 中际旭创

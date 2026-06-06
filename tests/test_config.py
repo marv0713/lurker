@@ -11,7 +11,7 @@ def test_load_themes_contains_ai_infra():
 
     assert "ai_infra" in {theme["id"] for theme in themes}
     ai_infra = next(theme for theme in themes if theme["id"] == "ai_infra")
-    assert ai_infra["markets"]["us"]["seed_symbols"] == ["NVDA", "AVGO", "ANET"]
+    assert ai_infra["markets"]["cn"]["seed_symbols"] == ["300308.SZ", "300502.SZ"]
 
 
 def test_load_markets_has_three_market_profiles():

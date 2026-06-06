@@ -27,7 +27,14 @@ def _capture(source: str, fetcher: Callable[[], Any], failures: list[dict[str, s
     try:
         return fetcher()
     except Exception as exc:
-        failures.append({"source": source, "reason": f"{type(exc).__name__}: {exc}"})
+        reason = str(exc)
+        if "频率超限" in reason or "limit" in reason.lower():
+            friendly_reason = "接口调用频率超限（如每小时限制 1 次），请稍后再试。"
+        elif "TOKEN" in reason.upper():
+            friendly_reason = "接口 Token 未配置或已失效。"
+        else:
+            friendly_reason = f"{type(exc).__name__}: {reason}"
+        failures.append({"source": source, "reason": friendly_reason})
         return [] if source.endswith("flows") or source == "core_etfs" else {}
 
 

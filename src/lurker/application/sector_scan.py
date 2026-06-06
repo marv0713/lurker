@@ -14,6 +14,7 @@ def compute_theme_scores(
     signals: list[StockSignal],
     theme_mapping: dict[str, list[str]],
     strong_threshold: int = 45,
+    scoring_config: dict | None = None,
 ) -> dict[str, int]:
     """计算各个主题的板块联动分。
 
@@ -21,6 +22,7 @@ def compute_theme_scores(
         signals: 扫描出的个股信号。
         theme_mapping: resolved_seed_pool 中的 symbol -> [theme_id] 映射。
         strong_threshold: 判定"强势股"的最低 stock_score 分数。
+        scoring_config: 包含打分规则权重的字典。
 
     Returns:
         {theme_id: sector_score}，未涉及的主题得分为 0。
@@ -54,7 +56,8 @@ def compute_theme_scores(
             "turnover_persistent": False,
         }
 
-        score = min(100, score_sector_breadth(metrics))
+        score = min(100, score_sector_breadth(metrics, config=scoring_config))
         theme_scores[theme_id] = score
 
     return theme_scores
+
