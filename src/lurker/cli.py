@@ -827,6 +827,7 @@ def weekly_report(
     lookback_days: int = 5,
     sector_limit: int = 10,
     stock_limit: int = 20,
+    push: bool = False,
     db_path: Path | None = None,
 ) -> str:
     from lurker.application.weekly_flow_report import build_weekly_flow_report
@@ -865,7 +866,20 @@ def weekly_report(
                 session.add(db_report)
             session.commit()
 
-    return f"Wrote weekly flow report to {report_path}\n\n{report.content_md}"
+    push_msg = ""
+    if push:
+        try:
+            notifier = build_notifier_from_env()
+            notifier.send(
+                title=f"Lurker 周报 ({job_date})",
+                markdown_content=report.content_md,
+            )
+            if type(notifier).__name__ != "StubNotifier":
+                push_msg = "\nPushed weekly report successfully."
+        except Exception as e:
+            push_msg = f"\nFailed to push weekly report: {e}"
+
+    return f"Wrote weekly flow report to {report_path}{push_msg}\n\n{report.content_md}"
 
 
 
@@ -1144,6 +1158,7 @@ def build_parser() -> argparse.ArgumentParser:
     weekly_cmd.add_argument("--lookback", type=int, default=5, help="回溯天数，默认 5")
     weekly_cmd.add_argument("--sector-limit", type=int, default=10, help="周报板块数量上限")
     weekly_cmd.add_argument("--stock-limit", type=int, default=20, help="周报个股数量上限")
+    weekly_cmd.add_argument("--push", action="store_true", help="推送周报到已配置通知通道")
     weekly_cmd.add_argument(
         "--db-path",
         type=Path,
@@ -1289,6 +1304,7 @@ def main() -> None:
                 lookback_days=args.lookback,
                 sector_limit=args.sector_limit,
                 stock_limit=args.stock_limit,
+                push=args.push,
                 db_path=args.db_path,
             )
         )

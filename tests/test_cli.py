@@ -17,6 +17,7 @@ from lurker.cli import (
     refresh_flows,
     refresh_prices,
     resolve_seed_pool,
+    weekly_report,
 )
 
 
@@ -637,6 +638,57 @@ def test_parser_has_refresh_flows_command():
 
     assert args.command == "refresh-flows"
     assert args.date == "2026-06-04"
+
+
+def test_parser_has_weekly_report_push_option():
+    parser = build_parser()
+
+    args = parser.parse_args(["weekly-report", "--date", "2026-06-07", "--push"])
+
+    assert args.command == "weekly-report"
+    assert args.date == "2026-06-07"
+    assert args.push is True
+
+
+def test_weekly_report_pushes_when_enabled(monkeypatch, tmp_path):
+    flow_dir = tmp_path / "flow_snapshots"
+    flow_dir.mkdir()
+    (flow_dir / "2026-06-05.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "generated_at": "2026-06-05T00:00:00+00:00",
+                "market": "cn",
+                "market_flow": {"main_net_inflow": -1.0, "super_large_net_inflow": -1.0},
+                "sector_flows": [{"name": "机器人", "main_net_inflow": 100.0, "rank": 1}],
+                "stock_flows": [],
+                "margin": {},
+                "core_etfs": [],
+                "failures": [],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    sends = []
+
+    class FakeNotifier:
+        def send(self, title, markdown_content):
+            sends.append((title, markdown_content))
+
+    monkeypatch.setattr("lurker.cli.build_notifier_from_env", lambda: FakeNotifier())
+
+    message = weekly_report(
+        flow_snapshot_dir=flow_dir,
+        report_dir=tmp_path / "reports",
+        report_date="2026-06-07",
+        push=True,
+        db_path=None,
+    )
+
+    assert sends
+    assert "职业资金雷达周报" in sends[0][1]
+    assert "Pushed weekly report successfully" in message
 
 
 def test_build_notifier_from_env_can_build_composite(monkeypatch):
