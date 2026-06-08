@@ -59,6 +59,25 @@ def test_normalize_margin_frame_sums_exchanges():
     assert result["margin_balance"] == 330.0
 
 
+def test_normalize_margin_frame_uses_latest_trade_date_only():
+    raw = pd.DataFrame(
+        {
+            "trade_date": ["20260604", "20260604", "20260605", "20260605"],
+            "rzye": [100.0, 200.0, 300.0, 400.0],
+            "rqye": [10.0, 20.0, 30.0, 40.0],
+            "rzrqye": [110.0, 220.0, 330.0, 440.0],
+        }
+    )
+
+    result = normalize_margin_frame(raw, previous_margin_balance=330.0)
+
+    assert result["trade_date"] == "20260605"
+    assert result["financing_balance"] == 700.0
+    assert result["securities_lending_balance"] == 70.0
+    assert result["margin_balance"] == 770.0
+    assert result["margin_balance_change"] == 440.0
+
+
 def test_normalize_market_flow_frame_keeps_known_fields():
     raw = pd.DataFrame({"主力净流入-净额": [1.0], "超大单净流入-净额": [2.0]})
 
@@ -97,6 +116,26 @@ def test_normalize_margin_frame_computes_change_when_previous_balance_provided()
 
     assert result["margin_balance"] == 110.0
     assert result["margin_balance_change"] == 20.0
+
+
+def test_normalize_margin_frame_skips_change_for_same_trade_date():
+    raw = pd.DataFrame(
+        {
+            "trade_date": ["20260604"],
+            "rzye": [100.0],
+            "rqye": [10.0],
+            "rzrqye": [110.0],
+        }
+    )
+
+    result = normalize_margin_frame(
+        raw,
+        previous_margin_balance=110.0,
+        previous_trade_date="20260604",
+    )
+
+    assert result["margin_balance"] == 110.0
+    assert "margin_balance_change" not in result
 
 
 def test_fetch_stock_flows_merges_today_5d_and_10d_rankings(monkeypatch):

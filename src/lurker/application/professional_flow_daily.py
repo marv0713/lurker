@@ -322,7 +322,10 @@ def _market_notes(market_flow: dict[str, Any], margin: dict[str, Any], temperatu
             f"{_as_float(market_flow.get('super_large_net_inflow')):.0f}"
         )
     if margin:
-        notes.append(f"两融余额变化 {_as_float(margin.get('margin_balance_change')):.0f}")
+        note = f"两融余额 {_as_float(margin.get('margin_balance')):.0f}"
+        if margin.get("margin_balance_change") is not None:
+            note += f"，变化 {_as_float(margin.get('margin_balance_change')):.0f}"
+        notes.append(note)
     if temperature == "防守":
         notes.append("⚠️ 防守模式：所有标的降级至观察，仅极少数超强确认标的保留候选资格。")
     elif temperature == "观察":

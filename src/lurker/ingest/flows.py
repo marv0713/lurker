@@ -165,21 +165,29 @@ def normalize_margin_frame(
     raw: pd.DataFrame,
     *,
     previous_margin_balance: float | None = None,
+    previous_trade_date: str | None = None,
 ) -> dict[str, Any]:
     if raw.empty:
         return {}
+    current = raw
+    if "trade_date" in raw.columns:
+        trade_dates = raw["trade_date"].dropna().astype(str)
+        if not trade_dates.empty:
+            latest_trade_date = trade_dates.max()
+            current = raw[raw["trade_date"].astype(str) == latest_trade_date]
     margin_balance = float(
-        pd.to_numeric(raw.get("rzrqye", 0), errors="coerce").fillna(0).sum()
+        pd.to_numeric(current.get("rzrqye", 0), errors="coerce").fillna(0).sum()
     )
+    trade_date = str(current.iloc[0].get("trade_date", ""))
     result = {
-        "trade_date": str(raw.iloc[0].get("trade_date", "")),
-        "financing_balance": float(pd.to_numeric(raw.get("rzye", 0), errors="coerce").fillna(0).sum()),
+        "trade_date": trade_date,
+        "financing_balance": float(pd.to_numeric(current.get("rzye", 0), errors="coerce").fillna(0).sum()),
         "securities_lending_balance": float(
-            pd.to_numeric(raw.get("rqye", 0), errors="coerce").fillna(0).sum()
+            pd.to_numeric(current.get("rqye", 0), errors="coerce").fillna(0).sum()
         ),
         "margin_balance": margin_balance,
     }
-    if previous_margin_balance is not None:
+    if previous_margin_balance is not None and str(previous_trade_date or "") != trade_date:
         result["margin_balance_change"] = margin_balance - previous_margin_balance
     return result
 
@@ -250,15 +258,22 @@ def fetch_margin(*, token: str | None = None, cache_path: Path | None = None) ->
     import tushare as ts
     try:
         previous_margin_balance = None
+        previous_trade_date = None
         if cache_path.exists():
             try:
                 previous = json.loads(cache_path.read_text(encoding="utf-8"))
                 previous_margin_balance = _to_float(previous.get("margin_balance"))
+                previous_trade_date = str(previous.get("trade_date", "")) or None
             except Exception:
                 previous_margin_balance = None
+                previous_trade_date = None
         pro = ts.pro_api(resolved_token)
         raw = pro.margin()
-        data = normalize_margin_frame(raw, previous_margin_balance=previous_margin_balance)
+        data = normalize_margin_frame(
+            raw,
+            previous_margin_balance=previous_margin_balance,
+            previous_trade_date=previous_trade_date,
+        )
         if data:
             try:
                 cache_path.parent.mkdir(parents=True, exist_ok=True)

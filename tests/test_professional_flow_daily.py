@@ -1,6 +1,7 @@
 from lurker.application.professional_flow_daily import (
     classify_market_temperature,
     _detect_contradiction,
+    _market_notes,
     _setup_score,
     _classify_sector_label,
     _trend_scores,
@@ -28,6 +29,27 @@ def test_classify_market_temperature_defense_when_all_negative():
         core_etfs=[],
     )
     assert result == "防守"
+
+
+def test_market_notes_show_margin_balance_and_skip_missing_change():
+    notes = _market_notes(
+        {"main_net_inflow": 1.0, "super_large_net_inflow": 2.0},
+        {"margin_balance": 770.0},
+        "观察",
+    )
+
+    assert "两融余额 770" in notes
+    assert not any("两融余额变化 0" in note for note in notes)
+
+
+def test_market_notes_show_margin_balance_change_when_available():
+    notes = _market_notes(
+        {"main_net_inflow": 1.0, "super_large_net_inflow": 2.0},
+        {"margin_balance": 770.0, "margin_balance_change": 40.0},
+        "观察",
+    )
+
+    assert "两融余额 770，变化 40" in notes
 
 
 def test_market_temperature_defense_downgrades_candidates():
