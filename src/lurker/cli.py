@@ -655,11 +655,17 @@ def daily_job(
     # 检查是否有严重的资金流抓取报错（排除频率超限等非致命错误）
     has_critical_flow_failure = False
     critical_reasons = []
+    non_blocking_flow_sources = {"stock_flows", "margin", "core_etfs"}
     for f in flow_failures:
         reason = f.get("reason", "")
-        if "频率超限" not in reason and "limit" not in reason.lower():
+        source = str(f.get("source", ""))
+        if (
+            source not in non_blocking_flow_sources
+            and "频率超限" not in reason
+            and "limit" not in reason.lower()
+        ):
             has_critical_flow_failure = True
-            critical_reasons.append(f"{f.get('source')}: {reason}")
+            critical_reasons.append(f"{source}: {reason}")
 
     is_valid = True
     validation_error = ""

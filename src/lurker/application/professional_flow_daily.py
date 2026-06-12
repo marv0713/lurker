@@ -309,6 +309,32 @@ def _is_sector_leader(
     return symbol in leaders
 
 
+def _is_noisy_stock_name(name: str) -> bool:
+    return "ST" in name.upper() or "退市" in name
+
+
+def _core_stock_flow_leaders(stock_flows: list[dict[str, Any]], *, limit: int = 10) -> list[dict[str, Any]]:
+    ranked = sorted(
+        [
+            flow
+            for flow in stock_flows
+            if not _is_noisy_stock_name(str(flow.get("name", "")))
+        ],
+        key=lambda flow: _as_float(flow.get("main_net_inflow")),
+        reverse=True,
+    )
+    return [
+        {
+            "symbol": str(flow.get("symbol", "")).upper(),
+            "name": str(flow.get("name") or flow.get("symbol", "")),
+            "main_net_inflow": _as_float(flow.get("main_net_inflow")),
+            "main_net_inflow_5d": _as_float(flow.get("main_net_inflow_5d")),
+            "main_net_inflow_10d": _as_float(flow.get("main_net_inflow_10d")),
+        }
+        for flow in ranked[:limit]
+    ]
+
+
 # ---------------------------------------------------------------------------
 # 市场温度备注
 # ---------------------------------------------------------------------------
@@ -477,6 +503,7 @@ def run_professional_flow_daily(
         market_temperature=temperature,
         market_notes=_market_notes(market_flow, margin, temperature),
         sector_leaders=sector_leaders,
+        stock_flow_leaders=_core_stock_flow_leaders(stock_flows),
         two_percent_candidates=two_percent,
         setup_watch=setup_watch,
         invalidation_alerts=invalidation_alerts,

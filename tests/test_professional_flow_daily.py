@@ -97,6 +97,63 @@ def test_market_temperature_defense_downgrades_candidates():
     assert "防守" in report.content_md
 
 
+def test_professional_daily_report_includes_core_stock_flows():
+    price_snapshot = {
+        "snapshots": [
+            {
+                "symbol": "300308.SZ",
+                "market": "cn",
+                "return_20d": 0.10,
+                "return_60d": 0.50,
+                "return_120d": 0.80,
+            },
+            {
+                "symbol": "600498.SH",
+                "market": "cn",
+                "return_20d": 0.08,
+                "return_60d": 0.30,
+                "return_120d": 0.60,
+            },
+        ]
+    }
+    flow_snapshot = {
+        "market_flow": {"main_net_inflow": 10.0, "super_large_net_inflow": 5.0},
+        "sector_flows": [{"name": "通信设备", "main_net_inflow": 100.0, "rank": 1}],
+        "stock_flows": [
+            {
+                "symbol": "600498.SH",
+                "name": "烽火通信",
+                "main_net_inflow": 2174000000.0,
+                "main_net_inflow_5d": 3000000000.0,
+                "main_net_inflow_10d": 5000000000.0,
+            },
+            {
+                "symbol": "300308.SZ",
+                "name": "中际旭创",
+                "main_net_inflow": 80000000.0,
+                "main_net_inflow_5d": 200000000.0,
+                "main_net_inflow_10d": 300000000.0,
+            },
+        ],
+        "margin": {},
+        "core_etfs": [],
+        "failures": [],
+    }
+
+    report = run_professional_flow_daily(
+        price_snapshot=price_snapshot,
+        flow_snapshot=flow_snapshot,
+        theme_mapping={"300308.SZ": ["通信设备"], "600498.SH": ["通信设备"]},
+        symbol_names={"300308.SZ": "中际旭创", "600498.SH": "烽火通信"},
+        report_date="2026-06-12",
+    )
+
+    assert "## 核心股票资金流向" in report.content_md
+    stock_section = report.content_md.split("## 核心股票资金流向", 1)[1].split("## 弹簧买点观察", 1)[0]
+    assert "烽火通信 (600498.SH)" in stock_section
+    assert "今日 21.7亿" in stock_section
+
+
 # ---------------------------------------------------------------------------
 # 修复 2：背离标签检测
 # ---------------------------------------------------------------------------

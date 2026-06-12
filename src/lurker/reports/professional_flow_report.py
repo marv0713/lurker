@@ -22,6 +22,7 @@ def render_professional_flow_report(
     market_temperature: str,
     market_notes: list[str],
     sector_leaders: list[dict[str, Any]],
+    stock_flow_leaders: list[dict[str, Any]],
     two_percent_candidates: list[dict[str, Any]],
     setup_watch: list[dict[str, Any]],
     invalidation_alerts: list[str],
@@ -38,6 +39,15 @@ def render_professional_flow_report(
             f"{item['label']}，主力净流入 {_format_money(item.get('main_net_inflow'))}"
         )
         for item in two_percent_candidates
+    ]
+    stock_lines = [
+        (
+            f"{item['name']} ({item['symbol']})："
+            f"今日 {_format_money(item.get('main_net_inflow'))}，"
+            f"5日 {_format_money(item.get('main_net_inflow_5d'))}，"
+            f"10日 {_format_money(item.get('main_net_inflow_10d'))}"
+        )
+        for item in (stock_flow_leaders or [])
     ]
     setup_lines = [
         (
@@ -67,6 +77,10 @@ def render_professional_flow_report(
 ## 2%候选
 
 {render_list(candidate_lines)}
+
+## 核心股票资金流向
+
+{render_list(stock_lines)}
 
 ## 弹簧买点观察
 

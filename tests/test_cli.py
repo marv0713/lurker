@@ -781,6 +781,85 @@ strategies:
     assert "Pushed report successfully" in message
 
 
+def test_daily_job_pushes_professional_report_when_only_stock_flows_fail(monkeypatch, tmp_path):
+    seed_pool_path = tmp_path / "resolved_seed_pool.json"
+    seed_pool_path.write_text(
+        """
+{
+  "generated_at": "2026-06-12T00:00:00+00:00",
+  "theme_mapping": {},
+  "markets": {
+    "cn": {
+      "symbols": ["300308.SZ"],
+      "sources": {}
+    }
+  }
+}
+""",
+        encoding="utf-8",
+    )
+    strategy_config = tmp_path / "strategies.yaml"
+    strategy_config.write_text(
+        """
+strategies:
+  professional_flow_daily:
+    enabled: true
+    cadence: daily
+    universe: resolved_seed_pool
+""",
+        encoding="utf-8",
+    )
+    sends = []
+
+    class FakeNotifier:
+        def send(self, title, markdown_content):
+            sends.append((title, markdown_content))
+
+    def fake_price_collector(**kwargs):
+        return {
+            "generated_at": "2026-06-12T00:00:00+00:00",
+            "markets": ["cn"],
+            "windows": [20],
+            "snapshots": [{"symbol": "300308.SZ", "market": "cn", "return_20d": 0.1}],
+            "failures": [],
+        }
+
+    def fake_flow_collector():
+        return {
+            "schema_version": 1,
+            "generated_at": "2026-06-12T00:00:00+00:00",
+            "market": "cn",
+            "market_flow": {"main_net_inflow": 1.0, "super_large_net_inflow": 1.0},
+            "sector_flows": [{"name": "通信设备", "main_net_inflow": 100.0, "rank": 1}],
+            "stock_flows": [],
+            "margin": {},
+            "core_etfs": [],
+            "failures": [{"source": "stock_flows", "reason": "ReadTimeout: timed out"}],
+        }
+
+    monkeypatch.setattr("lurker.cli.collect_price_snapshot_batch", fake_price_collector)
+    monkeypatch.setattr("lurker.cli.collect_flow_snapshot", fake_flow_collector)
+    monkeypatch.setattr("lurker.cli.build_notifier_from_env", lambda: FakeNotifier())
+
+    message = daily_job(
+        seed_pool_path=seed_pool_path,
+        price_snapshot_dir=tmp_path / "price_snapshots",
+        flow_snapshot_dir=tmp_path / "flow_snapshots",
+        report_dir=tmp_path / "reports",
+        markets=["cn"],
+        windows=[20],
+        period="6mo",
+        limit_per_market=1,
+        report_date="2026-06-12",
+        strategy_config_path=strategy_config,
+        strategy_cadence="daily",
+    )
+
+    assert sends
+    assert "stock_flows" in sends[0][1]
+    assert "Pushed report successfully" in message
+
+
 def test_parser_has_daily_job_command():
     parser = build_parser()
 
