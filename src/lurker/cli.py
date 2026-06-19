@@ -32,6 +32,7 @@ from lurker.pipeline import rank_candidates
 from lurker.reports.daily_report import render_daily_report
 from lurker.reports.models import DailyReport
 from lurker.reports.trend_card import render_trend_card
+from lurker.trading_calendar import all_markets_are_cn, is_cn_trading_day
 from lurker.universe.resolved_seed_pool import (
     build_resolved_seed_pool,
     extract_seed_symbols,
@@ -494,6 +495,9 @@ def daily_job(
     db_path: Path | None = None,
 ) -> str:
     job_date = report_date or date.today().isoformat()
+    if all_markets_are_cn(markets) and not is_cn_trading_day(job_date):
+        return f"Skipped daily job: cn market closed on {job_date}."
+
     seed_pool = load_resolved_seed_pool(seed_pool_path)
 
     from lurker.config import load_markets
@@ -838,6 +842,8 @@ def weekly_report(
 ) -> str:
     from lurker.application.weekly_flow_report import build_weekly_flow_report
     job_date = report_date or date.today().isoformat()
+    if not is_cn_trading_day(job_date):
+        return f"Skipped weekly report: cn market closed on {job_date}."
 
     report = build_weekly_flow_report(
         flow_snapshot_dir=flow_snapshot_dir,

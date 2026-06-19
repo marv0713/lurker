@@ -87,6 +87,37 @@ def test_weekly_report_uses_latest_n_snapshots_not_calendar_window(tmp_path):
     assert "2026-06-01 至 2026-06-05" in report.content_md
 
 
+def test_weekly_report_excludes_cn_non_trading_day_snapshots(tmp_path):
+    flow_dir = tmp_path / "flow_snapshots"
+    flow_dir.mkdir()
+    for day, sector_name, inflow in [
+        ("2026-06-15", "半导体", 10.0),
+        ("2026-06-16", "半导体", 20.0),
+        ("2026-06-17", "半导体", 30.0),
+        ("2026-06-18", "半导体", 40.0),
+        ("2026-06-19", "假日污染", 9999.0),
+    ]:
+        _write_flow(
+            flow_dir / f"{day}.json",
+            day,
+            temperature_flow={"main_net_inflow": 1.0, "super_large_net_inflow": 1.0},
+            sectors=[{"name": sector_name, "main_net_inflow": inflow, "rank": 1}],
+            stocks=[],
+        )
+
+    report = build_weekly_flow_report(
+        flow_snapshot_dir=flow_dir,
+        report_date="2026-06-19",
+        lookback_days=5,
+        sector_limit=10,
+        stock_limit=10,
+    )
+
+    assert "2026-06-15 至 2026-06-18" in report.content_md
+    assert "假日污染" not in report.content_md
+    assert "使用资金快照 4 份" in report.content_md
+
+
 def test_weekly_report_limits_noise_and_filters_st_names(tmp_path):
     flow_dir = tmp_path / "flow_snapshots"
     flow_dir.mkdir()

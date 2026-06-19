@@ -8,6 +8,7 @@ from typing import Any
 
 from lurker.application.professional_flow_daily import classify_market_temperature
 from lurker.reports.models import DailyReport
+from lurker.trading_calendar import is_cn_trading_day
 
 
 def _as_float(value: Any, default: float = 0.0) -> float:
@@ -58,7 +59,7 @@ def _load_latest_snapshots(
                 file_dt = datetime.strptime(match.group(1), "%Y-%m-%d").date()
             except ValueError:
                 continue
-            if file_dt <= report_dt:
+            if file_dt <= report_dt and is_cn_trading_day(file_dt):
                 snapshot_files.append((file_dt, path))
 
     snapshot_files.sort(key=lambda item: item[0])

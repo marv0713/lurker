@@ -127,7 +127,7 @@ def test_daily_job_with_db(monkeypatch, tmp_path):
         windows=[20, 60],
         period="6mo",
         limit_per_market=1,
-        report_date="2026-05-17",
+        report_date="2026-05-18",
         signal_threshold=0,
         db_path=db_path,
     )
@@ -147,7 +147,7 @@ def test_daily_job_with_db(monkeypatch, tmp_path):
 
     reports = session.query(Report).all()
     assert len(reports) == 1
-    assert reports[0].report_date == date(2026, 5, 17)
+    assert reports[0].report_date == date(2026, 5, 18)
     assert reports[0].report_type == "daily"
     assert len(reports[0].content) > 0
 

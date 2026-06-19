@@ -22,7 +22,7 @@ from lurker.cli import (
 
 
 def test_build_demo_report_returns_markdown():
-    report = build_demo_report(report_date="2026-05-17")
+    report = build_demo_report(report_date="2026-05-18")
 
     assert report.content_md.startswith("# 大趋势雷达日报")
     assert "AI 算力基础设施" in report.content_md
@@ -47,7 +47,7 @@ def test_build_data_snapshot_uses_cached_seed_pool(monkeypatch, tmp_path):
     seed_pool_path.write_text(
         """
 {
-  "generated_at": "2026-05-17T12:00:00+00:00",
+  "generated_at": "2026-05-18T12:00:00+00:00",
   "markets": {
     "cn": {
       "symbols": ["300308.SZ", "300502.SZ"],
@@ -127,7 +127,7 @@ def test_resolve_seed_pool_writes_cache(monkeypatch, tmp_path):
 
     def fake_builder(themes_path):
         return {
-            "generated_at": "2026-05-17T12:00:00+00:00",
+            "generated_at": "2026-05-18T12:00:00+00:00",
             "markets": {"cn": {"symbols": ["300308.SZ"], "sources": {}}},
         }
 
@@ -328,7 +328,7 @@ def test_daily_job_refreshes_prices_and_writes_report(monkeypatch, tmp_path):
         assert kwargs["period"] == "6mo"
         assert kwargs["limit_per_market"] == 1
         return {
-            "generated_at": "2026-05-17T12:00:00+00:00",
+            "generated_at": "2026-05-18T12:00:00+00:00",
             "seed_pool_generated_at": "2026-05-16T12:00:00+00:00",
             "markets": ["cn"],
             "windows": [20, 60],
@@ -339,11 +339,11 @@ def test_daily_job_refreshes_prices_and_writes_report(monkeypatch, tmp_path):
     def fake_run_daily(**kwargs):
         assert kwargs["snapshot_batch"]["snapshots"][0]["symbol"] == "300308.SZ"
         assert kwargs["theme_mapping"] == {"300308.SZ": ["ai_infra"]}
-        assert kwargs["report_date"] == "2026-05-17"
+        assert kwargs["report_date"] == "2026-05-18"
         assert kwargs["signal_threshold"] == 55
         assert kwargs["main_limit"] == 8
         assert kwargs["suppressed_symbols"] == {"300308.SZ"}
-        return DailyReport(report_date="2026-05-17", main_candidates_count=1, content_md="# 大趋势雷达日报\n\n日报内容")
+        return DailyReport(report_date="2026-05-18", main_candidates_count=1, content_md="# 大趋势雷达日报\n\n日报内容")
 
     monkeypatch.setattr("lurker.cli.collect_price_snapshot_batch", fake_collector)
     monkeypatch.setattr("lurker.cli.run_daily", fake_run_daily)
@@ -358,24 +358,24 @@ def test_daily_job_refreshes_prices_and_writes_report(monkeypatch, tmp_path):
         windows=[20, 60],
         period="6mo",
         limit_per_market=1,
-        report_date="2026-05-17",
+        report_date="2026-05-18",
         signal_threshold=55,
         main_limit=8,
         suppressed_symbols_path=suppressed_symbols_path,
     )
 
-    assert (price_snapshot_dir / "2026-05-17.json").exists()
-    report_path = report_dir / "2026-05-17.md"
+    assert (price_snapshot_dir / "2026-05-18.json").exists()
+    report_path = report_dir / "2026-05-18.md"
     assert report_path.read_text(encoding="utf-8") == "# 大趋势雷达日报\n\n日报内容\n"
     assert "snapshots=1" in message
     assert "failures=1" in message
     assert str(report_path) in message
-    candidates_path = report_dir / "2026-05-17.candidates.json"
+    candidates_path = report_dir / "2026-05-18.candidates.json"
     assert candidates_path.exists()
     assert "300308.SZ" in candidates_path.read_text(encoding="utf-8")
     index_path = report_dir / "index.json"
     assert index_path.exists()
-    assert "2026-05-17" in index_path.read_text(encoding="utf-8")
+    assert "2026-05-18" in index_path.read_text(encoding="utf-8")
 
 
 def test_daily_job_candidate_history_includes_symbol_names(monkeypatch, tmp_path):
@@ -401,7 +401,7 @@ def test_daily_job_candidate_history_includes_symbol_names(monkeypatch, tmp_path
 
     def fake_collector(**kwargs):
         return {
-            "generated_at": "2026-05-17T12:00:00+00:00",
+            "generated_at": "2026-05-18T12:00:00+00:00",
             "seed_pool_generated_at": "2026-05-16T12:00:00+00:00",
             "markets": ["cn"],
             "windows": [20],
@@ -411,7 +411,7 @@ def test_daily_job_candidate_history_includes_symbol_names(monkeypatch, tmp_path
 
     def fake_run_daily(**kwargs):
         assert kwargs["symbol_names"] == {"300308.SZ": "中际旭创"}
-        return DailyReport(report_date="2026-05-17", main_candidates_count=1, content_md="# 大趋势雷达日报\n\n日报内容")
+        return DailyReport(report_date="2026-05-18", main_candidates_count=1, content_md="# 大趋势雷达日报\n\n日报内容")
 
     monkeypatch.setattr("lurker.cli.collect_price_snapshot_batch", fake_collector)
     monkeypatch.setattr("lurker.cli.run_daily", fake_run_daily)
@@ -424,26 +424,26 @@ def test_daily_job_candidate_history_includes_symbol_names(monkeypatch, tmp_path
         windows=[20],
         period="6mo",
         limit_per_market=1,
-        report_date="2026-05-17",
+        report_date="2026-05-18",
         strategy_config_path=None,
     )
 
-    history = json.loads((report_dir / "2026-05-17.candidates.json").read_text(encoding="utf-8"))
+    history = json.loads((report_dir / "2026-05-18.candidates.json").read_text(encoding="utf-8"))
     assert history["observed_symbols"][0]["name"] == "中际旭创"
 
 
 def test_append_report_archive_index_upserts_by_date(tmp_path):
     report_dir = tmp_path / "reports"
     report_dir.mkdir()
-    report_path = report_dir / "2026-05-17.md"
-    candidate_path = report_dir / "2026-05-17.candidates.json"
+    report_path = report_dir / "2026-05-18.md"
+    candidate_path = report_dir / "2026-05-18.candidates.json"
 
     append_report_archive_index(
         report_dir=report_dir,
-        report_date="2026-05-17",
+        report_date="2026-05-18",
         report_path=report_path,
         candidates_path=candidate_path,
-        snapshot_path=tmp_path / "snapshots" / "2026-05-17.json",
+        snapshot_path=tmp_path / "snapshots" / "2026-05-18.json",
         strategies=["long_term_trend"],
         markets=["cn"],
         windows=[20, 60],
@@ -452,10 +452,10 @@ def test_append_report_archive_index_upserts_by_date(tmp_path):
     )
     append_report_archive_index(
         report_dir=report_dir,
-        report_date="2026-05-17",
+        report_date="2026-05-18",
         report_path=report_path,
         candidates_path=candidate_path,
-        snapshot_path=tmp_path / "snapshots" / "2026-05-17.json",
+        snapshot_path=tmp_path / "snapshots" / "2026-05-18.json",
         strategies=["long_term_trend"],
         markets=["cn"],
         windows=[20, 60],
@@ -530,7 +530,7 @@ def test_refresh_prices_writes_snapshot(monkeypatch, tmp_path):
         assert kwargs["seed_symbols"] == {"cn": ["300308.SZ"]}
         assert kwargs["seed_pool_generated_at"] == "2026-05-16T12:00:00+00:00"
         return {
-            "generated_at": "2026-05-17T12:00:00+00:00",
+            "generated_at": "2026-05-18T12:00:00+00:00",
             "seed_pool_generated_at": "2026-05-16T12:00:00+00:00",
             "markets": ["cn"],
             "windows": [20],
@@ -547,13 +547,13 @@ def test_refresh_prices_writes_snapshot(monkeypatch, tmp_path):
         windows=[20],
         period="6mo",
         limit_per_market=1,
-        snapshot_date="2026-05-17",
+        snapshot_date="2026-05-18",
     )
 
     assert "Wrote price snapshot" in message
     assert "snapshots=1" in message
     assert "failures=0" in message
-    assert (output_dir / "2026-05-17.json").exists()
+    assert (output_dir / "2026-05-18.json").exists()
 
 
 def test_refresh_flows_writes_snapshot(monkeypatch, tmp_path):
@@ -588,10 +588,10 @@ def test_data_snapshot_uses_latest_price_snapshot(monkeypatch, tmp_path):
     )
     snapshot_dir = tmp_path / "price_snapshots"
     snapshot_dir.mkdir()
-    (snapshot_dir / "2026-05-17.json").write_text(
+    (snapshot_dir / "2026-05-18.json").write_text(
         """
 {
-  "generated_at": "2026-05-17T12:00:00+00:00",
+  "generated_at": "2026-05-18T12:00:00+00:00",
   "windows": [20],
   "snapshots": [
     {"symbol": "300308.SZ", "market": "cn", "latest_close": 140.0, "return_20d": 0.2},
@@ -624,11 +624,11 @@ def test_data_snapshot_uses_latest_price_snapshot(monkeypatch, tmp_path):
 def test_parser_has_refresh_prices_command():
     parser = build_parser()
 
-    args = parser.parse_args(["refresh-prices", "--markets", "cn", "--date", "2026-05-17"])
+    args = parser.parse_args(["refresh-prices", "--markets", "cn", "--date", "2026-05-18"])
 
     assert args.command == "refresh-prices"
     assert args.markets == "cn"
-    assert args.date == "2026-05-17"
+    assert args.date == "2026-05-18"
 
 
 def test_parser_has_refresh_flows_command():
@@ -681,7 +681,7 @@ def test_weekly_report_pushes_when_enabled(monkeypatch, tmp_path):
     message = weekly_report(
         flow_snapshot_dir=flow_dir,
         report_dir=tmp_path / "reports",
-        report_date="2026-06-07",
+        report_date="2026-06-05",
         push=True,
         db_path=None,
     )
@@ -689,6 +689,47 @@ def test_weekly_report_pushes_when_enabled(monkeypatch, tmp_path):
     assert sends
     assert "职业资金雷达周报" in sends[0][1]
     assert "Pushed weekly report successfully" in message
+
+
+def test_weekly_report_skips_push_on_cn_non_trading_day(monkeypatch, tmp_path):
+    flow_dir = tmp_path / "flow_snapshots"
+    flow_dir.mkdir()
+    (flow_dir / "2026-06-18.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "generated_at": "2026-06-18T00:00:00+00:00",
+                "market": "cn",
+                "market_flow": {"main_net_inflow": 1.0, "super_large_net_inflow": 1.0},
+                "sector_flows": [{"name": "机器人", "main_net_inflow": 100.0, "rank": 1}],
+                "stock_flows": [],
+                "margin": {},
+                "core_etfs": [],
+                "failures": [],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    sends = []
+
+    class FakeNotifier:
+        def send(self, title, markdown_content):
+            sends.append((title, markdown_content))
+
+    monkeypatch.setattr("lurker.cli.build_notifier_from_env", lambda: FakeNotifier())
+
+    message = weekly_report(
+        flow_snapshot_dir=flow_dir,
+        report_dir=tmp_path / "reports",
+        report_date="2026-06-19",
+        push=True,
+        db_path=None,
+    )
+
+    assert sends == []
+    assert "Skipped weekly report: cn market closed on 2026-06-19" in message
+    assert not (tmp_path / "reports" / "weekly_2026-06-19.md").exists()
 
 
 def test_build_notifier_from_env_can_build_composite(monkeypatch):
@@ -708,7 +749,7 @@ def test_daily_job_pushes_professional_report_when_stock_flows_are_empty(monkeyp
     seed_pool_path.write_text(
         """
 {
-  "generated_at": "2026-06-06T00:00:00+00:00",
+  "generated_at": "2026-06-08T00:00:00+00:00",
   "theme_mapping": {},
   "markets": {
     "cn": {
@@ -739,7 +780,7 @@ strategies:
 
     def fake_price_collector(**kwargs):
         return {
-            "generated_at": "2026-06-06T00:00:00+00:00",
+            "generated_at": "2026-06-08T00:00:00+00:00",
             "markets": ["cn"],
             "windows": [20],
             "snapshots": [{"symbol": "300308.SZ", "market": "cn", "return_20d": 0.1}],
@@ -749,7 +790,7 @@ strategies:
     def fake_flow_collector():
         return {
             "schema_version": 1,
-            "generated_at": "2026-06-06T00:00:00+00:00",
+            "generated_at": "2026-06-08T00:00:00+00:00",
             "market": "cn",
             "market_flow": {"main_net_inflow": 1.0, "super_large_net_inflow": 1.0},
             "sector_flows": [{"name": "通信设备", "main_net_inflow": 100.0, "rank": 1}],
@@ -772,7 +813,7 @@ strategies:
         windows=[20],
         period="6mo",
         limit_per_market=1,
-        report_date="2026-06-06",
+        report_date="2026-06-08",
         strategy_config_path=strategy_config,
         strategy_cadence="daily",
     )
@@ -860,14 +901,50 @@ strategies:
     assert "Pushed report successfully" in message
 
 
+def test_daily_job_skips_cn_non_trading_day(monkeypatch, tmp_path):
+    sends = []
+
+    class FakeNotifier:
+        def send(self, title, markdown_content):
+            sends.append((title, markdown_content))
+
+    def fail_price_collector(**kwargs):
+        raise AssertionError("should not collect prices on a closed cn session")
+
+    def fail_flow_collector():
+        raise AssertionError("should not collect flows on a closed cn session")
+
+    monkeypatch.setattr("lurker.cli.collect_price_snapshot_batch", fail_price_collector)
+    monkeypatch.setattr("lurker.cli.collect_flow_snapshot", fail_flow_collector)
+    monkeypatch.setattr("lurker.cli.build_notifier_from_env", lambda: FakeNotifier())
+
+    message = daily_job(
+        seed_pool_path=tmp_path / "missing_seed_pool.json",
+        price_snapshot_dir=tmp_path / "price_snapshots",
+        flow_snapshot_dir=tmp_path / "flow_snapshots",
+        report_dir=tmp_path / "reports",
+        markets=["cn"],
+        windows=[20],
+        period="6mo",
+        limit_per_market=1,
+        report_date="2026-06-19",
+        strategy_names=["professional_flow_daily"],
+        strategy_cadence="daily",
+    )
+
+    assert sends == []
+    assert "Skipped daily job: cn market closed on 2026-06-19" in message
+    assert not (tmp_path / "reports" / "2026-06-19.md").exists()
+
+
 def test_parser_has_daily_job_command():
     parser = build_parser()
 
-    args = parser.parse_args(["daily-job", "--markets", "cn", "--date", "2026-05-17"])
+    args = parser.parse_args(["daily-job", "--markets", "cn", "--date", "2026-05-18"])
 
     assert args.command == "daily-job"
     assert args.markets == "cn"
-    assert args.date == "2026-05-17"
+    assert args.date == "2026-05-18"
     assert args.report_dir.name == "reports"
 
 
