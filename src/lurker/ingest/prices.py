@@ -18,6 +18,17 @@ PRICE_COLUMNS = [
     "volume",
 ]
 
+BENCHMARK_SYMBOLS = {"cn": "000300.SH", "hk": "^HSI", "us": "SPY"}
+
+CN_INDEX_COLUMN_ALIASES = {
+    "trade_date": ("日期", "trade_date", "date"),
+    "open": ("开盘", "open"),
+    "high": ("最高", "high"),
+    "low": ("最低", "low"),
+    "close": ("收盘", "close"),
+    "volume": ("成交量", "volume"),
+}
+
 
 def to_yfinance_symbol(symbol: str) -> str:
     if not symbol.endswith(".HK"):
@@ -84,6 +95,28 @@ def normalize_cn_price_frame(raw: pd.DataFrame, symbol: str) -> pd.DataFrame:
     return normalized[PRICE_COLUMNS]
 
 
+def _resolve_cn_index_columns(raw: pd.DataFrame) -> dict[str, str]:
+    resolved: dict[str, str] = {}
+    missing: list[str] = []
+    for canonical, aliases in CN_INDEX_COLUMN_ALIASES.items():
+        source = next((alias for alias in aliases if alias in raw.columns), None)
+        if source is None:
+            missing.append(canonical)
+        else:
+            resolved[source] = canonical
+    if missing:
+        raise ValueError(f"missing CN index price columns: {', '.join(missing)}")
+    return resolved
+
+
+def normalize_cn_index_price_frame(raw: pd.DataFrame, symbol: str) -> pd.DataFrame:
+    normalized = raw.rename(columns=_resolve_cn_index_columns(raw)).copy()
+    normalized["symbol"] = symbol
+    normalized["trade_date"] = pd.to_datetime(normalized["trade_date"]).dt.date
+    normalized["adj_close"] = normalized["close"]
+    return normalized[PRICE_COLUMNS].sort_values("trade_date").reset_index(drop=True)
+
+
 def normalize_tushare_cn_price_frame(raw: pd.DataFrame, symbol: str) -> pd.DataFrame:
     normalized = raw.rename(columns={"vol": "volume"}).copy()
     normalized["symbol"] = symbol
@@ -141,6 +174,19 @@ def fetch_akshare_cn_prices(symbol: str, period: str = "1y") -> pd.DataFrame:
         adjust="qfq",
     )
     return normalize_cn_price_frame(raw, symbol=symbol)
+
+
+def fetch_cn_benchmark_prices(
+    symbol: str = "000300.SH",
+    period: str = "2y",
+) -> pd.DataFrame:
+    raw = ak.index_zh_a_hist(
+        symbol=to_akshare_symbol(symbol),
+        period="daily",
+        start_date=period_to_start_date(period),
+        end_date=today_yyyymmdd(),
+    )
+    return normalize_cn_index_price_frame(raw, symbol)
 
 
 def fetch_tushare_cn_prices(
@@ -224,3 +270,21 @@ def fetch_cn_prices(
                 time.sleep(sleep_seconds)
 
     raise RuntimeError("; ".join(errors))
+
+
+def fetch_watchlist_history(
+    symbol: str,
+    market: str,
+    period: str = "2y",
+    *,
+    is_benchmark: bool = False,
+    stock_fetcher: CnPriceFetcher | None = None,
+    cn_benchmark_fetcher: CnPriceFetcher | None = None,
+) -> pd.DataFrame:
+    if market == "cn" and is_benchmark:
+        fetcher = cn_benchmark_fetcher or fetch_cn_benchmark_prices
+        return fetcher(symbol, period)
+    if market == "cn":
+        fetcher = stock_fetcher or fetch_cn_prices
+        return fetcher(symbol, period)
+    return fetch_yfinance_prices(symbol, period)

@@ -281,6 +281,8 @@ PYTHONPATH=src .venv/bin/python -c 'import akshare as ak; frame = ak.index_zh_a_
 
 This is an implementation-time compatibility check, not a CI test. Record the observed column names and dtypes in the Task 2 implementation notes, then make the test fixture in Step 2 match that actual response. Confirm that the response exposes semantic fields for date, open, high, low, close, and volume. If any required field is absent, stop Task 2 and select a suitable AkShare index-history endpoint; do not silently synthesize a missing field.
 
+Implementation note (2026-07-20): the live endpoint was attempted with direct, escalated, and project-compatible request paths, but Eastmoney closed the connection before a frame was returned. AkShare 1.18.60 source inspection confirms that `index_zh_a_hist` constructs `日期、开盘、收盘、最高、最低、成交量、成交额、振幅、涨跌幅、涨跌额、换手率`; the first six semantic fields are covered by the normalization fixture. Runtime normalization also validates every required field explicitly, so a future provider schema change fails loudly. A successful live no-push acceptance run remains required before enabling production push.
+
 - [ ] **Step 2: Write failing benchmark normalization and dispatch tests**
 
 Add tests using injected provider functions, never live network:

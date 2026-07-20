@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from lurker.ingest.constituents import (
     format_cn_stock_symbol,
@@ -8,12 +9,18 @@ from lurker.ingest.constituents import (
     resolve_cn_index_constituents,
     resolve_cn_etf_constituents,
 )
-from lurker.ingest.prices import normalize_cn_price_frame, to_akshare_symbol, normalize_price_frame, to_yfinance_symbol
 from lurker.ingest.prices import (
+    PRICE_COLUMNS,
     fetch_cn_prices,
+    fetch_watchlist_history,
     normalize_baostock_cn_price_frame,
+    normalize_cn_index_price_frame,
+    normalize_cn_price_frame,
+    normalize_price_frame,
     normalize_tushare_cn_price_frame,
+    to_akshare_symbol,
     to_baostock_symbol,
+    to_yfinance_symbol,
 )
 
 
@@ -220,6 +227,63 @@ def test_fetch_cn_prices_uses_slow_fallback_order():
         ("baostock", "300308.SZ", "6mo"),
     ]
     assert result.iloc[0]["symbol"] == "300308.SZ"
+
+
+def test_normalize_cn_index_price_frame_uses_adjusted_close_contract():
+    raw = pd.DataFrame(
+        {
+            "日期": ["2026-07-17", "2026-07-20"],
+            "开盘": [4000.0, 4010.0],
+            "最高": [4020.0, 4030.0],
+            "最低": [3990.0, 4000.0],
+            "收盘": [4010.0, 4025.0],
+            "成交量": [100, 120],
+        }
+    )
+
+    result = normalize_cn_index_price_frame(raw, symbol="000300.SH")
+
+    assert list(result.columns) == PRICE_COLUMNS
+    assert result.iloc[-1]["adj_close"] == 4025.0
+    assert str(result.iloc[-1]["trade_date"]) == "2026-07-20"
+
+
+def test_normalize_cn_index_price_frame_fails_loudly_when_required_field_is_missing():
+    raw = pd.DataFrame(
+        {
+            "日期": ["2026-07-20"],
+            "开盘": [4010.0],
+            "最高": [4030.0],
+            "最低": [4000.0],
+            "收盘": [4025.0],
+        }
+    )
+
+    with pytest.raises(ValueError, match="missing CN index price columns: volume"):
+        normalize_cn_index_price_frame(raw, symbol="000300.SH")
+
+
+def test_fetch_watchlist_history_dispatches_cn_benchmark_separately():
+    calls = []
+
+    def stock_fetcher(symbol, period):
+        calls.append(("stock", symbol, period))
+        return pd.DataFrame()
+
+    def benchmark_fetcher(symbol, period):
+        calls.append(("benchmark", symbol, period))
+        return pd.DataFrame()
+
+    fetch_watchlist_history(
+        symbol="000300.SH",
+        market="cn",
+        period="2y",
+        is_benchmark=True,
+        stock_fetcher=stock_fetcher,
+        cn_benchmark_fetcher=benchmark_fetcher,
+    )
+
+    assert calls == [("benchmark", "000300.SH", "2y")]
 
 
 def test_load_theme_seed_sources_exposes_unexpanded_boundaries(tmp_path):
