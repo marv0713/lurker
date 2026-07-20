@@ -127,9 +127,13 @@ def load_watchlist(path: str | Path) -> WatchlistConfig:
     )
     if unknown_price_change_markets:
         raise ValueError(f"unknown price_change market: {unknown_price_change_markets[0]}")
-    price_changes = {
+    merged_price_changes = {
         **_WATCHLIST_DEFAULTS["price_change"],
         **configured_price_changes,
+    }
+    price_changes = {
+        market: _ratio(value, f"price_change.{market}")
+        for market, value in merged_price_changes.items()
     }
     raw_items = data.get("watchlist")
     if not isinstance(raw_items, list) or not raw_items:

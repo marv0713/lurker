@@ -213,3 +213,21 @@ watchlist:
 
     with pytest.raises(ValueError, match="unknown price_change market: crypto"):
         load_watchlist(path)
+
+
+def test_load_watchlist_validates_unused_market_price_change_default(tmp_path):
+    path = tmp_path / "watchlist.yaml"
+    path.write_text(
+        """
+defaults:
+  price_change:
+    cn: 0.05
+    us: 2.0
+watchlist:
+  - {symbol: 300308.SZ, market: cn, name: 中际旭创}
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"price_change\.us must be within \(0, 1\]"):
+        load_watchlist(path)

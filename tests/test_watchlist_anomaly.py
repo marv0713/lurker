@@ -328,3 +328,45 @@ def test_report_date_excludes_newer_price_rows(tmp_path):
 
     assert result.new_alert_count == 0
     assert "数据截止日：2026-07-20" not in result.content_md
+
+
+def test_backdated_replay_cannot_push_or_regress_live_state(tmp_path):
+    def current_fetcher(symbol, market, period, *, is_benchmark=False):
+        return benchmark_frame() if is_benchmark else price_frame(alerting=True)
+
+    store = AlertStateStore(tmp_path / "state.json")
+    notifier = RecordingNotifier()
+    current = run_watchlist_anomaly(
+        config=config(),
+        report_date="2026-07-20",
+        report_dir=tmp_path / "reports",
+        state_store=store,
+        history_fetcher=current_fetcher,
+        notifier=notifier,
+        push=True,
+    )
+    live_state = store.load()
+
+    def historical_fetcher(symbol, market, period, *, is_benchmark=False):
+        if is_benchmark:
+            return benchmark_frame()
+        prices = price_frame(alerting=False)
+        prices.loc[prices.index[-2], ["adj_close", "volume"]] = [70.0, 400.0]
+        return prices
+
+    replay = run_watchlist_anomaly(
+        config=config(),
+        report_date="2026-07-17",
+        report_dir=tmp_path / "reports",
+        state_store=store,
+        history_fetcher=historical_fetcher,
+        notifier=notifier,
+        push=True,
+    )
+
+    assert current.pushed is True
+    assert replay.new_alert_count > 0
+    assert replay.pushed is False
+    assert len(notifier.sends) == 1
+    assert store.load() == live_state
+    assert "历史回放只读模式" in replay.content_md

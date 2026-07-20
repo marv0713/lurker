@@ -63,6 +63,22 @@ def _through_report_date(prices: pd.DataFrame, cutoff: date) -> pd.DataFrame:
     return prices.loc[dates.notna() & (dates.dt.date <= cutoff)].copy()
 
 
+def _has_rows_after_report_date(prices: pd.DataFrame, cutoff: date) -> bool:
+    if "trade_date" not in prices.columns:
+        return False
+    dates = pd.to_datetime(prices["trade_date"], errors="coerce").dropna().dt.date
+    return any(value > cutoff for value in dates)
+
+
+def _state_has_dates_after(state: dict, cutoff: date) -> bool:
+    for record in state.values():
+        for field in ("last_detected_date", "last_notified_date"):
+            value = record.get(field)
+            if value and date.fromisoformat(str(value)) > cutoff:
+                return True
+    return False
+
+
 def _detect(
     item: WatchlistItemConfig,
     stock: pd.DataFrame,
@@ -118,6 +134,7 @@ def run_watchlist_anomaly(
 ) -> WatchlistCheckupResult:
     report_cutoff = date.fromisoformat(report_date)
     state = state_store.load()
+    historical_replay = _state_has_dates_after(state, report_cutoff)
     data_issues: list[str] = []
     benchmarks: dict[str, pd.DataFrame] = {}
     benchmark_errors: dict[str, str] = {}
@@ -129,13 +146,18 @@ def run_watchlist_anomaly(
     for market in sorted(benchmark_markets):
         symbol = BENCHMARK_SYMBOLS[market]
         try:
+            raw_benchmark = history_fetcher(
+                symbol,
+                market,
+                period,
+                is_benchmark=True,
+            )
+            historical_replay = historical_replay or _has_rows_after_report_date(
+                raw_benchmark,
+                report_cutoff,
+            )
             benchmarks[market] = _through_report_date(
-                history_fetcher(
-                    symbol,
-                    market,
-                    period,
-                    is_benchmark=True,
-                ),
+                raw_benchmark,
                 report_cutoff,
             )
         except Exception as exc:
@@ -148,13 +170,18 @@ def run_watchlist_anomaly(
     detection_failures = 0
     for item in config.items:
         try:
+            raw_stock = history_fetcher(
+                item.symbol,
+                item.market,
+                period,
+                is_benchmark=False,
+            )
+            historical_replay = historical_replay or _has_rows_after_report_date(
+                raw_stock,
+                report_cutoff,
+            )
             stock = _through_report_date(
-                history_fetcher(
-                    item.symbol,
-                    item.market,
-                    period,
-                    is_benchmark=False,
-                ),
+                raw_stock,
                 report_cutoff,
             )
         except Exception as exc:
@@ -207,6 +234,9 @@ def run_watchlist_anomaly(
             if should_notify:
                 new_alerts.append(alert)
 
+    if historical_replay:
+        data_issues.insert(0, "历史回放只读模式：不更新实时告警状态，也不发送通知")
+
     rendered_content = render_watchlist_alerts(
         report_date=report_date,
         alerts=new_alerts,
@@ -227,10 +257,17 @@ def run_watchlist_anomaly(
     else:
         content = rendered_content
     report_path.write_text(content, encoding="utf-8")
-    state_store.save(state)
+    if not historical_replay:
+        state_store.save(state)
 
     pushed = False
-    if push and notifier is not None and new_alerts and successful_stocks > 0:
+    if (
+        not historical_replay
+        and push
+        and notifier is not None
+        and new_alerts
+        and successful_stocks > 0
+    ):
         notifier.send(
             title=f"[{len(new_alerts)}个异常] 自选股异常体检 ({report_date})",
             markdown_content=rendered_content,
