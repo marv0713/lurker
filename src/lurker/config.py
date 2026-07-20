@@ -46,6 +46,9 @@ _WATCHLIST_DEFAULTS = {
     "cooldown_trading_days": 20,
     "worsening_step": 0.10,
 }
+_WATCHLIST_TOP_LEVEL_FIELDS = {"defaults", "watchlist"}
+_WATCHLIST_ITEM_FIELDS = {"symbol", "market", "name", "overrides"}
+_WATCHLIST_RULE_FIELDS = set(_WATCHLIST_DEFAULTS)
 
 
 def load_yaml(path: str | Path) -> dict[str, Any]:
@@ -79,9 +82,30 @@ def _ratio(value: Any, field: str) -> float:
     return result
 
 
+def _mapping(value: Any, context: str) -> dict[str, Any]:
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError(f"{context} must be a mapping")
+    return value
+
+
+def _reject_unknown_fields(
+    mapping: dict[str, Any],
+    allowed: set[str],
+    context: str,
+) -> None:
+    unknown = sorted(set(mapping) - allowed)
+    if unknown:
+        raise ValueError(f"unknown {context} field: {unknown[0]}")
+
+
 def load_watchlist(path: str | Path) -> WatchlistConfig:
     data = load_yaml(path)
-    raw_defaults = {**_WATCHLIST_DEFAULTS, **dict(data.get("defaults") or {})}
+    _reject_unknown_fields(data, _WATCHLIST_TOP_LEVEL_FIELDS, "watchlist top-level")
+    configured_defaults = _mapping(data.get("defaults"), "watchlist defaults")
+    _reject_unknown_fields(configured_defaults, _WATCHLIST_RULE_FIELDS, "watchlist default")
+    raw_defaults = {**_WATCHLIST_DEFAULTS, **configured_defaults}
     price_changes = {
         **_WATCHLIST_DEFAULTS["price_change"],
         **dict(raw_defaults.get("price_change") or {}),
@@ -93,6 +117,8 @@ def load_watchlist(path: str | Path) -> WatchlistConfig:
     seen: set[str] = set()
     items: list[WatchlistItemConfig] = []
     for raw_item in raw_items:
+        raw_item = _mapping(raw_item, "watchlist item")
+        _reject_unknown_fields(raw_item, _WATCHLIST_ITEM_FIELDS, "watchlist item")
         market = str(raw_item.get("market", "")).strip().lower()
         if market not in SUPPORTED_WATCHLIST_MARKETS:
             raise ValueError(f"unsupported watchlist market: {market}")
@@ -103,7 +129,8 @@ def load_watchlist(path: str | Path) -> WatchlistConfig:
             raise ValueError(f"duplicate watchlist symbol: {symbol}")
         seen.add(symbol)
 
-        overrides = dict(raw_item.get("overrides") or {})
+        overrides = _mapping(raw_item.get("overrides"), "watchlist overrides")
+        _reject_unknown_fields(overrides, _WATCHLIST_RULE_FIELDS, "watchlist override")
         enabled = tuple(overrides.get("enabled_alerts", raw_defaults["enabled_alerts"]))
         unknown = set(enabled) - set(ALERT_TYPES)
         if unknown:

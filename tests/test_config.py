@@ -96,6 +96,56 @@ watchlist:
         load_watchlist(path)
 
 
+def test_load_watchlist_rejects_unknown_override_field(tmp_path):
+    path = tmp_path / "watchlist.yaml"
+    path.write_text(
+        """
+defaults: {}
+watchlist:
+  - symbol: 300308.SZ
+    market: cn
+    name: 中际旭创
+    overrides:
+      volume_rato: 4.0
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="unknown watchlist override field: volume_rato"):
+        load_watchlist(path)
+
+
+def test_load_watchlist_rejects_unknown_default_field(tmp_path):
+    path = tmp_path / "watchlist.yaml"
+    path.write_text(
+        """
+defaults:
+  drawdwon: 0.25
+watchlist:
+  - {symbol: 300308.SZ, market: cn, name: 中际旭创}
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="unknown watchlist default field: drawdwon"):
+        load_watchlist(path)
+
+
+def test_load_watchlist_rejects_unknown_item_field(tmp_path):
+    path = tmp_path / "watchlist.yaml"
+    path.write_text(
+        """
+defaults: {}
+watchlist:
+  - {symbol: 300308.SZ, markets: cn, name: 中际旭创}
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="unknown watchlist item field: markets"):
+        load_watchlist(path)
+
+
 def test_load_watchlist_applies_distinct_market_price_change_defaults(tmp_path):
     path = tmp_path / "watchlist.yaml"
     path.write_text(
