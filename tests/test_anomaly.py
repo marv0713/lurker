@@ -43,6 +43,36 @@ def test_abnormal_volume_excludes_current_day_from_average():
     assert result.alert.metrics["volume_ratio"] == 3.0
 
 
+def test_abnormal_volume_triggers_at_exact_price_and_volume_thresholds():
+    prices = frame([100.0] * 20 + [105.0], [100.0] * 20 + [300.0])
+
+    result = detect_abnormal_volume(
+        prices,
+        symbol="300308.SZ",
+        market="cn",
+        name="中际旭创",
+        volume_ratio_threshold=3.0,
+        price_change_threshold=0.05,
+    )
+
+    assert result.status is DetectionStatus.ALERT
+
+
+def test_abnormal_volume_does_not_trigger_below_price_threshold():
+    prices = frame([100.0] * 20 + [104.9], [100.0] * 20 + [300.0])
+
+    result = detect_abnormal_volume(
+        prices,
+        symbol="300308.SZ",
+        market="cn",
+        name="中际旭创",
+        volume_ratio_threshold=3.0,
+        price_change_threshold=0.05,
+    )
+
+    assert result.status is DetectionStatus.NORMAL
+
+
 def test_abnormal_volume_reports_insufficient_data_for_zero_average():
     prices = frame([100.0] * 20 + [106.0], [0.0] * 20 + [300.0])
 
@@ -90,6 +120,20 @@ def test_peak_drawdown_uses_adjusted_close_peak():
     assert result.alert.severity == pytest.approx(0.20)
 
 
+def test_peak_drawdown_does_not_trigger_below_threshold():
+    prices = frame([100.0] + [90.0] * 248 + [80.1])
+
+    result = detect_peak_drawdown(
+        prices,
+        symbol="300308.SZ",
+        market="cn",
+        name="中际旭创",
+        threshold=0.20,
+    )
+
+    assert result.status is DetectionStatus.NORMAL
+
+
 def test_underperformance_aligns_stock_and_benchmark_dates():
     stock = frame([100.0] * 60 + [80.0])
     benchmark = frame([100.0] * 60 + [100.0])
@@ -105,6 +149,55 @@ def test_underperformance_aligns_stock_and_benchmark_dates():
 
     assert result.status is DetectionStatus.ALERT
     assert result.alert.metrics["alpha_60d"] == pytest.approx(-0.20)
+
+
+def test_underperformance_triggers_at_exact_threshold():
+    stock = frame([100.0] * 60 + [85.0])
+    benchmark = frame([100.0] * 61)
+
+    result = detect_chronic_underperformance(
+        stock,
+        benchmark,
+        symbol="300308.SZ",
+        market="cn",
+        name="中际旭创",
+        threshold=0.15,
+    )
+
+    assert result.status is DetectionStatus.ALERT
+
+
+def test_underperformance_does_not_trigger_below_threshold():
+    stock = frame([100.0] * 60 + [85.1])
+    benchmark = frame([100.0] * 61)
+
+    result = detect_chronic_underperformance(
+        stock,
+        benchmark,
+        symbol="300308.SZ",
+        market="cn",
+        name="中际旭创",
+        threshold=0.15,
+    )
+
+    assert result.status is DetectionStatus.NORMAL
+
+
+def test_underperformance_uses_latest_common_date_not_stock_only_tail():
+    stock = frame([100.0] * 60 + [80.0, 200.0])
+    benchmark = frame([100.0] * 61)
+
+    result = detect_chronic_underperformance(
+        stock,
+        benchmark,
+        symbol="300308.SZ",
+        market="cn",
+        name="中际旭创",
+        threshold=0.15,
+    )
+
+    assert result.status is DetectionStatus.ALERT
+    assert result.alert.observed_on == str(benchmark.iloc[-1]["trade_date"])
 
 
 def test_underperformance_requires_61_common_dates():

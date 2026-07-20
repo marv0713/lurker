@@ -94,3 +94,22 @@ watchlist:
 
     with pytest.raises(ValueError, match="unknown alert type"):
         load_watchlist(path)
+
+
+def test_load_watchlist_applies_distinct_market_price_change_defaults(tmp_path):
+    path = tmp_path / "watchlist.yaml"
+    path.write_text(
+        """
+defaults:
+  price_change: {cn: 0.05, hk: 0.05, us: 0.10}
+watchlist:
+  - {symbol: 300308.SZ, market: cn, name: 中际旭创}
+  - {symbol: 0700.HK, market: hk, name: 腾讯控股}
+  - {symbol: NVDA, market: us, name: NVIDIA}
+""",
+        encoding="utf-8",
+    )
+
+    config = load_watchlist(path)
+
+    assert [item.rules.price_change for item in config.items] == [0.05, 0.05, 0.10]
