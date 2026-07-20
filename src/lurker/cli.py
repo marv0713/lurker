@@ -940,6 +940,36 @@ def weekly_report(
     return f"Wrote weekly flow report to {report_path}{push_msg}\n\n{report.content_md}"
 
 
+def watchlist_checkup(
+    *,
+    watchlist_path: Path,
+    report_dir: Path,
+    state_file: Path,
+    report_date: str | None = None,
+    period: str = "2y",
+    push: bool = True,
+) -> str:
+    from lurker.application.watchlist_alert_state import AlertStateStore
+    from lurker.application.watchlist_anomaly import run_watchlist_anomaly
+    from lurker.config import load_watchlist
+
+    resolved_date = report_date or date.today().isoformat()
+    result = run_watchlist_anomaly(
+        config=load_watchlist(watchlist_path),
+        report_date=resolved_date,
+        report_dir=report_dir,
+        state_store=AlertStateStore(state_file),
+        notifier=build_watchlist_notifier_from_env(),
+        push=push,
+        period=period,
+    )
+    return (
+        f"Wrote watchlist anomaly report to {result.report_path} "
+        f"(checked={result.checked_count}, alerts={result.new_alert_count}, "
+        f"failures={result.failure_count}, pushed={result.pushed})"
+    )
+
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="lurker")
@@ -1223,6 +1253,29 @@ def build_parser() -> argparse.ArgumentParser:
         default=ROOT / "data" / "lurker.sqlite",
     )
 
+    watchlist_cmd = subparsers.add_parser(
+        "watchlist-checkup",
+        help="独立运行自选股异常体检并使用 WATCHLIST_* 接收人",
+    )
+    watchlist_cmd.add_argument(
+        "--watchlist",
+        type=Path,
+        default=ROOT / "configs" / "watchlist.yaml",
+    )
+    watchlist_cmd.add_argument(
+        "--report-dir",
+        type=Path,
+        default=ROOT / "data" / "reports" / "watchlist",
+    )
+    watchlist_cmd.add_argument(
+        "--state-file",
+        type=Path,
+        default=ROOT / "data" / "processed" / "watchlist_alert_state.json",
+    )
+    watchlist_cmd.add_argument("--date", default=None)
+    watchlist_cmd.add_argument("--period", default="2y")
+    watchlist_cmd.add_argument("--no-push", action="store_true")
+
     return parser
 
 
@@ -1246,6 +1299,19 @@ def main() -> None:
 
     parser = build_parser()
     args = parser.parse_args()
+
+    if args.command == "watchlist-checkup":
+        print(
+            watchlist_checkup(
+                watchlist_path=args.watchlist,
+                report_dir=args.report_dir,
+                state_file=args.state_file,
+                report_date=args.date,
+                period=args.period,
+                push=not args.no_push,
+            )
+        )
+        return
 
     if args.command == "data-snapshot":
         print(

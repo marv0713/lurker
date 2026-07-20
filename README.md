@@ -121,6 +121,16 @@ Ignore cadence and run selected strategies directly:
 .venv/bin/lurker run-daily --strategies long_term_trend --cadence all
 ```
 
+### Watchlist anomaly checkup
+
+The watchlist checkup is scheduled and notified independently from the daily radar:
+
+```bash
+PYTHONPATH=src .venv/bin/lurker watchlist-checkup --no-push
+```
+
+See [`docs/watchlist_anomaly.md`](docs/watchlist_anomaly.md) for thresholds, dedicated `WATCHLIST_*` notification variables, state, and scheduling.
+
 ## Local schedule
 
 For local self-use, run the daily job with cron after market data is available:

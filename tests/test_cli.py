@@ -1,4 +1,5 @@
 import json
+from types import SimpleNamespace
 
 from lurker.reports.models import DailyReport
 from lurker.cli import (
@@ -19,6 +20,7 @@ from lurker.cli import (
     refresh_prices,
     resolve_seed_pool,
     weekly_report,
+    watchlist_checkup,
 )
 
 
@@ -765,6 +767,53 @@ def test_watchlist_notifier_uses_only_watchlist_email_recipient(monkeypatch):
     notifier = build_watchlist_notifier_from_env()
 
     assert notifier.recipients == ["owner@example.com"]
+
+
+def test_parser_has_independent_watchlist_checkup_defaults():
+    args = build_parser().parse_args(["watchlist-checkup"])
+
+    assert args.command == "watchlist-checkup"
+    assert args.watchlist.name == "watchlist.yaml"
+    assert args.report_dir.parts[-2:] == ("reports", "watchlist")
+    assert args.state_file.name == "watchlist_alert_state.json"
+    assert args.no_push is False
+
+
+def test_watchlist_checkup_passes_no_push_and_returns_counts(monkeypatch, tmp_path):
+    calls = []
+    monkeypatch.setattr("lurker.config.load_watchlist", lambda path: "loaded-config")
+
+    def fake_run(**kwargs):
+        calls.append(kwargs)
+        return SimpleNamespace(
+            report_path=tmp_path / "reports" / "2026-07-20.md",
+            checked_count=2,
+            new_alert_count=1,
+            failure_count=1,
+            pushed=False,
+        )
+
+    monkeypatch.setattr(
+        "lurker.application.watchlist_anomaly.run_watchlist_anomaly",
+        fake_run,
+    )
+    monkeypatch.setattr(
+        "lurker.cli.build_watchlist_notifier_from_env",
+        lambda: "watchlist-notifier",
+    )
+
+    message = watchlist_checkup(
+        watchlist_path=tmp_path / "watchlist.yaml",
+        report_dir=tmp_path / "reports",
+        state_file=tmp_path / "state.json",
+        report_date="2026-07-20",
+        push=False,
+    )
+
+    assert calls[0]["config"] == "loaded-config"
+    assert calls[0]["push"] is False
+    assert calls[0]["notifier"] == "watchlist-notifier"
+    assert "checked=2, alerts=1, failures=1, pushed=False" in message
 
 
 def test_daily_job_pushes_professional_report_when_stock_flows_are_empty(monkeypatch, tmp_path):
