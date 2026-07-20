@@ -1,8 +1,20 @@
-# 长期自选观察池 (Personal Watchlist)
-# 雷达每天会对这里的股票进行“异常检测体检”（放量异动、高位回撤、跑输大盘）
-# 支持跨市场标的混合填写
+defaults:
+  enabled_alerts:
+    - abnormal_volume
+    - peak_drawdown
+    - chronic_underperformance
+  volume_ratio: 3.0
+  price_change:
+    cn: 0.05
+    hk: 0.05
+    us: 0.10
+  drawdown: 0.20
+  underperformance_60d: 0.15
+  cooldown_trading_days: 20
+  worsening_step: 0.10
 
 watchlist:
   - symbol: 300308.SZ
     market: cn
     name: 中际旭创
+    overrides: {}
