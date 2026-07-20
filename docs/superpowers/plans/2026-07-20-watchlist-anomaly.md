@@ -271,12 +271,23 @@ git commit -m "feat: validate watchlist anomaly configuration"
 - Modify: `src/lurker/ingest/prices.py`
 - Modify: `tests/test_ingest.py`
 
-- [ ] **Step 1: Write failing benchmark normalization and dispatch tests**
+- [ ] **Step 1: Probe the live AkShare index schema before writing the adapter**
+
+Run one read-only, interactive request against the exact endpoint used by the implementation:
+
+```bash
+PYTHONPATH=src .venv/bin/python -c 'import akshare as ak; frame = ak.index_zh_a_hist(symbol="000300", period="daily", start_date="20260701", end_date="20260720"); print(type(frame)); print(frame.columns.tolist()); print(frame.dtypes.astype(str).to_dict()); print(frame.head(2).to_dict("records"))'
+```
+
+This is an implementation-time compatibility check, not a CI test. Record the observed column names and dtypes in the Task 2 implementation notes, then make the test fixture in Step 2 match that actual response. Confirm that the response exposes semantic fields for date, open, high, low, close, and volume. If any required field is absent, stop Task 2 and select a suitable AkShare index-history endpoint; do not silently synthesize a missing field.
+
+- [ ] **Step 2: Write failing benchmark normalization and dispatch tests**
 
 Add tests using injected provider functions, never live network:
 
 ```python
 import pandas as pd
+import pytest
 
 from lurker.ingest.prices import (
     PRICE_COLUMNS,
@@ -286,6 +297,7 @@ from lurker.ingest.prices import (
 
 
 def test_normalize_cn_index_price_frame_uses_adjusted_close_contract():
+    # Keep these keys aligned with the live schema captured in Step 1.
     raw = pd.DataFrame(
         {
             "日期": ["2026-07-17", "2026-07-20"],
@@ -302,6 +314,21 @@ def test_normalize_cn_index_price_frame_uses_adjusted_close_contract():
     assert list(result.columns) == PRICE_COLUMNS
     assert result.iloc[-1]["adj_close"] == 4025.0
     assert str(result.iloc[-1]["trade_date"]) == "2026-07-20"
+
+
+def test_normalize_cn_index_price_frame_fails_loudly_when_required_field_is_missing():
+    raw = pd.DataFrame(
+        {
+            "日期": ["2026-07-20"],
+            "开盘": [4010.0],
+            "最高": [4030.0],
+            "最低": [4000.0],
+            "收盘": [4025.0],
+        }
+    )
+
+    with pytest.raises(ValueError, match="missing CN index price columns: volume"):
+        normalize_cn_index_price_frame(raw, symbol="000300.SH")
 
 
 def test_fetch_watchlist_history_dispatches_cn_benchmark_separately():
@@ -327,7 +354,7 @@ def test_fetch_watchlist_history_dispatches_cn_benchmark_separately():
     assert calls == [("benchmark", "000300.SH", "2y")]
 ```
 
-- [ ] **Step 2: Run the tests and verify RED**
+- [ ] **Step 3: Run the tests and verify RED**
 
 ```bash
 PYTHONPATH=src .venv/bin/pytest tests/test_ingest.py -q
@@ -335,25 +362,39 @@ PYTHONPATH=src .venv/bin/pytest tests/test_ingest.py -q
 
 Expected: import fails for the two new functions.
 
-- [ ] **Step 3: Implement the normalized benchmark adapter**
+- [ ] **Step 4: Implement the normalized benchmark adapter with explicit schema validation**
 
 Add to `src/lurker/ingest/prices.py`:
 
 ```python
 BENCHMARK_SYMBOLS = {"cn": "000300.SH", "hk": "^HSI", "us": "SPY"}
 
+CN_INDEX_COLUMN_ALIASES = {
+    "trade_date": ("日期", "date", "trade_date"),
+    "open": ("开盘", "open"),
+    "high": ("最高", "high"),
+    "low": ("最低", "low"),
+    "close": ("收盘", "close"),
+    "volume": ("成交量", "volume"),
+}
+
+
+def _resolve_cn_index_columns(raw: pd.DataFrame) -> dict[str, str]:
+    resolved: dict[str, str] = {}
+    missing: list[str] = []
+    for canonical, aliases in CN_INDEX_COLUMN_ALIASES.items():
+        source = next((alias for alias in aliases if alias in raw.columns), None)
+        if source is None:
+            missing.append(canonical)
+        else:
+            resolved[source] = canonical
+    if missing:
+        raise ValueError(f"missing CN index price columns: {', '.join(missing)}")
+    return resolved
+
 
 def normalize_cn_index_price_frame(raw: pd.DataFrame, symbol: str) -> pd.DataFrame:
-    normalized = raw.rename(
-        columns={
-            "日期": "trade_date",
-            "开盘": "open",
-            "最高": "high",
-            "最低": "low",
-            "收盘": "close",
-            "成交量": "volume",
-        }
-    ).copy()
+    normalized = raw.rename(columns=_resolve_cn_index_columns(raw)).copy()
     normalized["symbol"] = symbol
     normalized["trade_date"] = pd.to_datetime(normalized["trade_date"]).dt.date
     normalized["adj_close"] = normalized["close"]
@@ -390,7 +431,9 @@ def fetch_watchlist_history(
 
 The application layer must import `BENCHMARK_SYMBOLS` from this ingest module; do not duplicate benchmark literals elsewhere.
 
-- [ ] **Step 4: Run ingestion tests**
+After Step 1, trim `CN_INDEX_COLUMN_ALIASES` to the observed AkShare schema plus canonical English names already accepted by the ingest layer. Do not add speculative aliases: each accepted variant must have either live-schema evidence or a unit test.
+
+- [ ] **Step 5: Run ingestion tests**
 
 ```bash
 PYTHONPATH=src .venv/bin/pytest tests/test_ingest.py -q
@@ -398,7 +441,7 @@ PYTHONPATH=src .venv/bin/pytest tests/test_ingest.py -q
 
 Expected: all ingestion tests pass without network access.
 
-- [ ] **Step 5: Commit benchmark ingestion**
+- [ ] **Step 6: Commit benchmark ingestion**
 
 ```bash
 git add src/lurker/ingest/prices.py tests/test_ingest.py
