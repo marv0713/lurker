@@ -163,3 +163,53 @@ watchlist:
     config = load_watchlist(path)
 
     assert [item.rules.price_change for item in config.items] == [0.05, 0.05, 0.10]
+
+
+def test_load_watchlist_rejects_non_finite_volume_ratio(tmp_path):
+    path = tmp_path / "watchlist.yaml"
+    path.write_text(
+        """
+defaults:
+  volume_ratio: .nan
+watchlist:
+  - {symbol: 300308.SZ, market: cn, name: 中际旭创}
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="volume_ratio must be finite and positive"):
+        load_watchlist(path)
+
+
+def test_load_watchlist_rejects_fractional_cooldown(tmp_path):
+    path = tmp_path / "watchlist.yaml"
+    path.write_text(
+        """
+defaults:
+  cooldown_trading_days: 1.9
+watchlist:
+  - {symbol: 300308.SZ, market: cn, name: 中际旭创}
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="cooldown_trading_days must be a positive integer"):
+        load_watchlist(path)
+
+
+def test_load_watchlist_rejects_unknown_price_change_market(tmp_path):
+    path = tmp_path / "watchlist.yaml"
+    path.write_text(
+        """
+defaults:
+  price_change:
+    cn: 0.05
+    crypto: 0.20
+watchlist:
+  - {symbol: 300308.SZ, market: cn, name: 中际旭创}
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="unknown price_change market: crypto"):
+        load_watchlist(path)

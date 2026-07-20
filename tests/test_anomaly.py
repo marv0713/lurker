@@ -104,6 +104,38 @@ def test_abnormal_volume_reports_insufficient_data_when_volume_column_is_missing
     assert result.reason == "missing columns: volume"
 
 
+def test_abnormal_volume_does_not_promote_older_row_when_latest_volume_is_missing():
+    prices = frame([100.0] * 20 + [106.0], [100.0] * 19 + [300.0, None])
+
+    result = detect_abnormal_volume(
+        prices,
+        symbol="300308.SZ",
+        market="cn",
+        name="中际旭创",
+        volume_ratio_threshold=3.0,
+        price_change_threshold=0.05,
+    )
+
+    assert result.status is DetectionStatus.INSUFFICIENT_DATA
+    assert result.reason == "latest volume is missing"
+
+
+def test_abnormal_volume_requires_complete_previous_twenty_day_volume():
+    prices = frame([100.0] * 20 + [106.0], [100.0] * 10 + [None] + [100.0] * 9 + [300.0])
+
+    result = detect_abnormal_volume(
+        prices,
+        symbol="300308.SZ",
+        market="cn",
+        name="中际旭创",
+        volume_ratio_threshold=3.0,
+        price_change_threshold=0.05,
+    )
+
+    assert result.status is DetectionStatus.INSUFFICIENT_DATA
+    assert result.reason == "previous 20-day volume is incomplete"
+
+
 def test_peak_drawdown_uses_adjusted_close_peak():
     prices = frame([100.0] + [90.0] * 248 + [80.0])
 
@@ -214,3 +246,20 @@ def test_underperformance_requires_61_common_dates():
     )
 
     assert result.status is DetectionStatus.INSUFFICIENT_DATA
+
+
+def test_underperformance_reports_insufficient_data_for_zero_return_baseline():
+    stock = frame([0.0] + [100.0] * 60)
+    benchmark = frame([100.0] * 61)
+
+    result = detect_chronic_underperformance(
+        stock,
+        benchmark,
+        symbol="300308.SZ",
+        market="cn",
+        name="中际旭创",
+        threshold=0.15,
+    )
+
+    assert result.status is DetectionStatus.INSUFFICIENT_DATA
+    assert result.reason == "60-day return endpoints must be finite and positive"

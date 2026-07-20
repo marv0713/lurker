@@ -1,6 +1,8 @@
 import json
 from types import SimpleNamespace
 
+import pytest
+
 from lurker.reports.models import DailyReport
 from lurker.cli import (
     build_data_snapshot,
@@ -767,6 +769,24 @@ def test_watchlist_notifier_uses_only_watchlist_email_recipient(monkeypatch):
     notifier = build_watchlist_notifier_from_env()
 
     assert notifier.recipients == ["owner@example.com"]
+
+
+def test_watchlist_notifier_rejects_empty_recipient_list(monkeypatch):
+    monkeypatch.setenv("WATCHLIST_SMTP_HOST", "smtp.example.com")
+    monkeypatch.setenv("WATCHLIST_SMTP_FROM", "watch@example.com")
+    monkeypatch.setenv("WATCHLIST_EMAIL_TO", " ,  , ")
+
+    with pytest.raises(ValueError, match="WATCHLIST_EMAIL_TO has no recipients"):
+        build_watchlist_notifier_from_env()
+
+
+def test_watchlist_notifier_rejects_incomplete_email_configuration(monkeypatch):
+    monkeypatch.setenv("WATCHLIST_SMTP_HOST", "smtp.example.com")
+    monkeypatch.delenv("WATCHLIST_SMTP_FROM", raising=False)
+    monkeypatch.delenv("WATCHLIST_EMAIL_TO", raising=False)
+
+    with pytest.raises(ValueError, match="incomplete WATCHLIST email configuration"):
+        build_watchlist_notifier_from_env()
 
 
 def test_parser_has_independent_watchlist_checkup_defaults():

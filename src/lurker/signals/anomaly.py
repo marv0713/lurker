@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+import math
 
 import pandas as pd
 
@@ -48,6 +49,10 @@ def _missing_columns(frame: pd.DataFrame, required: set[str]) -> str | None:
     return f"missing columns: {', '.join(missing)}" if missing else None
 
 
+def _finite_positive(*values: float) -> bool:
+    return all(math.isfinite(value) and value > 0 for value in values)
+
+
 def _outcome(
     alert_type: AlertType,
     *,
@@ -71,32 +76,47 @@ def detect_abnormal_volume(
     missing = _missing_columns(prices, {"trade_date", "adj_close", "volume"})
     if missing:
         return _outcome(kind, status=DetectionStatus.INSUFFICIENT_DATA, reason=missing)
-    rows = _ordered(prices).dropna(subset=["volume"])
+    rows = _ordered(prices)
     if len(rows) < 21:
         return _outcome(
             kind,
             status=DetectionStatus.INSUFFICIENT_DATA,
             reason="need 21 price rows",
         )
-    previous = rows.iloc[-21:-1]
-    average_volume = float(previous["volume"].mean())
-    if average_volume <= 0:
+    window = rows.iloc[-21:]
+    current = window.iloc[-1]
+    current_volume = pd.to_numeric(pd.Series([current["volume"]]), errors="coerce").iloc[0]
+    if pd.isna(current_volume) or not math.isfinite(float(current_volume)):
+        return _outcome(
+            kind,
+            status=DetectionStatus.INSUFFICIENT_DATA,
+            reason="latest volume is missing",
+        )
+    previous_volume = pd.to_numeric(window.iloc[:-1]["volume"], errors="coerce")
+    if previous_volume.isna().any() or not all(math.isfinite(float(v)) for v in previous_volume):
+        return _outcome(
+            kind,
+            status=DetectionStatus.INSUFFICIENT_DATA,
+            reason="previous 20-day volume is incomplete",
+        )
+    average_volume = float(previous_volume.mean())
+    if not math.isfinite(average_volume) or average_volume <= 0:
         return _outcome(
             kind,
             status=DetectionStatus.INSUFFICIENT_DATA,
             reason="20-day average volume is zero",
         )
-    current = rows.iloc[-1]
-    prior = rows.iloc[-2]
+    prior = window.iloc[-2]
     prior_close = float(prior["adj_close"])
-    if prior_close <= 0:
+    current_close = float(current["adj_close"])
+    if not _finite_positive(prior_close, current_close):
         return _outcome(
             kind,
             status=DetectionStatus.INSUFFICIENT_DATA,
-            reason="prior close is not positive",
+            reason="price endpoints must be finite and positive",
         )
-    volume_ratio = float(current["volume"]) / average_volume
-    price_change = float(current["adj_close"]) / prior_close - 1
+    volume_ratio = float(current_volume) / average_volume
+    price_change = current_close / prior_close - 1
     if volume_ratio < volume_ratio_threshold or abs(price_change) < price_change_threshold:
         return _outcome(kind, status=DetectionStatus.NORMAL)
     alert = AnomalyAlert(
@@ -186,10 +206,18 @@ def detect_chronic_underperformance(
             reason="need 61 common price rows",
         )
     window = common.iloc[-61:]
-    stock_return = float(window.iloc[-1]["stock"]) / float(window.iloc[0]["stock"]) - 1
-    benchmark_return = (
-        float(window.iloc[-1]["benchmark"]) / float(window.iloc[0]["benchmark"]) - 1
-    )
+    stock_start = float(window.iloc[0]["stock"])
+    stock_end = float(window.iloc[-1]["stock"])
+    benchmark_start = float(window.iloc[0]["benchmark"])
+    benchmark_end = float(window.iloc[-1]["benchmark"])
+    if not _finite_positive(stock_start, stock_end, benchmark_start, benchmark_end):
+        return _outcome(
+            kind,
+            status=DetectionStatus.INSUFFICIENT_DATA,
+            reason="60-day return endpoints must be finite and positive",
+        )
+    stock_return = stock_end / stock_start - 1
+    benchmark_return = benchmark_end / benchmark_start - 1
     alpha = stock_return - benchmark_return
     if alpha > -threshold:
         return _outcome(kind, status=DetectionStatus.NORMAL)

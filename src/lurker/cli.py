@@ -482,10 +482,25 @@ def build_watchlist_notifier_from_env():
     smtp_host = os.environ.get("WATCHLIST_SMTP_HOST")
     smtp_from = os.environ.get("WATCHLIST_SMTP_FROM")
     email_to = os.environ.get("WATCHLIST_EMAIL_TO")
-    if smtp_host and smtp_from and email_to:
+    email_environment_names = (
+        "WATCHLIST_SMTP_HOST",
+        "WATCHLIST_SMTP_PORT",
+        "WATCHLIST_SMTP_USER",
+        "WATCHLIST_SMTP_PASSWORD",
+        "WATCHLIST_SMTP_FROM",
+        "WATCHLIST_EMAIL_TO",
+        "WATCHLIST_SMTP_USE_TLS",
+        "WATCHLIST_SMTP_USE_SSL",
+    )
+    email_configured = any(os.environ.get(name) for name in email_environment_names)
+    if email_configured and not (smtp_host and smtp_from and email_to):
+        raise ValueError("incomplete WATCHLIST email configuration")
+    if email_configured:
         from lurker.notification.email_notifier import EmailNotifier
 
         recipients = [value.strip() for value in email_to.split(",") if value.strip()]
+        if not recipients:
+            raise ValueError("WATCHLIST_EMAIL_TO has no recipients")
         notifiers.append(
             EmailNotifier(
                 host=smtp_host,

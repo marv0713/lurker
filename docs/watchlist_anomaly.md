@@ -51,7 +51,7 @@ A 股基准为沪深 300，港股基准为恒生指数，美股基准为 SPY。�
 - `WATCHLIST_SMTP_USE_TLS`
 - `WATCHLIST_SMTP_USE_SSL`
 
-没有配置这些变量时只落盘，不推送。通知失败时不会写入“已通知”状态，下一次运行会重试。
+没有配置这些变量时只落盘，不推送。只配置部分邮件变量、或 `WATCHLIST_EMAIL_TO` 解析后没有有效地址时会立即报错，避免把未实际送达的报警标成“已通知”。通知失败时不会写入“已通知”状态，下一次运行会重试。
 
 ## 运行
 
@@ -74,3 +74,5 @@ PYTHONPATH=src .venv/bin/lurker watchlist-checkup
 ```
 
 默认报告目录是 `data/reports/watchlist/`，默认状态文件是 `data/processed/watchlist_alert_state.json`。
+
+`--date` 同时是报告日期和行情截止日期，晚于该日期的行情不会参与检测。同一日期重复运行时，新的运行结果会追加到当日报告并带运行时间；原始报警和后续静默、降级结果都会保留。推送正文只包含本次运行的新报警。

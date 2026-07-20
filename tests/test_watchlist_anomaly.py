@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from lurker.application.watchlist_alert_state import AlertStateStore
-from lurker.application.watchlist_anomaly import run_watchlist_anomaly
+from lurker.application.watchlist_anomaly import _trading_days_since, run_watchlist_anomaly
 from lurker.config import WatchlistConfig, WatchlistItemConfig, WatchlistRules
 
 
@@ -205,6 +205,36 @@ def test_partial_stock_failure_still_pushes_successful_alerts(tmp_path):
     assert "one stock offline" in result.content_md
 
 
+def test_detector_failure_isolated_to_one_symbol(monkeypatch, tmp_path):
+    import lurker.application.watchlist_anomaly as module
+
+    original_detect = module._detect
+
+    def sometimes_failing_detect(item, stock, benchmark):
+        if item.symbol == "300502.SZ":
+            raise ValueError("malformed price values")
+        return original_detect(item, stock, benchmark)
+
+    monkeypatch.setattr(module, "_detect", sometimes_failing_detect)
+
+    def fetcher(symbol, market, period, *, is_benchmark=False):
+        return benchmark_frame() if is_benchmark else price_frame(alerting=True)
+
+    result = run_watchlist_anomaly(
+        config=config(),
+        report_date="2026-07-20",
+        report_dir=tmp_path / "reports",
+        state_store=AlertStateStore(tmp_path / "state.json"),
+        history_fetcher=fetcher,
+        notifier=None,
+        push=False,
+    )
+
+    assert result.new_alert_count == 3
+    assert result.failure_count == 1
+    assert "300502.SZ detector：ValueError: malformed price values" in result.content_md
+
+
 def test_item_enabled_alerts_controls_detectors_that_run(tmp_path):
     abnormal_only = WatchlistRules(
         enabled_alerts=("abnormal_volume",),
@@ -261,4 +291,40 @@ def test_repeating_same_trade_date_does_not_push_twice(tmp_path):
     assert second.pushed is False
     assert second.new_alert_count == 0
     assert len(notifier.sends) == 1
-    assert "巨量异动" in second.report_path.read_text(encoding="utf-8")
+    content = second.report_path.read_text(encoding="utf-8")
+    assert "巨量异动" in content
+    assert "本次没有需要推送的新异常" in content
+    assert content.count("# 自选股异常体检") == 2
+
+
+def test_trading_day_cooldown_counts_unique_dates_only_through_observation():
+    prices = pd.DataFrame(
+        {
+            "trade_date": [
+                "2026-07-02",
+                "2026-07-03",
+                "2026-07-03",
+                "2026-07-06",
+            ]
+        }
+    )
+
+    assert _trading_days_since(prices, "2026-07-01", "2026-07-03") == 2
+
+
+def test_report_date_excludes_newer_price_rows(tmp_path):
+    def fetcher(symbol, market, period, *, is_benchmark=False):
+        return benchmark_frame() if is_benchmark else price_frame(alerting=True)
+
+    result = run_watchlist_anomaly(
+        config=config(),
+        report_date="2026-07-17",
+        report_dir=tmp_path / "reports",
+        state_store=AlertStateStore(tmp_path / "state.json"),
+        history_fetcher=fetcher,
+        notifier=None,
+        push=False,
+    )
+
+    assert result.new_alert_count == 0
+    assert "数据截止日：2026-07-20" not in result.content_md

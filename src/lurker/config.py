@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import math
 from pathlib import Path
 from typing import Any
 
@@ -76,9 +77,20 @@ def load_scoring(path: str | Path) -> dict[str, Any]:
 
 
 def _ratio(value: Any, field: str) -> float:
-    result = float(value)
-    if not 0 < result <= 1:
+    if isinstance(value, bool):
         raise ValueError(f"{field} must be within (0, 1]")
+    result = float(value)
+    if not math.isfinite(result) or not 0 < result <= 1:
+        raise ValueError(f"{field} must be within (0, 1]")
+    return result
+
+
+def _positive_float(value: Any, field: str) -> float:
+    if isinstance(value, bool):
+        raise ValueError(f"{field} must be finite and positive")
+    result = float(value)
+    if not math.isfinite(result) or result <= 0:
+        raise ValueError(f"{field} must be finite and positive")
     return result
 
 
@@ -106,9 +118,18 @@ def load_watchlist(path: str | Path) -> WatchlistConfig:
     configured_defaults = _mapping(data.get("defaults"), "watchlist defaults")
     _reject_unknown_fields(configured_defaults, _WATCHLIST_RULE_FIELDS, "watchlist default")
     raw_defaults = {**_WATCHLIST_DEFAULTS, **configured_defaults}
+    configured_price_changes = _mapping(
+        configured_defaults.get("price_change"),
+        "watchlist price_change",
+    )
+    unknown_price_change_markets = sorted(
+        set(configured_price_changes) - SUPPORTED_WATCHLIST_MARKETS
+    )
+    if unknown_price_change_markets:
+        raise ValueError(f"unknown price_change market: {unknown_price_change_markets[0]}")
     price_changes = {
         **_WATCHLIST_DEFAULTS["price_change"],
-        **dict(raw_defaults.get("price_change") or {}),
+        **configured_price_changes,
     }
     raw_items = data.get("watchlist")
     if not isinstance(raw_items, list) or not raw_items:
@@ -135,14 +156,16 @@ def load_watchlist(path: str | Path) -> WatchlistConfig:
         unknown = set(enabled) - set(ALERT_TYPES)
         if unknown:
             raise ValueError(f"unknown alert type: {sorted(unknown)[0]}")
-        volume_ratio = float(overrides.get("volume_ratio", raw_defaults["volume_ratio"]))
-        if volume_ratio <= 0:
-            raise ValueError("volume_ratio must be positive")
-        cooldown = int(
-            overrides.get("cooldown_trading_days", raw_defaults["cooldown_trading_days"])
+        volume_ratio = _positive_float(
+            overrides.get("volume_ratio", raw_defaults["volume_ratio"]),
+            "volume_ratio",
         )
-        if cooldown <= 0:
-            raise ValueError("cooldown_trading_days must be positive")
+        cooldown = overrides.get(
+            "cooldown_trading_days",
+            raw_defaults["cooldown_trading_days"],
+        )
+        if isinstance(cooldown, bool) or not isinstance(cooldown, int) or cooldown <= 0:
+            raise ValueError("cooldown_trading_days must be a positive integer")
 
         rules = WatchlistRules(
             enabled_alerts=enabled,

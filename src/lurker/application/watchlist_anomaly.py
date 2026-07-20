@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import date, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -45,12 +46,21 @@ class WatchlistCheckupResult:
 def _trading_days_since(
     prices: pd.DataFrame,
     last_notified_date: str | None,
+    observed_on: str,
 ) -> int | None:
     if not last_notified_date:
         return None
-    dates = pd.to_datetime(prices["trade_date"], errors="coerce").dropna().dt.date
+    dates = pd.to_datetime(prices["trade_date"], errors="coerce").dropna().dt.date.unique()
     cutoff = pd.Timestamp(last_notified_date).date()
-    return int(sum(value > cutoff for value in dates))
+    observed = pd.Timestamp(observed_on).date()
+    return int(sum(cutoff < value <= observed for value in dates))
+
+
+def _through_report_date(prices: pd.DataFrame, cutoff: date) -> pd.DataFrame:
+    if "trade_date" not in prices.columns:
+        return prices
+    dates = pd.to_datetime(prices["trade_date"], errors="coerce")
+    return prices.loc[dates.notna() & (dates.dt.date <= cutoff)].copy()
 
 
 def _detect(
@@ -106,6 +116,7 @@ def run_watchlist_anomaly(
     push: bool = True,
     period: str = "2y",
 ) -> WatchlistCheckupResult:
+    report_cutoff = date.fromisoformat(report_date)
     state = state_store.load()
     data_issues: list[str] = []
     benchmarks: dict[str, pd.DataFrame] = {}
@@ -118,11 +129,14 @@ def run_watchlist_anomaly(
     for market in sorted(benchmark_markets):
         symbol = BENCHMARK_SYMBOLS[market]
         try:
-            benchmarks[market] = history_fetcher(
-                symbol,
-                market,
-                period,
-                is_benchmark=True,
+            benchmarks[market] = _through_report_date(
+                history_fetcher(
+                    symbol,
+                    market,
+                    period,
+                    is_benchmark=True,
+                ),
+                report_cutoff,
             )
         except Exception as exc:
             benchmark_errors[market] = f"{type(exc).__name__}: {exc}"
@@ -131,13 +145,17 @@ def run_watchlist_anomaly(
     new_alerts: list[AnomalyAlert] = []
     successful_stocks = 0
     stock_failures = 0
+    detection_failures = 0
     for item in config.items:
         try:
-            stock = history_fetcher(
-                item.symbol,
-                item.market,
-                period,
-                is_benchmark=False,
+            stock = _through_report_date(
+                history_fetcher(
+                    item.symbol,
+                    item.market,
+                    period,
+                    is_benchmark=False,
+                ),
+                report_cutoff,
             )
         except Exception as exc:
             stock_failures += 1
@@ -151,7 +169,14 @@ def run_watchlist_anomaly(
         ):
             data_issues.append(f"{item.symbol}：缺少 {item.market} 基准，未运行持续跑输检测")
 
-        for outcome in _detect(item, stock, benchmark):
+        try:
+            outcomes = _detect(item, stock, benchmark)
+        except Exception as exc:
+            detection_failures += 1
+            data_issues.append(f"{item.symbol} detector：{type(exc).__name__}: {exc}")
+            continue
+
+        for outcome in outcomes:
             if outcome.status is DetectionStatus.INSUFFICIENT_DATA:
                 data_issues.append(
                     f"{item.symbol} {outcome.alert_type.value}：{outcome.reason}"
@@ -166,7 +191,11 @@ def run_watchlist_anomaly(
             if alert is None:
                 raise RuntimeError("alert outcome is missing its alert payload")
             record = state.get(state_key(alert.symbol, alert.alert_type), {})
-            trading_days = _trading_days_since(stock, record.get("last_notified_date"))
+            trading_days = _trading_days_since(
+                stock,
+                record.get("last_notified_date"),
+                alert.observed_on,
+            )
             should_notify = decide_notification(
                 alert,
                 state,
@@ -187,18 +216,24 @@ def run_watchlist_anomaly(
     resolved_report_dir = Path(report_dir)
     resolved_report_dir.mkdir(parents=True, exist_ok=True)
     report_path = resolved_report_dir / f"{report_date}.md"
-    if report_path.exists() and not new_alerts:
-        content = report_path.read_text(encoding="utf-8")
+    if report_path.exists():
+        previous_content = report_path.read_text(encoding="utf-8").rstrip()
+        run_timestamp = datetime.now().astimezone().isoformat(timespec="seconds")
+        content = (
+            f"{previous_content}\n\n---\n\n"
+            f"运行时间：{run_timestamp}\n\n"
+            f"{rendered_content}"
+        )
     else:
         content = rendered_content
-        report_path.write_text(content, encoding="utf-8")
+    report_path.write_text(content, encoding="utf-8")
     state_store.save(state)
 
     pushed = False
     if push and notifier is not None and new_alerts and successful_stocks > 0:
         notifier.send(
             title=f"[{len(new_alerts)}个异常] 自选股异常体检 ({report_date})",
-            markdown_content=content,
+            markdown_content=rendered_content,
         )
         for alert in new_alerts:
             mark_notified(alert, state)
@@ -209,7 +244,7 @@ def run_watchlist_anomaly(
         report_path=report_path,
         checked_count=len(config.items),
         new_alert_count=len(new_alerts),
-        failure_count=stock_failures + len(benchmark_errors),
+        failure_count=stock_failures + detection_failures + len(benchmark_errors),
         pushed=pushed,
         content_md=content,
     )
