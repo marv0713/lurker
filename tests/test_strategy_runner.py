@@ -6,6 +6,7 @@ from lurker.application.strategy_runner import (
     render_strategy_results,
     select_strategy_configs,
 )
+from lurker.reports.models import DailyReport
 
 
 def test_load_strategy_configs_from_yaml(tmp_path):
@@ -62,9 +63,6 @@ def test_select_strategy_configs_filters_enabled_names_and_cadence():
     assert select_strategy_configs(configs, names=["deep_research"], cadence=None)[0].name == (
         "deep_research"
     )
-
-
-from lurker.reports.models import DailyReport
 
 def test_render_strategy_results_composes_multiple_sections():
     report = render_strategy_results(

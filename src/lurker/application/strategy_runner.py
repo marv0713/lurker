@@ -6,6 +6,8 @@ from typing import Any, Protocol
 
 import yaml
 
+from lurker.reports.models import DailyReport
+
 
 @dataclass
 class StrategyConfig:
@@ -28,9 +30,6 @@ class StrategyContext:
     symbol_names: dict[str, str] = field(default_factory=dict)
     runtime_params: dict[str, Any] = field(default_factory=dict)
     db_session: Any = None
-
-
-from lurker.reports.models import DailyReport
 
 @dataclass
 class StrategyResult:
