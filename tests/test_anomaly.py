@@ -166,6 +166,21 @@ def test_peak_drawdown_does_not_trigger_below_threshold():
     assert result.status is DetectionStatus.NORMAL
 
 
+def test_peak_drawdown_rejects_non_finite_peak_instead_of_false_alert():
+    prices = frame([float("inf")] + [90.0] * 248 + [80.0])
+
+    result = detect_peak_drawdown(
+        prices,
+        symbol="300308.SZ",
+        market="cn",
+        name="中际旭创",
+        threshold=0.20,
+    )
+
+    assert result.status is DetectionStatus.INSUFFICIENT_DATA
+    assert result.reason == "250-day peak and current close must be finite and positive"
+
+
 def test_underperformance_aligns_stock_and_benchmark_dates():
     stock = frame([100.0] * 60 + [80.0])
     benchmark = frame([100.0] * 60 + [100.0])

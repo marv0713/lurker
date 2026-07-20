@@ -153,11 +153,11 @@ def detect_peak_drawdown(
     window = rows.iloc[-250:]
     peak = float(window["adj_close"].max())
     current = float(window.iloc[-1]["adj_close"])
-    if peak <= 0:
+    if not _finite_positive(peak, current):
         return _outcome(
             kind,
             status=DetectionStatus.INSUFFICIENT_DATA,
-            reason="250-day peak is not positive",
+            reason="250-day peak and current close must be finite and positive",
         )
     drawdown = current / peak - 1
     if abs(drawdown) + 1e-12 < threshold:
