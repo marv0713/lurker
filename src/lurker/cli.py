@@ -469,6 +469,52 @@ def build_notifier_from_env():
     return CompositeNotifier(notifiers)
 
 
+def build_watchlist_notifier_from_env():
+    import os
+
+    notifiers = []
+    token = os.environ.get("WATCHLIST_PUSHPLUS_TOKEN")
+    if token:
+        from lurker.notification.pushplus_notifier import PushPlusNotifier
+
+        notifiers.append(PushPlusNotifier(token=token))
+
+    smtp_host = os.environ.get("WATCHLIST_SMTP_HOST")
+    smtp_from = os.environ.get("WATCHLIST_SMTP_FROM")
+    email_to = os.environ.get("WATCHLIST_EMAIL_TO")
+    if smtp_host and smtp_from and email_to:
+        from lurker.notification.email_notifier import EmailNotifier
+
+        recipients = [value.strip() for value in email_to.split(",") if value.strip()]
+        notifiers.append(
+            EmailNotifier(
+                host=smtp_host,
+                port=int(os.environ.get("WATCHLIST_SMTP_PORT", "587")),
+                username=os.environ.get("WATCHLIST_SMTP_USER"),
+                password=os.environ.get("WATCHLIST_SMTP_PASSWORD"),
+                sender=smtp_from,
+                recipients=recipients,
+                use_tls=_env_bool(
+                    os.environ.get("WATCHLIST_SMTP_USE_TLS"),
+                    default=True,
+                ),
+                use_ssl=_env_bool(
+                    os.environ.get("WATCHLIST_SMTP_USE_SSL"),
+                    default=False,
+                ),
+            )
+        )
+
+    if not notifiers:
+        return None
+    if len(notifiers) == 1:
+        return notifiers[0]
+
+    from lurker.notification.notifier import CompositeNotifier
+
+    return CompositeNotifier(notifiers)
+
+
 def daily_job(
     *,
     seed_pool_path: Path,

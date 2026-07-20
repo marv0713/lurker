@@ -5,6 +5,7 @@ from lurker.cli import (
     build_data_snapshot,
     build_demo_report,
     build_notifier_from_env,
+    build_watchlist_notifier_from_env,
     build_run_daily,
     append_report_archive_index,
     build_strategy_report,
@@ -742,6 +743,28 @@ def test_build_notifier_from_env_can_build_composite(monkeypatch):
     notifier = build_notifier_from_env()
 
     assert type(notifier).__name__ == "CompositeNotifier"
+
+
+def test_watchlist_notifier_does_not_use_daily_recipient_environment(monkeypatch):
+    monkeypatch.setenv("PUSHPLUS_TOKEN", "daily-token")
+    monkeypatch.setenv("EMAIL_TO", "daily@example.com")
+    monkeypatch.delenv("WATCHLIST_PUSHPLUS_TOKEN", raising=False)
+    monkeypatch.delenv("WATCHLIST_SMTP_HOST", raising=False)
+    monkeypatch.delenv("WATCHLIST_SMTP_FROM", raising=False)
+    monkeypatch.delenv("WATCHLIST_EMAIL_TO", raising=False)
+
+    assert build_watchlist_notifier_from_env() is None
+
+
+def test_watchlist_notifier_uses_only_watchlist_email_recipient(monkeypatch):
+    monkeypatch.setenv("EMAIL_TO", "daily@example.com")
+    monkeypatch.setenv("WATCHLIST_SMTP_HOST", "smtp.example.com")
+    monkeypatch.setenv("WATCHLIST_SMTP_FROM", "watch@example.com")
+    monkeypatch.setenv("WATCHLIST_EMAIL_TO", "owner@example.com")
+
+    notifier = build_watchlist_notifier_from_env()
+
+    assert notifier.recipients == ["owner@example.com"]
 
 
 def test_daily_job_pushes_professional_report_when_stock_flows_are_empty(monkeypatch, tmp_path):
