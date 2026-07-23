@@ -3,6 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from lurker.application.market_temperature import (
+    classify_market_temperature,
+    classify_etf_status,
+    classify_margin_signal,
+)
+from lurker.ingest.etf_flows import CoreEtfBatch
 from lurker.reports.models import DailyReport
 from lurker.reports.professional_flow_report import render_professional_flow_report
 
@@ -24,27 +30,12 @@ def _as_float(value: Any, default: float = 0.0) -> float:
 
 
 # ---------------------------------------------------------------------------
-# 修复 1 + 辅助：市场温度
+# 市场温度（委托给 application/market_temperature.py）
 # ---------------------------------------------------------------------------
 
-def classify_market_temperature(
-    *,
-    market_flow: dict[str, Any],
-    margin: dict[str, Any],
-    core_etfs: list[dict[str, Any]],
-) -> str:
-    """三档市场温度：进攻 / 观察 / 防守"""
-    main_flow = _as_float(market_flow.get("main_net_inflow"))
-    super_large_flow = _as_float(market_flow.get("super_large_net_inflow"))
-    margin_change_value = margin.get("margin_balance_change")
-    margin_supportive = margin_change_value is not None and _as_float(margin_change_value) >= 0
-    etf_active = any(_as_float(etf.get("turnover_expansion")) >= 1.2 for etf in core_etfs)
-
-    if main_flow > 0 and super_large_flow > 0 and (margin_supportive or etf_active):
-        return "进攻"
-    if main_flow < 0 and super_large_flow < 0 and not etf_active:
-        return "防守"
-    return "观察"
+# classify_market_temperature, classify_etf_status, classify_margin_signal
+# are now imported from lurker.application.market_temperature.
+# Old inline implementation removed.
 
 
 def _market_regime_adjustment(temperature: str) -> float:
@@ -374,15 +365,26 @@ def run_professional_flow_daily(
     flow_snapshot = flow_snapshot or {}
     market_flow = flow_snapshot.get("market_flow", {})
     margin = flow_snapshot.get("margin", {})
-    core_etfs = flow_snapshot.get("core_etfs", [])
     sector_flows = flow_snapshot.get("sector_flows", [])
     stock_flows = flow_snapshot.get("stock_flows", [])
 
-    # 修复 1：市场温度
+    # --- ETF: schema v2 (dict) or v1 (list) ---
+    core_etfs_data = flow_snapshot.get("core_etfs")
+    if isinstance(core_etfs_data, dict):
+        etf_batch = CoreEtfBatch.from_dict(core_etfs_data)
+        etf_status = classify_etf_status(etf_batch)
+    else:
+        # schema v1 (list) → unknown
+        etf_status = "unknown"
+
+    # --- Margin signal ---
+    margin_signal = margin.get("margin_signal") or classify_margin_signal(margin)
+
+    # --- Market temperature ---
     temperature = classify_market_temperature(
         market_flow=market_flow,
-        margin=margin,
-        core_etfs=core_etfs,
+        etf_status=etf_status,
+        margin_signal=margin_signal,
     )
     regime_adj = _market_regime_adjustment(temperature)
     sector_min, flow_min, trend_min = _two_percent_thresholds(temperature)

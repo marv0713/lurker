@@ -554,6 +554,7 @@ def daily_job(
     scoring_config_path: Path | None = None,
     markets_path: Path | None = None,
     db_path: Path | None = None,
+    push: bool = True,
 ) -> str:
     job_date = report_date or date.today().isoformat()
     if all_markets_are_cn(markets) and not is_cn_trading_day(job_date):
@@ -747,7 +748,7 @@ def daily_job(
     push_msg = ""
     notifier = build_notifier_from_env()
 
-    if is_valid:
+    if is_valid and push:
         try:
             notifier.send(title=report.push_title, markdown_content=report.content_md)
             if type(notifier).__name__ != "StubNotifier":
@@ -1231,6 +1232,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=ROOT / "data" / "lurker.sqlite",
     )
+    daily.add_argument("--no-push", action="store_true")
 
     list_reports_cmd = subparsers.add_parser(
         "list-reports",
@@ -1430,6 +1432,7 @@ def main() -> None:
                 scoring_config_path=args.scoring_config,
                 markets_path=args.markets_path,
                 db_path=args.db_path,
+                push=not args.no_push,
             )
         )
         return

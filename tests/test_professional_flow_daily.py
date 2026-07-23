@@ -16,17 +16,19 @@ from lurker.application.professional_flow_daily import (
 def test_classify_market_temperature_detects_attack_mode():
     result = classify_market_temperature(
         market_flow={"main_net_inflow": 10.0, "super_large_net_inflow": 5.0},
-        margin={"margin_balance_change": 1.0},
-        core_etfs=[{"symbol": "510300.SH", "turnover_expansion": 1.5}],
+        etf_status="active",
+        margin_signal="supportive",
     )
     assert result == "进攻"
 
 
 def test_classify_market_temperature_defense_when_all_negative():
+    # Old test used empty core_etfs + empty margin → expected defense.
+    # New logic: empty → unknown → observe. Defense needs active negative confirmation.
     result = classify_market_temperature(
         market_flow={"main_net_inflow": -10.0, "super_large_net_inflow": -5.0},
-        margin={},
-        core_etfs=[],
+        etf_status="inactive",
+        margin_signal="weakening",
     )
     assert result == "防守"
 
@@ -81,8 +83,29 @@ def test_market_temperature_defense_downgrades_candidates():
                 "main_net_inflow_10d": 300.0,
             }
         ],
-        "margin": {},
-        "core_etfs": [],
+        "margin": {"margin_balance_change": -5.0, "margin_signal": "weakening"},
+        "core_etfs": {
+            "configured_symbols": ["510300.SH"],
+            "items": [
+                {
+                    "symbol": "510300.SH",
+                    "name": "沪深300ETF",
+                    "trade_date": "2026-06-04",
+                    "current_turnover": 800_000_000.0,
+                    "avg_turnover_20d": 1_000_000_000.0,
+                    "turnover_expansion": 0.80,
+                    "shares": None,
+                    "shares_date": None,
+                    "status": "inactive",
+                    "source": "akshare_fund_etf_hist_em",
+                    "availability": "turnover_only",
+                    "error": None,
+                }
+            ],
+            "failures": [],
+            "generated_at": "2026-06-04T00:00:00+00:00",
+            "schema_version": 1,
+        },
         "failures": [],
     }
     report = run_professional_flow_daily(

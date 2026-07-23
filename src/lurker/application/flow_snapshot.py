@@ -4,7 +4,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 import json
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, TYPE_CHECKING
 
 from lurker.ingest.flows import (
     fetch_margin,
@@ -12,6 +12,10 @@ from lurker.ingest.flows import (
     fetch_sector_flows,
     fetch_stock_flows,
 )
+from lurker.application.market_temperature import classify_margin_signal
+
+if TYPE_CHECKING:
+    from lurker.ingest.etf_flows import CoreEtfBatch
 
 
 FlowSnapshot = dict[str, Any]
@@ -38,6 +42,38 @@ def _capture(source: str, fetcher: Callable[[], Any], failures: list[dict[str, s
         return [] if source.endswith("flows") or source == "core_etfs" else {}
 
 
+def _default_etf_fetcher() -> "CoreEtfBatch":
+    """Default ETF fetcher. Import/config errors fail loudly; only provider errors degrade."""
+    from lurker.ingest.etf_flows import CoreEtfBatch, EtfProviderError, EtfSchemaError, fetch_core_etfs
+    from lurker.config import load_core_etfs
+
+    config_path = Path(__file__).resolve().parents[3] / "configs" / "core_etfs.yaml"
+    if not config_path.exists():
+        raise RuntimeError(
+            f"core_etfs.yaml not found at {config_path}. "
+            "This file is required for ETF market temperature."
+        )
+    configs = load_core_etfs(config_path)
+    if not configs:
+        raise RuntimeError("core_etfs.yaml is empty — at least one ETF must be configured.")
+
+    try:
+        return fetch_core_etfs(etf_configs=configs)
+    except (EtfProviderError, EtfSchemaError, ConnectionError, TimeoutError, OSError) as e:
+        configured_symbols = [row["canonical_symbol"] for row in configs]
+        return CoreEtfBatch(
+            configured_symbols=configured_symbols,
+            items=[],
+            failures=[
+                {"symbol": symbol, "reason": f"数据源不可用: {e}"}
+                for symbol in configured_symbols
+            ],
+            generated_at=datetime.now(UTC).isoformat(),
+            schema_version=1,
+        )
+    # TypeError, AttributeError, KeyError → propagate (program error, not recoverable)
+
+
 def collect_flow_snapshot(
     *,
     fetch_market_flow: Callable[[], dict[str, Any]] = fetch_market_flow,
@@ -48,15 +84,40 @@ def collect_flow_snapshot(
     generated_at: str | None = None,
 ) -> FlowSnapshot:
     failures: list[dict[str, str]] = []
+
+    # --- ETF: bypass _capture() to avoid swallowing TypeError/KeyError ---
+    from lurker.ingest.etf_flows import CoreEtfBatch, EtfProviderError, EtfSchemaError
+
+    try:
+        etf_fetcher = fetch_core_etfs if fetch_core_etfs is not None else _default_etf_fetcher
+        core_etfs_data = etf_fetcher()
+    except (EtfProviderError, EtfSchemaError, ConnectionError, TimeoutError, OSError) as e:
+        core_etfs_data = CoreEtfBatch(
+            configured_symbols=[],
+            items=[],
+            failures=[{"symbol": "*", "reason": f"ETF 数据源不可用: {e}"}],
+            generated_at=datetime.now(UTC).isoformat(),
+            schema_version=1,
+        )
+        failures.append({"source": "core_etfs", "reason": str(e)})
+    # TypeError, AttributeError, KeyError, ImportError → propagate (not captured)
+
+    # --- Margin: capture and inject signal ---
+    margin_data = _capture("margin", fetch_margin, failures)
+    if isinstance(margin_data, dict) and margin_data:
+        margin_data["margin_signal"] = classify_margin_signal(margin_data)
+
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_at": generated_at or datetime.now(UTC).isoformat(),
         "market": "cn",
         "market_flow": _capture("market_flow", fetch_market_flow, failures),
         "sector_flows": _capture("sector_flows", fetch_sector_flows, failures),
         "stock_flows": _capture("stock_flows", fetch_stock_flows, failures),
-        "margin": _capture("margin", fetch_margin, failures),
-        "core_etfs": _capture("core_etfs", fetch_core_etfs or (lambda: []), failures),
+        "margin": margin_data,
+        "core_etfs": (
+            core_etfs_data.to_dict() if isinstance(core_etfs_data, CoreEtfBatch) else core_etfs_data
+        ),
         "failures": failures,
     }
 

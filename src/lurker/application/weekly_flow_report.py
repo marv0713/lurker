@@ -6,7 +6,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from lurker.application.professional_flow_daily import classify_market_temperature
+from lurker.application.market_temperature import (
+    classify_market_temperature,
+    classify_etf_status,
+    classify_margin_signal,
+)
+from lurker.ingest.etf_flows import CoreEtfBatch
 from lurker.reports.models import DailyReport
 from lurker.trading_calendar import is_cn_trading_day
 
@@ -82,10 +87,20 @@ def _load_latest_snapshots(
 def _status_counts(loaded_snapshots: list[tuple[Any, dict[str, Any]]]) -> dict[str, int]:
     counts = {"进攻": 0, "观察": 0, "防守": 0}
     for _, data in loaded_snapshots:
+        core_etfs_data = data.get("core_etfs")
+        if isinstance(core_etfs_data, dict):
+            etf_batch = CoreEtfBatch.from_dict(core_etfs_data)
+            etf_status = classify_etf_status(etf_batch)
+        else:
+            etf_status = "unknown"
+
+        margin = data.get("margin", {})
+        margin_signal = margin.get("margin_signal") or classify_margin_signal(margin)
+
         temperature = classify_market_temperature(
             market_flow=data.get("market_flow", {}),
-            margin=data.get("margin", {}),
-            core_etfs=data.get("core_etfs", []),
+            etf_status=etf_status,
+            margin_signal=margin_signal,
         )
         counts[temperature] = counts.get(temperature, 0) + 1
     return counts

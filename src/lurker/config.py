@@ -201,3 +201,34 @@ def load_watchlist(path: str | Path) -> WatchlistConfig:
             )
         )
     return WatchlistConfig(items=tuple(items))
+
+
+def load_core_etfs(path: str | Path) -> list[dict[str, str]]:
+    """Load core ETF configuration from YAML.
+
+    Returns list of dicts with keys: symbol, canonical_symbol, name, market.
+    """
+    data = load_yaml(path)
+    etfs = data.get("etfs", [])
+    if not isinstance(etfs, list) or not etfs:
+        raise ValueError("core_etfs.yaml must contain a non-empty 'etfs' list")
+    result = []
+    seen_symbols = set()
+    for entry in etfs:
+        if not isinstance(entry, dict):
+            raise ValueError(f"Invalid ETF entry in core_etfs.yaml: {entry}")
+        symbol = str(entry.get("symbol", "")).strip()
+        canonical = str(entry.get("canonical_symbol", symbol)).strip()
+        name = str(entry.get("name", "")).strip()
+        if not symbol:
+            raise ValueError("ETF entry missing 'symbol' in core_etfs.yaml")
+        if canonical in seen_symbols:
+            raise ValueError(f"Duplicate canonical_symbol in core_etfs.yaml: {canonical}")
+        seen_symbols.add(canonical)
+        result.append({
+            "symbol": symbol,
+            "canonical_symbol": canonical,
+            "name": name,
+            "market": str(entry.get("market", "cn")).strip(),
+        })
+    return result

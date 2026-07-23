@@ -3,18 +3,24 @@ import json
 from lurker.application.weekly_flow_report import build_weekly_flow_report
 
 
-def _write_flow(path, date, *, temperature_flow, sectors, stocks, failures=None):
+def _write_flow(path, date, *, temperature_flow, sectors, stocks, failures=None, margin=None):
     path.write_text(
         json.dumps(
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "generated_at": f"{date}T00:00:00+00:00",
                 "market": "cn",
                 "market_flow": temperature_flow,
                 "sector_flows": sectors,
                 "stock_flows": stocks,
-                "margin": {},
-                "core_etfs": [],
+                "margin": margin or {},
+                "core_etfs": {
+                    "configured_symbols": [],
+                    "items": [],
+                    "failures": [],
+                    "generated_at": f"{date}T00:00:00+00:00",
+                    "schema_version": 1,
+                },
                 "failures": failures or [],
             },
             ensure_ascii=False,
@@ -60,7 +66,11 @@ def test_build_weekly_flow_report_aggregates_available_snapshots(tmp_path):
     assert "通信设备" in report.content_md
     assert "连续 2 天" in report.content_md
     assert "中际旭创" in report.content_md
-    assert "防守 1 天" in report.content_md
+    # Day 1: positive flow + unknown ETF/margin → observe
+    # Day 2: negative flow + unknown ETF/margin → observe
+    assert "进攻 0 天" in report.content_md
+    assert "观察 2 天" in report.content_md
+    assert "防守 0 天" in report.content_md
     assert report.main_candidates_count == 2
 
 
