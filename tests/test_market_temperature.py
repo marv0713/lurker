@@ -1,15 +1,13 @@
-"""Market temperature truth table tests (Task 1: RED phase).
+"""Market temperature truth table tests (Task 1: RED → Task 4: GREEN).
 
-All tests import from lurker.application.market_temperature which does not exist yet.
-Expected failure: ModuleNotFoundError.
+All tests import from lurker.application.market_temperature.
 """
 
-import math
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 import pytest
 
-from lurker.ingest.etf_flows import CoreEtfBatch, CoreEtfItem  # noqa: F401 — will fail until Task 3
+from lurker.ingest.etf_flows import CoreEtfBatch, CoreEtfItem
 
 
 # ---------------------------------------------------------------------------
@@ -171,8 +169,6 @@ def test_defense_when_dual_positive_but_margin_overheated():
 
 def test_temperature_stale_etf_treated_as_unknown():
     """ETF trade_date 不是最近交易日 → etf_status = unknown"""
-    from lurker.application.market_temperature import classify_etf_status
-
     batch = CoreEtfBatch(
         configured_symbols=["510300.SH"],
         items=[
@@ -229,23 +225,28 @@ def test_temperature_stale_data_not_negative_evidence():
 
 def test_temperature_future_source_date_fails():
     """来源日期晚于 expected_trade_date → ValueError"""
-    from lurker.application.market_temperature import (
-        PreparedTemperatureInputs,
-        prepare_temperature_inputs,
-    )
+    from lurker.application.market_temperature import resolve_expected_trade_date
+    from datetime import date as date_cls
 
-    # This tests the preparation layer rejects future dates
-    with pytest.raises(ValueError):
-        # A CoreEtfItem with a future trade_date should cause an error in preparation
-        pass
+    tz_cst = timezone(timedelta(hours=8))
+    now = datetime(2026, 7, 23, 16, 0, 0, tzinfo=tz_cst)
+
+    def is_trading_day(d: date_cls) -> bool:
+        return d.weekday() < 5
+
+    with pytest.raises(ValueError, match="future"):
+        resolve_expected_trade_date(
+            report_date="2026-07-24",  # Tomorrow → future date
+            is_trading_day=is_trading_day,
+            now=now,
+        )
 
 
 def test_expected_trade_date_before_close_uses_previous_session():
     """交易日 15:30 前运行 → 使用上一交易日"""
     from lurker.application.market_temperature import resolve_expected_trade_date
 
-    # Mock: it's 2026-07-23 (Thursday) at 10:00 CST, should resolve to 2026-07-22
-    tz_cst = timezone(time.timedelta(hours=8))
+    tz_cst = timezone(timedelta(hours=8))
     now = datetime(2026, 7, 23, 10, 0, 0, tzinfo=tz_cst)
     report_date = "2026-07-23"
 
@@ -265,7 +266,7 @@ def test_expected_trade_date_after_close_uses_current_session():
     """交易日 15:30 后运行 → 使用当天"""
     from lurker.application.market_temperature import resolve_expected_trade_date
 
-    tz_cst = timezone(time.timedelta(hours=8))
+    tz_cst = timezone(timedelta(hours=8))
     now = datetime(2026, 7, 23, 16, 0, 0, tzinfo=tz_cst)
     report_date = "2026-07-23"
 
@@ -596,7 +597,7 @@ def test_prepare_temperature_inputs_returns_prepared_dataclass():
             generated_at="2026-07-23T00:00:00+00:00",
             schema_version=1,
         ),
-        margin={"margin_balance_change": 5_000_000_000.0, "trade_date": "20260723"},
+        margin={"margin_balance_change": 5_000_000_000.0, "trade_date": "2026-07-23"},
         report_date="2026-07-23",
         is_trading_day=is_trading_day,
         now=now,

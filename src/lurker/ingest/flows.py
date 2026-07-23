@@ -95,14 +95,19 @@ def _to_float(value: Any, default: float = 0.0) -> float:
 def normalize_market_flow_frame(raw: pd.DataFrame) -> dict[str, float]:
     if raw.empty:
         return {}
+    trade_date = ""
     if "日期" in raw.columns:
         ordered = raw.copy()
         ordered["日期"] = pd.to_datetime(ordered["日期"], errors="coerce")
         ordered = ordered.sort_values("日期")
         row = ordered.iloc[-1]
+        latest_date = row.get("日期")
+        if pd.notna(latest_date):
+            trade_date = str(latest_date.date()) if hasattr(latest_date, "date") else str(latest_date)
     else:
         row = raw.iloc[-1]
     return {
+        "trade_date": trade_date,
         "main_net_inflow": _to_float(
             _first_present(row, ["今日主力净流入-净额", "主力净流入", "主力净流入-净额"])
         ),
@@ -288,7 +293,9 @@ def fetch_margin(*, token: str | None = None, cache_path: Path | None = None) ->
                     f"Warning: fetch_margin failed ({exc}). Loading cached margin data from {cache_path}.",
                     file=sys.stderr
                 )
-                return json.loads(cache_path.read_text(encoding="utf-8"))
+                cached = json.loads(cache_path.read_text(encoding="utf-8"))
+                cached["availability"] = "stale_cache"
+                return cached
             except Exception as cache_exc:
                 print(f"Warning: failed to read margin cache: {cache_exc}", file=sys.stderr)
                 raise exc
