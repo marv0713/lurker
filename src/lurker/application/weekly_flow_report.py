@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any
 
 from lurker.application.market_temperature import (
     classify_market_temperature,
-    classify_etf_status,
-    classify_margin_signal,
+    prepare_temperature_inputs,
 )
 from lurker.ingest.etf_flows import CoreEtfBatch
 from lurker.reports.models import DailyReport
@@ -86,21 +85,28 @@ def _load_latest_snapshots(
 
 def _status_counts(loaded_snapshots: list[tuple[Any, dict[str, Any]]]) -> dict[str, int]:
     counts = {"进攻": 0, "观察": 0, "防守": 0}
-    for _, data in loaded_snapshots:
+    for file_dt, data in loaded_snapshots:
         core_etfs_data = data.get("core_etfs")
         if isinstance(core_etfs_data, dict):
             etf_batch = CoreEtfBatch.from_dict(core_etfs_data)
-            etf_status = classify_etf_status(etf_batch)
         else:
-            etf_status = "unknown"
+            etf_batch = CoreEtfBatch(configured_symbols=[])
 
+        # Use preparation layer for freshness + classification
         margin = data.get("margin", {})
-        margin_signal = margin.get("margin_signal") or classify_margin_signal(margin)
-
-        temperature = classify_market_temperature(
+        snapshot_date = file_dt.isoformat() if hasattr(file_dt, "isoformat") else str(file_dt)
+        prepared = prepare_temperature_inputs(
             market_flow=data.get("market_flow", {}),
-            etf_status=etf_status,
-            margin_signal=margin_signal,
+            core_etfs_batch=etf_batch,
+            margin=margin,
+            report_date=snapshot_date,
+            is_trading_day=is_cn_trading_day,
+            now=datetime.now(tz=timezone(timedelta(hours=8))),
+        )
+        temperature = classify_market_temperature(
+            market_flow=prepared.market_flow,
+            etf_status=prepared.etf_status,
+            margin_signal=prepared.margin_signal,
         )
         counts[temperature] = counts.get(temperature, 0) + 1
     return counts

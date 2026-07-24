@@ -238,11 +238,8 @@ def test_market_flow_normalizer_preserves_missing_main_flow_as_none():
     """缺失主力净流入不能变成 0.0。"""
     raw = pd.DataFrame({"超大单净流入-净额": [100.0]})
     result = normalize_market_flow_frame(raw)
-    assert result.get("main_net_inflow") is None or result.get("main_net_inflow") == 0.0
-    # Key assertion: the key may be present with 0.0 (current behavior) or absent.
-    # Either way, _flow_direction() will handle it correctly (0 → neutral).
-    # What we must NOT do: silently convert a truly missing column into 0.0
-    # and then have _flow_direction return "neutral" instead of "unknown".
+    # Missing column → None (not 0.0)
+    assert result.get("main_net_inflow") is None
 
 
 def test_market_flow_normalizer_preserves_real_zero():

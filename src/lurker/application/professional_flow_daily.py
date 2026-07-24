@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from datetime import date, datetime, timezone, timedelta
+from typing import Any, Callable
 
 from lurker.application.market_temperature import (
-    classify_market_temperature,
-    classify_etf_status,
-    classify_margin_signal,
+    prepare_temperature_inputs,
 )
 from lurker.ingest.etf_flows import CoreEtfBatch
 from lurker.reports.models import DailyReport
 from lurker.reports.professional_flow_report import render_professional_flow_report
+from lurker.trading_calendar import is_cn_trading_day
 
 
 @dataclass
@@ -361,6 +361,8 @@ def run_professional_flow_daily(
     theme_mapping: dict[str, list[str]],
     symbol_names: dict[str, str] | None = None,
     report_date: str,
+    now: datetime | None = None,
+    is_trading_day: Callable[[date], bool] | None = None,
 ) -> DailyReport:
     flow_snapshot = flow_snapshot or {}
     market_flow = flow_snapshot.get("market_flow", {})
@@ -372,19 +374,28 @@ def run_professional_flow_daily(
     core_etfs_data = flow_snapshot.get("core_etfs")
     if isinstance(core_etfs_data, dict):
         etf_batch = CoreEtfBatch.from_dict(core_etfs_data)
-        etf_status = classify_etf_status(etf_batch)
     else:
-        # schema v1 (list) → unknown
-        etf_status = "unknown"
+        etf_batch = CoreEtfBatch(configured_symbols=[])
 
-    # --- Margin signal ---
-    margin_signal = margin.get("margin_signal") or classify_margin_signal(margin)
+    # --- Unified preparation (freshness + classification) ---
+    resolved_now = now or datetime.now(timezone(timedelta(hours=8)))
+    resolved_calendar = is_trading_day or is_cn_trading_day
 
-    # --- Market temperature ---
-    temperature = classify_market_temperature(
+    prepared = prepare_temperature_inputs(
         market_flow=market_flow,
-        etf_status=etf_status,
-        margin_signal=margin_signal,
+        core_etfs_batch=etf_batch,
+        margin=margin,
+        report_date=report_date,
+        is_trading_day=resolved_calendar,
+        now=resolved_now,
+    )
+    temperature = prepared.etf_status  # Wait — we need the temperature classification
+    # Actually: use the prepared inputs to classify temperature
+    from lurker.application.market_temperature import classify_market_temperature
+    temperature = classify_market_temperature(
+        market_flow=prepared.market_flow,
+        etf_status=prepared.etf_status,
+        margin_signal=prepared.margin_signal,
     )
     regime_adj = _market_regime_adjustment(temperature)
     sector_min, flow_min, trend_min = _two_percent_thresholds(temperature)

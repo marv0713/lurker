@@ -251,6 +251,26 @@ def resolve_expected_trade_date(
     return cursor.isoformat()
 
 
+def _normalize_trade_date(date_str: str) -> str:
+    """Normalize trade date to ISO format YYYY-MM-DD.
+
+    Accepts: "2026-07-23", "20260723", "2026-07-23T00:00:00", etc.
+    """
+    if not date_str:
+        return ""
+    # Already ISO
+    if len(date_str) == 10 and date_str[4] == "-":
+        return date_str
+    # YYYYMMDD
+    if len(date_str) == 8 and date_str.isdigit():
+        return f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+    # Try to parse as ISO date with optional time
+    try:
+        return date.fromisoformat(date_str[:10]).isoformat()
+    except (ValueError, TypeError):
+        return date_str
+
+
 # ---------------------------------------------------------------------------
 # Preparation layer: unify freshness + classification into single entry point
 # ---------------------------------------------------------------------------
@@ -278,7 +298,10 @@ def prepare_temperature_inputs(
 ) -> PreparedTemperatureInputs:
     """Unified preparation: resolve expected trade date, check freshness, classify.
 
-    Stale data is degraded to "unknown" before temperature classification.
+    Stale data is degraded to "unknown" before temperature classification:
+    - Stale flow values → set to None (→ _flow_direction returns "unknown")
+    - Stale ETF items → filtered out before etf_status classification
+    - Stale margin → margin_signal forced to "unknown"
     """
     expected_trade_date = resolve_expected_trade_date(
         report_date=report_date,
@@ -288,22 +311,29 @@ def prepare_temperature_inputs(
     )
 
     # --- Market flow freshness ---
-    flow_trade_date = market_flow.get("trade_date", "")
+    flow_trade_date = _normalize_trade_date(market_flow.get("trade_date", ""))
     flow = dict(market_flow)
-    if flow_trade_date != expected_trade_date:
+    if not flow_trade_date or flow_trade_date != expected_trade_date:
+        # Stale or missing date → nullify the flow values so they become "unknown"
+        flow["main_net_inflow"] = None
+        flow["super_large_net_inflow"] = None
         flow["availability"] = "stale"
+    elif flow_trade_date > expected_trade_date:
+        raise ValueError(
+            f"Market flow trade_date {flow_trade_date} is after "
+            f"expected_trade_date {expected_trade_date}"
+        )
     else:
         flow["availability"] = "fresh"
 
     # --- ETF freshness ---
-    # Check if any ETF item has a non-stale trade_date
+    # Keep only items whose trade_date matches expected_trade_date
     fresh_items = [
         item
         for item in core_etfs_batch.items
-        if item.trade_date == expected_trade_date
+        if _normalize_trade_date(item.trade_date) == expected_trade_date
     ]
     if fresh_items:
-        # Use only fresh items for classification
         fresh_batch = CoreEtfBatch(
             configured_symbols=core_etfs_batch.configured_symbols,
             items=fresh_items,
@@ -316,14 +346,23 @@ def prepare_temperature_inputs(
         # All items are stale → unknown
         etf_status = "unknown"
     else:
-        # No items at all
+        # No items at all → classify as-is (will be unknown)
         etf_status = classify_etf_status(core_etfs_batch)
 
     # --- Margin freshness ---
-    margin_availability = margin.get("availability", "unknown")
-    margin_trade_date = margin.get("trade_date", "")
-    if margin_availability == "stale_cache" or margin_trade_date != expected_trade_date:
+    margin_trade_date = _normalize_trade_date(margin.get("trade_date", ""))
+    margin_availability = margin.get("availability", "")
+    if (
+        margin_availability == "stale_cache"
+        or not margin_trade_date
+        or margin_trade_date != expected_trade_date
+    ):
         margin_signal = "unknown"
+    elif margin_trade_date > expected_trade_date:
+        raise ValueError(
+            f"Margin trade_date {margin_trade_date} is after "
+            f"expected_trade_date {expected_trade_date}"
+        )
     else:
         margin_signal = classify_margin_signal(margin)
 

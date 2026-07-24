@@ -1,5 +1,5 @@
+from lurker.application.market_temperature import classify_market_temperature
 from lurker.application.professional_flow_daily import (
-    classify_market_temperature,
     _detect_contradiction,
     _market_notes,
     _setup_score,
@@ -69,7 +69,7 @@ def test_market_temperature_defense_downgrades_candidates():
         ]
     }
     flow_snapshot = {
-        "market_flow": {"main_net_inflow": -100.0, "super_large_net_inflow": -50.0},
+        "market_flow": {"main_net_inflow": -100.0, "super_large_net_inflow": -50.0, "trade_date": "2026-06-04"},
         "sector_flows": [
             {"name": "ai_infra", "category": "theme", "main_net_inflow": 100.0, "rank": 1}
         ],
@@ -83,7 +83,7 @@ def test_market_temperature_defense_downgrades_candidates():
                 "main_net_inflow_10d": 300.0,
             }
         ],
-        "margin": {"margin_balance_change": -5.0, "margin_signal": "weakening"},
+        "margin": {"margin_balance_change": -5.0, "margin_signal": "weakening", "trade_date": "2026-06-04"},
         "core_etfs": {
             "configured_symbols": ["510300.SH"],
             "items": [
@@ -409,7 +409,7 @@ def test_professional_report_promotes_two_percent_candidate():
         "failures": [],
     }
     flow_snapshot = {
-        "market_flow": {"main_net_inflow": 10.0, "super_large_net_inflow": 5.0},
+        "market_flow": {"main_net_inflow": 10.0, "super_large_net_inflow": 5.0, "trade_date": "2026-06-04"},
         "sector_flows": [
             {"name": "ai_infra", "category": "theme", "main_net_inflow": 100.0, "rank": 1}
         ],
@@ -423,8 +423,29 @@ def test_professional_report_promotes_two_percent_candidate():
                 "main_net_inflow_10d": 300.0,
             }
         ],
-        "margin": {"margin_balance_change": 1.0},
-        "core_etfs": [],
+        "margin": {"margin_balance_change": 1.0, "margin_signal": "supportive", "trade_date": "2026-06-04"},
+        "core_etfs": {
+            "configured_symbols": ["510300.SH"],
+            "items": [
+                {
+                    "symbol": "510300.SH",
+                    "name": "沪深300ETF",
+                    "trade_date": "2026-06-04",
+                    "current_turnover": 3_000_000_000.0,
+                    "avg_turnover_20d": 2_000_000_000.0,
+                    "turnover_expansion": 1.5,
+                    "shares": None,
+                    "shares_date": None,
+                    "status": "active",
+                    "source": "akshare_fund_etf_hist_em",
+                    "availability": "turnover_only",
+                    "error": None,
+                }
+            ],
+            "failures": [],
+            "generated_at": "2026-06-04T00:00:00+00:00",
+            "schema_version": 1,
+        },
         "failures": [],
     }
 

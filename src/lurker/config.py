@@ -204,31 +204,77 @@ def load_watchlist(path: str | Path) -> WatchlistConfig:
 
 
 def load_core_etfs(path: str | Path) -> list[dict[str, str]]:
-    """Load core ETF configuration from YAML.
+    """Load core ETF configuration from YAML with strict validation.
 
-    Returns list of dicts with keys: symbol, canonical_symbol, name, market.
+    Validates:
+    - Four required roles present and unique
+    - canonical_symbol has valid .SH/.SZ suffix
+    - No unknown top-level keys in config
+    - No duplicate symbols or canonical_symbols
     """
     data = load_yaml(path)
+    unknown = set(data) - {"etfs"}
+    if unknown:
+        raise ValueError(f"Unknown keys in core_etfs.yaml: {sorted(unknown)}")
+
     etfs = data.get("etfs", [])
     if not isinstance(etfs, list) or not etfs:
         raise ValueError("core_etfs.yaml must contain a non-empty 'etfs' list")
+    if len(etfs) != 4:
+        raise ValueError(
+            f"core_etfs.yaml must contain exactly 4 ETFs (沪深300, 中证500, 创业板, A500), got {len(etfs)}"
+        )
+
     result = []
     seen_symbols = set()
-    for entry in etfs:
+    seen_canonical = set()
+    allowed_roles = {"large_cap", "mid_cap", "growth", "broad_market"}
+
+    for i, entry in enumerate(etfs):
         if not isinstance(entry, dict):
-            raise ValueError(f"Invalid ETF entry in core_etfs.yaml: {entry}")
+            raise ValueError(f"Invalid ETF entry at index {i}: {entry}")
+        unknown_fields = set(entry) - {"symbol", "canonical_symbol", "name", "market", "role"}
+        if unknown_fields:
+            raise ValueError(f"Unknown field in ETF entry {i}: {sorted(unknown_fields)[0]}")
+
         symbol = str(entry.get("symbol", "")).strip()
         canonical = str(entry.get("canonical_symbol", symbol)).strip()
         name = str(entry.get("name", "")).strip()
+        role = str(entry.get("role", "")).strip()
+
         if not symbol:
-            raise ValueError("ETF entry missing 'symbol' in core_etfs.yaml")
-        if canonical in seen_symbols:
+            raise ValueError(f"ETF entry {i} missing 'symbol'")
+        if symbol in seen_symbols:
+            raise ValueError(f"Duplicate symbol in core_etfs.yaml: {symbol}")
+        seen_symbols.add(symbol)
+
+        if not canonical.endswith((".SH", ".SZ")):
+            raise ValueError(
+                f"canonical_symbol '{canonical}' must end with .SH or .SZ"
+            )
+        if canonical in seen_canonical:
             raise ValueError(f"Duplicate canonical_symbol in core_etfs.yaml: {canonical}")
-        seen_symbols.add(canonical)
+        seen_canonical.add(canonical)
+
+        if role and role not in allowed_roles:
+            raise ValueError(
+                f"Unknown role '{role}' in ETF entry {i}. Allowed: {sorted(allowed_roles)}"
+            )
+
         result.append({
             "symbol": symbol,
             "canonical_symbol": canonical,
             "name": name,
             "market": str(entry.get("market", "cn")).strip(),
+            "role": role,
         })
+
+    # All four roles must be present and unique
+    roles = [r["role"] for r in result if r["role"]]
+    if len(roles) != 4 or len(set(roles)) != 4:
+        raise ValueError(
+            "Each ETF must have a unique role. "
+            "Required: large_cap (沪深300), mid_cap (中证500), growth (创业板), broad_market (A500)"
+        )
+
     return result

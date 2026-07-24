@@ -92,6 +92,24 @@ def _to_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def _to_optional_float(value: Any) -> float | None:
+    """Convert to float, returning None for truly missing/empty values.
+
+    Used for market flow columns where 0.0 is a meaningful value (资金持平)
+    but a missing column is not (缺失不是零).
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = value.replace(",", "").replace("%", "").strip()
+        if value in {"", "-", "--", "---"}:
+            return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def normalize_market_flow_frame(raw: pd.DataFrame) -> dict[str, float]:
     if raw.empty:
         return {}
@@ -108,13 +126,13 @@ def normalize_market_flow_frame(raw: pd.DataFrame) -> dict[str, float]:
         row = raw.iloc[-1]
     return {
         "trade_date": trade_date,
-        "main_net_inflow": _to_float(
+        "main_net_inflow": _to_optional_float(
             _first_present(row, ["今日主力净流入-净额", "主力净流入", "主力净流入-净额"])
         ),
-        "super_large_net_inflow": _to_float(
+        "super_large_net_inflow": _to_optional_float(
             _first_present(row, ["今日超大单净流入-净额", "超大单净流入", "超大单净流入-净额"])
         ),
-        "large_net_inflow": _to_float(
+        "large_net_inflow": _to_optional_float(
             _first_present(row, ["今日大单净流入-净额", "大单净流入", "大单净流入-净额"])
         ),
     }

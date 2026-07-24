@@ -755,8 +755,10 @@ def daily_job(
                 push_msg = "\nPushed report successfully."
         except Exception as e:
             push_msg = f"\nFailed to push report: {e}"
-    else:
+    elif not is_valid:
         push_msg = f"\nSkipped pushing report: validation failed ({validation_error})."
+    else:
+        push_msg = "\nSkipped pushing report (--no-push)."
 
     return (
         f"Wrote price snapshot to {snapshot_path} "
