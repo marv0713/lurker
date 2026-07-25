@@ -746,9 +746,9 @@ def daily_job(
         validation_error = f"资金流抓取存在致命错误 ({', '.join(critical_reasons)})"
 
     push_msg = ""
-    notifier = build_notifier_from_env()
 
     if is_valid and push:
+        notifier = build_notifier_from_env()
         try:
             notifier.send(title=report.push_title, markdown_content=report.content_md)
             if type(notifier).__name__ != "StubNotifier":

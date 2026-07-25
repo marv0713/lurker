@@ -2,7 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from lurker.config import load_markets, load_scoring, load_themes, load_watchlist
+from lurker.config import (
+    load_core_etfs,
+    load_markets,
+    load_scoring,
+    load_themes,
+    load_watchlist,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -29,6 +35,17 @@ def test_load_scoring_weights_sum_to_one():
 
     weights = scoring["candidate_weights"]["stock_first"]
     assert sum(weights.values()) == 1.0
+
+
+def test_load_core_etfs_uses_design_roles():
+    configured = load_core_etfs(ROOT / "configs" / "core_etfs.yaml")
+
+    assert {item["role"] for item in configured} == {
+        "csi300",
+        "csi500",
+        "chinext",
+        "csi_a500",
+    }
 
 
 def test_load_watchlist_merges_global_defaults_and_item_overrides(tmp_path):

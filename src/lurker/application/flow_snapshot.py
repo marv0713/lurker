@@ -12,7 +12,6 @@ from lurker.ingest.flows import (
     fetch_sector_flows,
     fetch_stock_flows,
 )
-from lurker.application.market_temperature import classify_margin_signal
 
 if TYPE_CHECKING:
     from lurker.ingest.etf_flows import CoreEtfBatch
@@ -80,32 +79,21 @@ def collect_flow_snapshot(
     fetch_sector_flows: Callable[[], list[dict[str, Any]]] = fetch_sector_flows,
     fetch_stock_flows: Callable[[], list[dict[str, Any]]] = fetch_stock_flows,
     fetch_margin: Callable[[], dict[str, Any]] = fetch_margin,
-    fetch_core_etfs: Callable[[], list[dict[str, Any]]] | None = None,
+    fetch_core_etfs: Callable[[], "CoreEtfBatch"] | None = None,
     generated_at: str | None = None,
 ) -> FlowSnapshot:
     failures: list[dict[str, str]] = []
 
     # --- ETF: bypass _capture() to avoid swallowing TypeError/KeyError ---
-    from lurker.ingest.etf_flows import CoreEtfBatch, EtfProviderError, EtfSchemaError
+    from lurker.ingest.etf_flows import CoreEtfBatch
 
-    try:
-        etf_fetcher = fetch_core_etfs if fetch_core_etfs is not None else _default_etf_fetcher
-        core_etfs_data = etf_fetcher()
-    except (EtfProviderError, EtfSchemaError, ConnectionError, TimeoutError, OSError) as e:
-        core_etfs_data = CoreEtfBatch(
-            configured_symbols=[],
-            items=[],
-            failures=[{"symbol": "*", "reason": f"ETF 数据源不可用: {e}"}],
-            generated_at=datetime.now(UTC).isoformat(),
-            schema_version=1,
-        )
-        failures.append({"source": "core_etfs", "reason": str(e)})
-    # TypeError, AttributeError, KeyError, ImportError → propagate (not captured)
+    etf_fetcher = fetch_core_etfs if fetch_core_etfs is not None else _default_etf_fetcher
+    core_etfs_data = etf_fetcher()
+    if not isinstance(core_etfs_data, CoreEtfBatch):
+        raise TypeError("ETF fetcher must return CoreEtfBatch")
 
-    # --- Margin: capture and inject signal ---
+    # --- Margin: persist raw facts only; signals are derived by the preparation layer ---
     margin_data = _capture("margin", fetch_margin, failures)
-    if isinstance(margin_data, dict) and margin_data:
-        margin_data["margin_signal"] = classify_margin_signal(margin_data)
 
     return {
         "schema_version": 2,
@@ -115,9 +103,7 @@ def collect_flow_snapshot(
         "sector_flows": _capture("sector_flows", fetch_sector_flows, failures),
         "stock_flows": _capture("stock_flows", fetch_stock_flows, failures),
         "margin": margin_data,
-        "core_etfs": (
-            core_etfs_data.to_dict() if isinstance(core_etfs_data, CoreEtfBatch) else core_etfs_data
-        ),
+        "core_etfs": core_etfs_data.to_dict(),
         "failures": failures,
     }
 

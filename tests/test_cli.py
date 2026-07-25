@@ -352,6 +352,10 @@ def test_daily_job_refreshes_prices_and_writes_report(monkeypatch, tmp_path):
 
     monkeypatch.setattr("lurker.cli.collect_price_snapshot_batch", fake_collector)
     monkeypatch.setattr("lurker.cli.run_daily", fake_run_daily)
+    monkeypatch.setattr(
+        "lurker.cli.build_notifier_from_env",
+        lambda: pytest.fail("notifier must not be built when push=False"),
+    )
     suppressed_symbols_path = tmp_path / "suppressed_symbols.yaml"
     suppressed_symbols_path.write_text("symbols:\n  - 300308.SZ\n", encoding="utf-8")
 
@@ -367,6 +371,7 @@ def test_daily_job_refreshes_prices_and_writes_report(monkeypatch, tmp_path):
         signal_threshold=55,
         main_limit=8,
         suppressed_symbols_path=suppressed_symbols_path,
+        push=False,
     )
 
     assert (price_snapshot_dir / "2026-05-18.json").exists()
@@ -375,6 +380,7 @@ def test_daily_job_refreshes_prices_and_writes_report(monkeypatch, tmp_path):
     assert "snapshots=1" in message
     assert "failures=1" in message
     assert str(report_path) in message
+    assert "Skipped pushing report (--no-push)." in message
     candidates_path = report_dir / "2026-05-18.candidates.json"
     assert candidates_path.exists()
     assert "300308.SZ" in candidates_path.read_text(encoding="utf-8")

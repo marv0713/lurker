@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+import math
 import os
 from pathlib import Path
 from typing import Any
@@ -105,12 +106,23 @@ def _to_optional_float(value: Any) -> float | None:
         if value in {"", "-", "--", "---"}:
             return None
     try:
-        return float(value)
+        result = float(value)
     except (TypeError, ValueError):
         return None
+    return result if math.isfinite(result) else None
 
 
-def normalize_market_flow_frame(raw: pd.DataFrame) -> dict[str, float]:
+def _sum_optional_numeric(frame: pd.DataFrame, column: str) -> float | None:
+    if column not in frame.columns:
+        return None
+    numeric = pd.to_numeric(frame[column], errors="coerce")
+    numeric = numeric[numeric.map(lambda value: pd.notna(value) and math.isfinite(float(value)))]
+    if numeric.empty:
+        return None
+    return float(numeric.sum())
+
+
+def normalize_market_flow_frame(raw: pd.DataFrame) -> dict[str, Any]:
     if raw.empty:
         return {}
     trade_date = ""
@@ -189,6 +201,7 @@ def normalize_margin_frame(
     *,
     previous_margin_balance: float | None = None,
     previous_trade_date: str | None = None,
+    previous_margin_balance_change: float | None = None,
 ) -> dict[str, Any]:
     if raw.empty:
         return {}
@@ -198,24 +211,31 @@ def normalize_margin_frame(
         if not trade_dates.empty:
             latest_trade_date = trade_dates.max()
             current = raw[raw["trade_date"].astype(str) == latest_trade_date]
-    margin_balance = float(
-        pd.to_numeric(current.get("rzrqye", 0), errors="coerce").fillna(0).sum()
-    )
+    margin_balance = _sum_optional_numeric(current, "rzrqye")
     trade_date = str(current.iloc[0].get("trade_date", ""))
     result = {
         "trade_date": trade_date,
-        "financing_balance": float(pd.to_numeric(current.get("rzye", 0), errors="coerce").fillna(0).sum()),
-        "securities_lending_balance": float(
-            pd.to_numeric(current.get("rqye", 0), errors="coerce").fillna(0).sum()
-        ),
+        "financing_balance": _sum_optional_numeric(current, "rzye"),
+        "securities_lending_balance": _sum_optional_numeric(current, "rqye"),
         "margin_balance": margin_balance,
+        "availability": "fresh",
     }
-    if previous_margin_balance is not None and str(previous_trade_date or "") != trade_date:
+    if (
+        margin_balance is not None
+        and previous_margin_balance is not None
+        and str(previous_trade_date or "") != trade_date
+    ):
         result["margin_balance_change"] = margin_balance - previous_margin_balance
+    elif (
+        margin_balance is not None
+        and str(previous_trade_date or "") == trade_date
+        and previous_margin_balance_change is not None
+    ):
+        result["margin_balance_change"] = previous_margin_balance_change
     return result
 
 
-def fetch_market_flow() -> dict[str, float]:
+def fetch_market_flow() -> dict[str, Any]:
     with _akshare_request_scope():
         raw = ak.stock_market_fund_flow()
     return normalize_market_flow_frame(raw)
@@ -282,20 +302,26 @@ def fetch_margin(*, token: str | None = None, cache_path: Path | None = None) ->
     try:
         previous_margin_balance = None
         previous_trade_date = None
+        previous_margin_balance_change = None
         if cache_path.exists():
             try:
                 previous = json.loads(cache_path.read_text(encoding="utf-8"))
-                previous_margin_balance = _to_float(previous.get("margin_balance"))
+                previous_margin_balance = _to_optional_float(previous.get("margin_balance"))
                 previous_trade_date = str(previous.get("trade_date", "")) or None
+                previous_margin_balance_change = _to_optional_float(
+                    previous.get("margin_balance_change")
+                )
             except Exception:
                 previous_margin_balance = None
                 previous_trade_date = None
+                previous_margin_balance_change = None
         pro = ts.pro_api(resolved_token)
         raw = pro.margin()
         data = normalize_margin_frame(
             raw,
             previous_margin_balance=previous_margin_balance,
             previous_trade_date=previous_trade_date,
+            previous_margin_balance_change=previous_margin_balance_change,
         )
         if data:
             try:

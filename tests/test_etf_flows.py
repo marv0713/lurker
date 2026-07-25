@@ -1,8 +1,17 @@
-"""Tests for CoreEtfBatch/CoreEtfItem validation and serialization."""
+"""Tests for core ETF ingestion, validation, and serialization."""
 
+from datetime import datetime, timedelta, timezone
+from contextlib import contextmanager
+
+import pandas as pd
 import pytest
 
-from lurker.ingest.etf_flows import CoreEtfBatch, CoreEtfItem
+from lurker.ingest.etf_flows import (
+    CoreEtfBatch,
+    CoreEtfItem,
+    EtfProviderError,
+    fetch_core_etfs,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -241,3 +250,205 @@ def test_from_dict_rejects_corrupted_item_not_dict():
             "generated_at": "",
             "schema_version": 1,
         })
+
+
+def test_from_dict_rejects_unaccounted_configured_symbol():
+    with pytest.raises(ValueError, match="not complete"):
+        CoreEtfBatch.from_dict(
+            {
+                "configured_symbols": ["510300.SH", "510500.SH"],
+                "items": [
+                    {
+                        "symbol": "510300.SH",
+                        "trade_date": "2026-07-23",
+                        "current_turnover": 1.0,
+                        "status": "inactive",
+                    }
+                ],
+                "failures": [],
+                "schema_version": 1,
+            }
+        )
+
+
+def test_is_complete_rejects_duplicate_configured_symbols():
+    batch = CoreEtfBatch(
+        configured_symbols=["510300.SH", "510300.SH"],
+        items=[
+            CoreEtfItem(
+                symbol="510300.SH",
+                name="",
+                trade_date="2026-07-23",
+                current_turnover=1.0,
+                avg_turnover_20d=1.0,
+                turnover_expansion=1.0,
+                shares=None,
+                shares_date=None,
+                status="inactive",
+                source="",
+                availability="turnover_only",
+                error=None,
+            ),
+        ],
+    )
+
+    assert batch.is_complete() is False
+
+
+def test_from_dict_rejects_non_finite_turnover():
+    with pytest.raises(ValueError, match="finite"):
+        CoreEtfBatch.from_dict(
+            {
+                "configured_symbols": ["510300.SH"],
+                "items": [
+                    {
+                        "symbol": "510300.SH",
+                        "trade_date": "2026-07-23",
+                        "current_turnover": 1.0,
+                        "turnover_expansion": float("nan"),
+                        "status": "inactive",
+                    }
+                ],
+                "failures": [],
+                "schema_version": 1,
+            }
+        )
+
+
+def _etf_history(*, latest_turnover: float = 240.0, periods: int = 21) -> pd.DataFrame:
+    dates = pd.bdate_range(end="2026-07-23", periods=periods)
+    turnovers = [100.0] * max(periods - 1, 0) + [latest_turnover]
+    return pd.DataFrame({"日期": dates, "成交额": turnovers})
+
+
+def test_fetch_core_etfs_computes_average_excluding_current_day():
+    calls = []
+
+    def hist_fetcher(**kwargs):
+        calls.append(kwargs)
+        return _etf_history()
+
+    batch = fetch_core_etfs(
+        etf_configs=[
+            {
+                "symbol": "510300",
+                "canonical_symbol": "510300.SH",
+                "name": "沪深300ETF",
+            }
+        ],
+        hist_fetcher=hist_fetcher,
+        now=datetime(2026, 7, 23, 16, 0, tzinfo=timezone(timedelta(hours=8))),
+    )
+
+    assert calls[0]["symbol"] == "510300"
+    assert len(batch.items) == 1
+    assert batch.failures == []
+    assert batch.items[0].avg_turnover_20d == 100.0
+    assert batch.items[0].turnover_expansion == 2.4
+    assert batch.items[0].status == "active"
+
+
+def test_fetch_core_etfs_keeps_success_when_one_provider_call_fails():
+    def hist_fetcher(**kwargs):
+        if kwargs["symbol"] == "510500":
+            raise EtfProviderError("timeout")
+        return _etf_history(latest_turnover=80.0)
+
+    batch = fetch_core_etfs(
+        etf_configs=[
+            {"symbol": "510300", "canonical_symbol": "510300.SH", "name": "沪深300ETF"},
+            {"symbol": "510500", "canonical_symbol": "510500.SH", "name": "中证500ETF"},
+        ],
+        hist_fetcher=hist_fetcher,
+        now=datetime(2026, 7, 23, 16, 0, tzinfo=timezone(timedelta(hours=8))),
+    )
+
+    assert [item.symbol for item in batch.items] == ["510300.SH"]
+    assert batch.failures == [{"symbol": "510500.SH", "reason": "timeout"}]
+    assert batch.is_complete() is True
+
+
+def test_fetch_core_etfs_marks_insufficient_history_unknown():
+    batch = fetch_core_etfs(
+        etf_configs=[
+            {"symbol": "510300", "canonical_symbol": "510300.SH", "name": "沪深300ETF"}
+        ],
+        hist_fetcher=lambda **kwargs: _etf_history(periods=20),
+        now=datetime(2026, 7, 23, 16, 0, tzinfo=timezone(timedelta(hours=8))),
+    )
+
+    item = batch.items[0]
+    assert item.avg_turnover_20d is None
+    assert item.turnover_expansion is None
+    assert item.status == "unknown"
+    assert item.availability == "insufficient_history"
+
+
+def test_fetch_core_etfs_marks_current_session_intraday_unknown():
+    batch = fetch_core_etfs(
+        etf_configs=[
+            {"symbol": "510300", "canonical_symbol": "510300.SH", "name": "沪深300ETF"}
+        ],
+        hist_fetcher=lambda **kwargs: _etf_history(),
+        now=datetime(2026, 7, 23, 10, 0, tzinfo=timezone(timedelta(hours=8))),
+    )
+
+    item = batch.items[0]
+    assert item.status == "unknown"
+    assert item.availability == "intraday_partial"
+
+
+def test_fetch_core_etfs_marks_zero_average_invalid():
+    raw = _etf_history()
+    raw.loc[:19, "成交额"] = 0.0
+
+    batch = fetch_core_etfs(
+        etf_configs=[
+            {"symbol": "510300", "canonical_symbol": "510300.SH", "name": "沪深300ETF"}
+        ],
+        hist_fetcher=lambda **kwargs: raw,
+        now=datetime(2026, 7, 23, 16, 0, tzinfo=timezone(timedelta(hours=8))),
+    )
+
+    item = batch.items[0]
+    assert item.avg_turnover_20d is None
+    assert item.turnover_expansion is None
+    assert item.status == "unknown"
+    assert item.availability == "invalid_average"
+
+
+def test_fetch_core_etfs_records_schema_failure_per_symbol():
+    batch = fetch_core_etfs(
+        etf_configs=[
+            {"symbol": "510300", "canonical_symbol": "510300.SH", "name": "沪深300ETF"}
+        ],
+        hist_fetcher=lambda **kwargs: pd.DataFrame({"日期": ["2026-07-23"]}),
+        now=datetime(2026, 7, 23, 16, 0, tzinfo=timezone(timedelta(hours=8))),
+    )
+
+    assert batch.items == []
+    assert batch.is_complete() is True
+    assert batch.failures[0]["symbol"] == "510300.SH"
+    assert "missing columns" in batch.failures[0]["reason"]
+
+
+def test_fetch_core_etfs_default_provider_uses_akshare_request_scope(monkeypatch):
+    entered = []
+
+    @contextmanager
+    def fake_scope():
+        entered.append(True)
+        yield
+
+    monkeypatch.setattr("lurker.ingest.flows._akshare_request_scope", fake_scope)
+    monkeypatch.setattr("akshare.fund_etf_hist_em", lambda **kwargs: _etf_history())
+
+    batch = fetch_core_etfs(
+        etf_configs=[
+            {"symbol": "510300", "canonical_symbol": "510300.SH", "name": "沪深300ETF"}
+        ],
+        now=datetime(2026, 7, 23, 16, 0, tzinfo=timezone(timedelta(hours=8))),
+    )
+
+    assert entered == [True]
+    assert batch.items[0].symbol == "510300.SH"

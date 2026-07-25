@@ -1,6 +1,7 @@
 import pandas as pd
 
 from lurker.ingest.flows import (
+    fetch_margin,
     fetch_stock_flows,
     normalize_margin_frame,
     normalize_market_flow_frame,
@@ -250,6 +251,20 @@ def test_market_flow_normalizer_preserves_real_zero():
     assert result["super_large_net_inflow"] == 0.0
 
 
+def test_market_flow_normalizer_rejects_non_finite_values():
+    raw = pd.DataFrame(
+        {
+            "主力净流入-净额": [float("inf")],
+            "超大单净流入-净额": [float("-inf")],
+        }
+    )
+
+    result = normalize_market_flow_frame(raw)
+
+    assert result["main_net_inflow"] is None
+    assert result["super_large_net_inflow"] is None
+
+
 def test_market_flow_normalizer_includes_latest_trade_date():
     """标准化结果携带提供方最新交易日期。"""
     raw = pd.DataFrame({
@@ -298,3 +313,84 @@ def test_margin_cache_fallback_marked_stale_cache(monkeypatch, tmp_path):
     assert result.get("availability") == "stale_cache"
     # The data itself is still available for display purposes
     assert result["trade_date"] == "20260603"
+
+
+def test_margin_normalizer_does_not_fabricate_change_from_all_null_values():
+    raw = pd.DataFrame(
+        {
+            "trade_date": ["20260723"],
+            "rzye": [None],
+            "rqye": [None],
+            "rzrqye": [None],
+        }
+    )
+
+    result = normalize_margin_frame(
+        raw,
+        previous_margin_balance=100.0,
+        previous_trade_date="20260722",
+    )
+
+    assert result["financing_balance"] is None
+    assert result["securities_lending_balance"] is None
+    assert result["margin_balance"] is None
+    assert "margin_balance_change" not in result
+    assert result["availability"] == "fresh"
+
+
+def test_fetch_margin_preserves_same_day_cached_change(monkeypatch, tmp_path):
+    import json
+    import sys
+    from unittest.mock import MagicMock
+
+    cached = {
+        "trade_date": "20260723",
+        "financing_balance": 90.0,
+        "securities_lending_balance": 10.0,
+        "margin_balance": 100.0,
+        "margin_balance_change": 12.0,
+        "availability": "fresh",
+    }
+    cache_path = tmp_path / "margin.json"
+    cache_path.write_text(json.dumps(cached), encoding="utf-8")
+
+    mock_ts = MagicMock()
+    mock_ts.pro_api.return_value.margin.return_value = pd.DataFrame(
+        {
+            "trade_date": ["20260723"],
+            "rzye": [90.0],
+            "rqye": [10.0],
+            "rzrqye": [100.0],
+        }
+    )
+    monkeypatch.setitem(sys.modules, "tushare", mock_ts)
+
+    result = fetch_margin(token="token", cache_path=cache_path)
+
+    assert result["margin_balance_change"] == 12.0
+
+
+def test_fetch_margin_does_not_treat_null_cached_balance_as_zero(monkeypatch, tmp_path):
+    import json
+    import sys
+    from unittest.mock import MagicMock
+
+    cache_path = tmp_path / "margin.json"
+    cache_path.write_text(
+        json.dumps({"trade_date": "20260722", "margin_balance": None}),
+        encoding="utf-8",
+    )
+    mock_ts = MagicMock()
+    mock_ts.pro_api.return_value.margin.return_value = pd.DataFrame(
+        {
+            "trade_date": ["20260723"],
+            "rzye": [90.0],
+            "rqye": [10.0],
+            "rzrqye": [100.0],
+        }
+    )
+    monkeypatch.setitem(sys.modules, "tushare", mock_ts)
+
+    result = fetch_margin(token="token", cache_path=cache_path)
+
+    assert "margin_balance_change" not in result

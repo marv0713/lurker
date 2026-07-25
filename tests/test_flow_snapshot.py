@@ -1,8 +1,11 @@
+import pytest
+
 from lurker.application.flow_snapshot import (
     FileFlowSnapshotStore,
     collect_flow_snapshot,
     load_flow_snapshot_file,
 )
+from lurker.ingest.etf_flows import CoreEtfBatch, EtfProviderError
 
 
 def test_collect_flow_snapshot_records_successes_and_failures():
@@ -23,6 +26,10 @@ def test_collect_flow_snapshot_records_successes_and_failures():
         fetch_sector_flows=fetch_sector_flows,
         fetch_stock_flows=fetch_stock_flows,
         fetch_margin=fetch_margin,
+        fetch_core_etfs=lambda: CoreEtfBatch(
+            configured_symbols=["510300.SH"],
+            failures=[{"symbol": "510300.SH", "reason": "not collected"}],
+        ),
         generated_at="2026-06-04T00:00:00+00:00",
     )
 
@@ -30,7 +37,33 @@ def test_collect_flow_snapshot_records_successes_and_failures():
     assert snapshot["market_flow"]["main_net_inflow"] == 1.0
     assert snapshot["stock_flows"][0]["symbol"] == "300308.SZ"
     assert snapshot["margin"]["margin_balance"] == 100.0
+    assert "margin_signal" not in snapshot["margin"]
     assert snapshot["failures"][0]["source"] == "sector_flows"
+
+
+def test_collect_flow_snapshot_propagates_injected_etf_provider_error():
+    def fail():
+        raise EtfProviderError("offline")
+
+    with pytest.raises(EtfProviderError, match="offline"):
+        collect_flow_snapshot(
+            fetch_market_flow=lambda: {},
+            fetch_sector_flows=lambda: [],
+            fetch_stock_flows=lambda: [],
+            fetch_margin=lambda: {},
+            fetch_core_etfs=fail,
+        )
+
+
+def test_collect_flow_snapshot_rejects_malformed_etf_fetcher_result():
+    with pytest.raises(TypeError, match="CoreEtfBatch"):
+        collect_flow_snapshot(
+            fetch_market_flow=lambda: {},
+            fetch_sector_flows=lambda: [],
+            fetch_stock_flows=lambda: [],
+            fetch_margin=lambda: {},
+            fetch_core_etfs=lambda: [],
+        )
 
 
 def test_file_flow_snapshot_store_round_trips(tmp_path):

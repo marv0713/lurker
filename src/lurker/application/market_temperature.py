@@ -119,8 +119,13 @@ def classify_etf_status(
     all_valid = True
 
     for item in batch.items:
-        if item.turnover_expansion is None:
-            # Invalid data (zero average, etc.) → don't count as valid
+        is_valid = (
+            item.status in {"active", "inactive"}
+            and item.availability == "turnover_only"
+            and item.turnover_expansion is not None
+            and math.isfinite(item.turnover_expansion)
+        )
+        if not is_valid:
             all_valid = False
             continue
         if item.turnover_expansion >= threshold:
@@ -313,20 +318,28 @@ def prepare_temperature_inputs(
     # --- Market flow freshness ---
     flow_trade_date = _normalize_trade_date(market_flow.get("trade_date", ""))
     flow = dict(market_flow)
-    if not flow_trade_date or flow_trade_date != expected_trade_date:
-        # Stale or missing date → nullify the flow values so they become "unknown"
-        flow["main_net_inflow"] = None
-        flow["super_large_net_inflow"] = None
-        flow["availability"] = "stale"
-    elif flow_trade_date > expected_trade_date:
+    if flow_trade_date > expected_trade_date:
         raise ValueError(
             f"Market flow trade_date {flow_trade_date} is after "
             f"expected_trade_date {expected_trade_date}"
         )
+    if not flow_trade_date or flow_trade_date < expected_trade_date:
+        # Stale or missing date → nullify the flow values so they become "unknown"
+        flow["main_net_inflow"] = None
+        flow["super_large_net_inflow"] = None
+        flow["availability"] = "stale"
     else:
         flow["availability"] = "fresh"
 
     # --- ETF freshness ---
+    for item in core_etfs_batch.items:
+        item_trade_date = _normalize_trade_date(item.trade_date)
+        if item_trade_date > expected_trade_date:
+            raise ValueError(
+                f"ETF {item.symbol} trade_date {item_trade_date} is after "
+                f"expected_trade_date {expected_trade_date}"
+            )
+
     # Keep only items whose trade_date matches expected_trade_date
     fresh_items = [
         item
@@ -352,17 +365,17 @@ def prepare_temperature_inputs(
     # --- Margin freshness ---
     margin_trade_date = _normalize_trade_date(margin.get("trade_date", ""))
     margin_availability = margin.get("availability", "")
-    if (
-        margin_availability == "stale_cache"
-        or not margin_trade_date
-        or margin_trade_date != expected_trade_date
-    ):
-        margin_signal = "unknown"
-    elif margin_trade_date > expected_trade_date:
+    if margin_trade_date > expected_trade_date:
         raise ValueError(
             f"Margin trade_date {margin_trade_date} is after "
             f"expected_trade_date {expected_trade_date}"
         )
+    if (
+        margin_availability == "stale_cache"
+        or not margin_trade_date
+        or margin_trade_date < expected_trade_date
+    ):
+        margin_signal = "unknown"
     else:
         margin_signal = classify_margin_signal(margin)
 

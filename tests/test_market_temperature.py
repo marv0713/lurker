@@ -223,21 +223,60 @@ def test_temperature_stale_data_not_negative_evidence():
     assert result == "防守"  # ETF inactive alone confirms defense, margin unknown is not negative
 
 
-def test_temperature_future_source_date_fails():
-    """来源日期晚于 expected_trade_date → ValueError"""
-    from lurker.application.market_temperature import resolve_expected_trade_date
-    from datetime import date as date_cls
+@pytest.mark.parametrize(
+    ("market_date", "margin_date", "etf_date", "match"),
+    [
+        ("2026-07-24", "20260723", "2026-07-23", "Market flow"),
+        ("2026-07-23", "20260724", "2026-07-23", "Margin"),
+        ("2026-07-23", "20260723", "2026-07-24", "ETF"),
+    ],
+)
+def test_temperature_future_source_date_fails(
+    market_date,
+    margin_date,
+    etf_date,
+    match,
+):
+    """任何来源日期晚于 expected_trade_date 都是数据错误。"""
+    from lurker.application.market_temperature import prepare_temperature_inputs
 
     tz_cst = timezone(timedelta(hours=8))
-    now = datetime(2026, 7, 23, 16, 0, 0, tzinfo=tz_cst)
+    now = datetime(2026, 7, 25, 16, 0, 0, tzinfo=tz_cst)
+    batch = CoreEtfBatch(
+        configured_symbols=["510300.SH"],
+        items=[
+            CoreEtfItem(
+                symbol="510300.SH",
+                name="沪深300ETF",
+                trade_date=etf_date,
+                current_turnover=100.0,
+                avg_turnover_20d=100.0,
+                turnover_expansion=1.0,
+                shares=None,
+                shares_date=None,
+                status="inactive",
+                source="test",
+                availability="turnover_only",
+                error=None,
+            )
+        ],
+    )
 
-    def is_trading_day(d: date_cls) -> bool:
-        return d.weekday() < 5
-
-    with pytest.raises(ValueError, match="future"):
-        resolve_expected_trade_date(
-            report_date="2026-07-24",  # Tomorrow → future date
-            is_trading_day=is_trading_day,
+    with pytest.raises(ValueError, match=match):
+        prepare_temperature_inputs(
+            market_flow={
+                "trade_date": market_date,
+                "main_net_inflow": 1.0,
+                "super_large_net_inflow": 1.0,
+            },
+            core_etfs_batch=batch,
+            margin={
+                "trade_date": margin_date,
+                "margin_balance_change": 1.0,
+                "availability": "fresh",
+            },
+            report_date="2026-07-23",
+            is_trading_day=lambda d: d.weekday() < 5,
             now=now,
         )
 
@@ -654,3 +693,30 @@ def test_prepare_temperature_stale_etf_degrades_to_unknown():
     assert result.etf_status == "unknown"
     # margin is weakening + etf unknown → not defense (no negative confirmation from ETF)
     # We don't test the temperature here, just the preparation output
+
+
+def test_classify_etf_status_ignores_intraday_partial_expansion():
+    """盘中不完整成交额不能提供 active 证据。"""
+    from lurker.application.market_temperature import classify_etf_status
+
+    batch = CoreEtfBatch(
+        configured_symbols=["510300.SH"],
+        items=[
+            CoreEtfItem(
+                symbol="510300.SH",
+                name="沪深300ETF",
+                trade_date="2026-07-23",
+                current_turnover=200.0,
+                avg_turnover_20d=100.0,
+                turnover_expansion=2.0,
+                shares=None,
+                shares_date=None,
+                status="unknown",
+                source="test",
+                availability="intraday_partial",
+                error=None,
+            )
+        ],
+    )
+
+    assert classify_etf_status(batch) == "unknown"

@@ -228,7 +228,7 @@ def load_core_etfs(path: str | Path) -> list[dict[str, str]]:
     result = []
     seen_symbols = set()
     seen_canonical = set()
-    allowed_roles = {"large_cap", "mid_cap", "growth", "broad_market"}
+    allowed_roles = {"csi300", "csi500", "chinext", "csi_a500"}
 
     for i, entry in enumerate(etfs):
         if not isinstance(entry, dict):
@@ -274,7 +274,7 @@ def load_core_etfs(path: str | Path) -> list[dict[str, str]]:
     if len(roles) != 4 or len(set(roles)) != 4:
         raise ValueError(
             "Each ETF must have a unique role. "
-            "Required: large_cap (沪深300), mid_cap (中证500), growth (创业板), broad_market (A500)"
+            "Required: csi300, csi500, chinext, csi_a500"
         )
 
     return result
