@@ -300,6 +300,7 @@ def fetch_core_etfs(
     *,
     etf_configs: list[dict[str, str]] | None = None,
     hist_fetcher: Callable[..., pd.DataFrame] | None = None,
+    fallback_hist_fetcher: Callable[..., pd.DataFrame] | None = None,
     now: datetime | None = None,
 ) -> CoreEtfBatch:
     """采集核心 ETF 成交额，单标的外部失败不阻塞其他标的。"""
@@ -329,6 +330,28 @@ def fetch_core_etfs(
 
         hist_fetcher = scoped_hist_fetcher
 
+        def scoped_sina_fallback(**kwargs: Any) -> pd.DataFrame:
+            symbol = str(kwargs["symbol"])
+            prefix = "sh" if symbol.startswith(("5", "6")) else "sz"
+            with _akshare_request_scope():
+                raw = ak.fund_etf_hist_sina(symbol=f"{prefix}{symbol}")
+            missing = {"date", "amount"} - set(raw.columns)
+            if missing:
+                raise EtfSchemaError(
+                    f"{symbol}: Sina ETF history missing columns {sorted(missing)}"
+                )
+            normalized = raw.loc[:, ["date", "amount"]].rename(
+                columns={"date": "日期", "amount": "成交额"}
+            )
+            dates = pd.to_datetime(normalized["日期"], errors="coerce")
+            start = pd.to_datetime(str(kwargs["start_date"]), format="%Y%m%d")
+            end = pd.to_datetime(str(kwargs["end_date"]), format="%Y%m%d")
+            normalized = normalized.loc[(dates >= start) & (dates <= end)].copy()
+            normalized.attrs["source"] = "akshare_fund_etf_hist_sina"
+            return normalized
+
+        fallback_hist_fetcher = scoped_sina_fallback
+
     configured_symbols = [
         str(row.get("canonical_symbol") or row.get("symbol") or "").strip()
         for row in etf_configs
@@ -345,19 +368,36 @@ def fetch_core_etfs(
 
     for config, canonical_symbol in zip(etf_configs, configured_symbols, strict=True):
         provider_symbol = str(config.get("symbol") or canonical_symbol.split(".", 1)[0]).strip()
+        fetch_kwargs = {
+            "symbol": provider_symbol,
+            "period": "daily",
+            "start_date": start_date,
+            "end_date": end_date,
+            "adjust": "",
+        }
         try:
-            raw = hist_fetcher(
-                symbol=provider_symbol,
-                period="daily",
-                start_date=start_date,
-                end_date=end_date,
-                adjust="",
-            )
+            try:
+                raw = hist_fetcher(**fetch_kwargs)
+            except (
+                EtfProviderError,
+                requests.RequestException,
+                ConnectionError,
+                TimeoutError,
+                OSError,
+            ):
+                if fallback_hist_fetcher is None:
+                    raise
+                raw = fallback_hist_fetcher(**fetch_kwargs)
+            if raw.empty and fallback_hist_fetcher is not None:
+                raw = fallback_hist_fetcher(**fetch_kwargs)
             item = _normalize_etf_history(
                 raw,
                 canonical_symbol=canonical_symbol,
                 name=str(config.get("name", "")).strip(),
                 now_shanghai=now_shanghai,
+            )
+            item.source = str(
+                raw.attrs.get("source", "akshare_fund_etf_hist_em")
             )
         except (EtfProviderError, EtfSchemaError) as exc:
             failures.append({"symbol": canonical_symbol, "reason": str(exc)})

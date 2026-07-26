@@ -1,0 +1,5402 @@
+[
+  {
+    "date": "2026-04-24",
+    "market_flow": {
+      "trade_date": "2026-04-24",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-04-24",
+          "current_turnover": 3432906825.0,
+          "avg_turnover_20d": 3026931893.8,
+          "turnover_expansion": 1.1341209334876512,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-04-24",
+          "current_turnover": 3629323593.0,
+          "avg_turnover_20d": 4075162176.1,
+          "turnover_expansion": 0.890596112784234,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-04-24",
+          "current_turnover": 6285359225.0,
+          "avg_turnover_20d": 4163089543.5,
+          "turnover_expansion": 1.5097823766038339,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-04-24",
+          "current_turnover": 2237183904.0,
+          "avg_turnover_20d": 2191636650.05,
+          "turnover_expansion": 1.020782301641543,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.263706+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260424",
+      "financing_balance": 2684530395510.0,
+      "securities_lending_balance": 19794689459.0,
+      "margin_balance": 2704325084969.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -11487325786.0
+    }
+  },
+  {
+    "date": "2026-04-27",
+    "market_flow": {
+      "trade_date": "2026-04-27",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-04-27",
+          "current_turnover": 4443760487.0,
+          "avg_turnover_20d": 3091621324.4,
+          "turnover_expansion": 1.437356008618686,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-04-27",
+          "current_turnover": 5250763152.0,
+          "avg_turnover_20d": 4132618899.2,
+          "turnover_expansion": 1.2705655372714026,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-04-27",
+          "current_turnover": 3519636450.0,
+          "avg_turnover_20d": 4320502200.5,
+          "turnover_expansion": 0.8146359581977951,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-04-27",
+          "current_turnover": 2254510765.0,
+          "avg_turnover_20d": 2197065622.15,
+          "turnover_expansion": 1.0261463027188897,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.266384+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260427",
+      "financing_balance": 2700072341557.0,
+      "securities_lending_balance": 19956918627.0,
+      "margin_balance": 2720029260184.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 15704175215.0
+    }
+  },
+  {
+    "date": "2026-04-28",
+    "market_flow": {
+      "trade_date": "2026-04-28",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-04-28",
+          "current_turnover": 4125806962.0,
+          "avg_turnover_20d": 3187327386.8,
+          "turnover_expansion": 1.2944409096745504,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-04-28",
+          "current_turnover": 5287344953.0,
+          "avg_turnover_20d": 4241341005.85,
+          "turnover_expansion": 1.2466210440771603,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-04-28",
+          "current_turnover": 3998704631.0,
+          "avg_turnover_20d": 4342516423.8,
+          "turnover_expansion": 0.9208265993156242,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-04-28",
+          "current_turnover": 2271522953.0,
+          "avg_turnover_20d": 2208288437.7,
+          "turnover_expansion": 1.0286350796483184,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.268960+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260428",
+      "financing_balance": 2700228761671.0,
+      "securities_lending_balance": 19742201535.0,
+      "margin_balance": 2719970963206.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -58296978.0
+    }
+  },
+  {
+    "date": "2026-04-29",
+    "market_flow": {
+      "trade_date": "2026-04-29",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-04-29",
+          "current_turnover": 6139314265.0,
+          "avg_turnover_20d": 3271882929.5,
+          "turnover_expansion": 1.8763856767754807,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-04-29",
+          "current_turnover": 7349029886.0,
+          "avg_turnover_20d": 4320657142.1,
+          "turnover_expansion": 1.7009055901223622,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-04-29",
+          "current_turnover": 3886447435.0,
+          "avg_turnover_20d": 4381917677.95,
+          "turnover_expansion": 0.8869284456339225,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-04-29",
+          "current_turnover": 2405249421.0,
+          "avg_turnover_20d": 2205255171.2,
+          "turnover_expansion": 1.09068984506277,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.271549+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260429",
+      "financing_balance": 2703892296907.0,
+      "securities_lending_balance": 19810427338.0,
+      "margin_balance": 2723702724245.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 3731761039.0
+    }
+  },
+  {
+    "date": "2026-04-30",
+    "market_flow": {
+      "trade_date": "2026-04-30",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-04-30",
+          "current_turnover": 7965711080.0,
+          "avg_turnover_20d": 3459583113.95,
+          "turnover_expansion": 2.3025060585710575,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-04-30",
+          "current_turnover": 6546640850.0,
+          "avg_turnover_20d": 4545068280.1,
+          "turnover_expansion": 1.440383388444048,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-04-30",
+          "current_turnover": 3710117031.0,
+          "avg_turnover_20d": 4354503861.2,
+          "turnover_expansion": 0.8520183123635073,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-04-30",
+          "current_turnover": 2196441379.0,
+          "avg_turnover_20d": 2200590242.4,
+          "turnover_expansion": 0.9981146588219553,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.274372+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260430",
+      "financing_balance": 2687150297414.0,
+      "securities_lending_balance": 19628428605.0,
+      "margin_balance": 2706778726019.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -16923998226.0
+    }
+  },
+  {
+    "date": "2026-05-06",
+    "market_flow": {
+      "trade_date": "2026-05-06",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-05-06",
+          "current_turnover": 9131466569.0,
+          "avg_turnover_20d": 3744495333.3,
+          "turnover_expansion": 2.43863745477084,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-05-06",
+          "current_turnover": 8872773628.0,
+          "avg_turnover_20d": 4733331829.45,
+          "turnover_expansion": 1.8745302352974886,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-05-06",
+          "current_turnover": 7445851678.0,
+          "avg_turnover_20d": 4356695522.25,
+          "turnover_expansion": 1.7090594557212977,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-05-06",
+          "current_turnover": 1886900725.0,
+          "avg_turnover_20d": 2207730800.2,
+          "turnover_expansion": 0.8546788063241516,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.277105+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260506",
+      "financing_balance": 2728233110932.0,
+      "securities_lending_balance": 19967314784.0,
+      "margin_balance": 2748200425716.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 41421699697.0
+    }
+  },
+  {
+    "date": "2026-05-07",
+    "market_flow": {
+      "trade_date": "2026-05-07",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-05-07",
+          "current_turnover": 10262731527.0,
+          "avg_turnover_20d": 4096119982.0,
+          "turnover_expansion": 2.5054762975934723,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-05-07",
+          "current_turnover": 10727012506.0,
+          "avg_turnover_20d": 4989525617.65,
+          "turnover_expansion": 2.1499062892981557,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-05-07",
+          "current_turnover": 3408781901.0,
+          "avg_turnover_20d": 4564150180.4,
+          "turnover_expansion": 0.7468601527702702,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-05-07",
+          "current_turnover": 2049388223.0,
+          "avg_turnover_20d": 2201193671.75,
+          "turnover_expansion": 0.9310349422232751,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.279764+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260507",
+      "financing_balance": 2757723021996.0,
+      "securities_lending_balance": 20090977636.0,
+      "margin_balance": 2777813999632.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 29613573916.0
+    }
+  },
+  {
+    "date": "2026-05-08",
+    "market_flow": {
+      "trade_date": "2026-05-08",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-05-08",
+          "current_turnover": 6121164078.0,
+          "avg_turnover_20d": 4514102937.35,
+          "turnover_expansion": 1.3560089707642828,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-05-08",
+          "current_turnover": 9722597897.0,
+          "avg_turnover_20d": 5433964895.6,
+          "turnover_expansion": 1.7892272187611296,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-05-08",
+          "current_turnover": 3704430721.0,
+          "avg_turnover_20d": 4618253544.2,
+          "turnover_expansion": 0.8021280524219686,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-05-08",
+          "current_turnover": 2301191519.0,
+          "avg_turnover_20d": 2204518333.75,
+          "turnover_expansion": 1.0438522936144305,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.282369+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260508",
+      "financing_balance": 2773528480275.0,
+      "securities_lending_balance": 20178198348.0,
+      "margin_balance": 2793706678623.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 15892678991.0
+    }
+  },
+  {
+    "date": "2026-05-11",
+    "market_flow": {
+      "trade_date": "2026-05-11",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-05-11",
+          "current_turnover": 10456512044.0,
+          "avg_turnover_20d": 4724735330.95,
+          "turnover_expansion": 2.2131423903267646,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-05-11",
+          "current_turnover": 5866691109.0,
+          "avg_turnover_20d": 5794489532.85,
+          "turnover_expansion": 1.0124603859823502,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-05-11",
+          "current_turnover": 5237822671.0,
+          "avg_turnover_20d": 4685400126.7,
+          "turnover_expansion": 1.1179029601232968,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-05-11",
+          "current_turnover": 2292982385.0,
+          "avg_turnover_20d": 2218079649.8,
+          "turnover_expansion": 1.0337691819167782,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.284967+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260511",
+      "financing_balance": 2804080579409.0,
+      "securities_lending_balance": 20820399766.0,
+      "margin_balance": 2824900979175.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 31194300552.0
+    }
+  },
+  {
+    "date": "2026-05-12",
+    "market_flow": {
+      "trade_date": "2026-05-12",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-05-12",
+          "current_turnover": 4976355850.0,
+          "avg_turnover_20d": 5020020020.95,
+          "turnover_expansion": 0.9913019926678028,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-05-12",
+          "current_turnover": 4522369241.0,
+          "avg_turnover_20d": 5631449292.65,
+          "turnover_expansion": 0.803056017374153,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-05-12",
+          "current_turnover": 4919168160.0,
+          "avg_turnover_20d": 4708000024.95,
+          "turnover_expansion": 1.0448530445902542,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-05-12",
+          "current_turnover": 2186101591.0,
+          "avg_turnover_20d": 2209616852.0,
+          "turnover_expansion": 0.9893577653615759,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.287845+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260512",
+      "financing_balance": 2820961344960.0,
+      "securities_lending_balance": 20879081527.0,
+      "margin_balance": 2841840426487.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 16939447312.0
+    }
+  },
+  {
+    "date": "2026-05-13",
+    "market_flow": {
+      "trade_date": "2026-05-13",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-05-13",
+          "current_turnover": 6331249194.0,
+          "avg_turnover_20d": 5107641063.6,
+          "turnover_expansion": 1.2395642362420762,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-05-13",
+          "current_turnover": 4596156963.0,
+          "avg_turnover_20d": 5601485730.15,
+          "turnover_expansion": 0.8205246222910437,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-05-13",
+          "current_turnover": 4827427703.0,
+          "avg_turnover_20d": 4833600458.6,
+          "turnover_expansion": 0.9987229487308953,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-05-13",
+          "current_turnover": 2222320782.0,
+          "avg_turnover_20d": 2212699811.85,
+          "turnover_expansion": 1.0043480684087718,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.290608+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260513",
+      "financing_balance": 2843886146932.0,
+      "securities_lending_balance": 21090616585.0,
+      "margin_balance": 2864976763517.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 23136337030.0
+    }
+  },
+  {
+    "date": "2026-05-14",
+    "market_flow": {
+      "trade_date": "2026-05-14",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-05-14",
+          "current_turnover": 5118663487.0,
+          "avg_turnover_20d": 5214047274.95,
+          "turnover_expansion": 0.9817063822170822,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-05-14",
+          "current_turnover": 7900399322.0,
+          "avg_turnover_20d": 5677801497.55,
+          "turnover_expansion": 1.3914539501617065,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-05-14",
+          "current_turnover": 5906571389.0,
+          "avg_turnover_20d": 4836685739.05,
+          "turnover_expansion": 1.221202225588496,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-05-14",
+          "current_turnover": 2210851865.0,
+          "avg_turnover_20d": 2224000602.85,
+          "turnover_expansion": 0.994087799331911,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.293350+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260514",
+      "financing_balance": 2853030724404.0,
+      "securities_lending_balance": 20746317151.0,
+      "margin_balance": 2873777041555.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 8800278038.0
+    }
+  },
+  {
+    "date": "2026-05-15",
+    "market_flow": {
+      "trade_date": "2026-05-15",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-05-15",
+          "current_turnover": 5135152285.0,
+          "avg_turnover_20d": 5378721061.55,
+          "turnover_expansion": 0.9547162283072902,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-05-15",
+          "current_turnover": 11374703475.0,
+          "avg_turnover_20d": 5880996056.5,
+          "turnover_expansion": 1.9341457409120437,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-05-15",
+          "current_turnover": 7510651175.0,
+          "avg_turnover_20d": 4951686996.6,
+          "turnover_expansion": 1.516786335678542,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-05-15",
+          "current_turnover": 2126882864.0,
+          "avg_turnover_20d": 2236800910.95,
+          "turnover_expansion": 0.950859262256239,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.296074+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260515",
+      "financing_balance": 2847268661690.0,
+      "securities_lending_balance": 20281001150.0,
+      "margin_balance": 2867549662840.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -6227378715.0
+    }
+  },
+  {
+    "date": "2026-05-18",
+    "market_flow": {
+      "trade_date": "2026-05-18",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-05-18",
+          "current_turnover": 2832450612.0,
+          "avg_turnover_20d": 5535207213.75,
+          "turnover_expansion": 0.5117153708291017,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-05-18",
+          "current_turnover": 4146691727.0,
+          "avg_turnover_20d": 6272537219.25,
+          "turnover_expansion": 0.6610868269181535,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-05-18",
+          "current_turnover": 5450614721.0,
+          "avg_turnover_20d": 5140014520.0,
+          "turnover_expansion": 1.0604278839663668,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-05-18",
+          "current_turnover": 2139903306.0,
+          "avg_turnover_20d": 2237004968.1,
+          "turnover_expansion": 0.9565930056103213,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.298666+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260518",
+      "financing_balance": 2862838207286.0,
+      "securities_lending_balance": 20473148166.0,
+      "margin_balance": 2883311355452.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 15761692612.0
+    }
+  },
+  {
+    "date": "2026-05-19",
+    "market_flow": {
+      "trade_date": "2026-05-19",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-05-19",
+          "current_turnover": 4670192858.0,
+          "avg_turnover_20d": 5517562288.7,
+          "turnover_expansion": 0.846423223452245,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-05-19",
+          "current_turnover": 6106970936.0,
+          "avg_turnover_20d": 6313210808.5,
+          "turnover_expansion": 0.9673320155534293,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-05-19",
+          "current_turnover": 5712080576.0,
+          "avg_turnover_20d": 5173294824.25,
+          "turnover_expansion": 1.1041475056137189,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-05-19",
+          "current_turnover": 1940362544.0,
+          "avg_turnover_20d": 2234358746.5,
+          "turnover_expansion": 0.8684203228507826,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.301149+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260519",
+      "financing_balance": 2868055773231.0,
+      "securities_lending_balance": 20851050818.0,
+      "margin_balance": 2888906824049.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 5595468597.0
+    }
+  },
+  {
+    "date": "2026-05-20",
+    "market_flow": {
+      "trade_date": "2026-05-20",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-05-20",
+          "current_turnover": 4664422387.0,
+          "avg_turnover_20d": 5549224341.9,
+          "turnover_expansion": 0.8405539404454764,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-05-20",
+          "current_turnover": 4396844524.0,
+          "avg_turnover_20d": 6418093152.25,
+          "turnover_expansion": 0.6850702256414886,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-05-20",
+          "current_turnover": 4551859988.0,
+          "avg_turnover_20d": 5193994814.3,
+          "turnover_expansion": 0.8763697598364774,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-05-20",
+          "current_turnover": 1624877346.0,
+          "avg_turnover_20d": 2218206499.4,
+          "turnover_expansion": 0.7325185218055718,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.303684+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260520",
+      "financing_balance": 2874633421166.0,
+      "securities_lending_balance": 21320467536.0,
+      "margin_balance": 2895953888702.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 7047064653.0
+    }
+  },
+  {
+    "date": "2026-05-21",
+    "market_flow": {
+      "trade_date": "2026-05-21",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-05-21",
+          "current_turnover": 5913215496.0,
+          "avg_turnover_20d": 5608148393.25,
+          "turnover_expansion": 1.0543971167234414,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-05-21",
+          "current_turnover": 4673340770.0,
+          "avg_turnover_20d": 6446705376.7,
+          "turnover_expansion": 0.7249192412128246,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-05-21",
+          "current_turnover": 7219559133.0,
+          "avg_turnover_20d": 5147087868.15,
+          "turnover_expansion": 1.4026492878962453,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-05-21",
+          "current_turnover": 1649218806.0,
+          "avg_turnover_20d": 2183666136.3,
+          "turnover_expansion": 0.7552522698339011,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.306120+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260521",
+      "financing_balance": 2866281385111.0,
+      "securities_lending_balance": 20930217477.0,
+      "margin_balance": 2887211602588.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -8742286114.0
+    }
+  },
+  {
+    "date": "2026-05-22",
+    "market_flow": {
+      "trade_date": "2026-05-22",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-05-22",
+          "current_turnover": 6421618436.0,
+          "avg_turnover_20d": 5722412673.35,
+          "turnover_expansion": 1.1221872316036012,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-05-22",
+          "current_turnover": 6819708732.0,
+          "avg_turnover_20d": 6299131976.6,
+          "turnover_expansion": 1.0826426176390394,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-05-22",
+          "current_turnover": 5660833954.0,
+          "avg_turnover_20d": 5235838598.6,
+          "turnover_expansion": 1.0811704462230058,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-05-22",
+          "current_turnover": 1763021451.0,
+          "avg_turnover_20d": 2157197827.7,
+          "turnover_expansion": 0.8172738857612007,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.308665+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260522",
+      "financing_balance": 2869272686704.0,
+      "securities_lending_balance": 20930320249.0,
+      "margin_balance": 2890203006953.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 2991404365.0
+    }
+  },
+  {
+    "date": "2026-05-25",
+    "market_flow": {
+      "trade_date": "2026-05-25",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-05-25",
+          "current_turnover": 7970991059.0,
+          "avg_turnover_20d": 5892148799.0,
+          "turnover_expansion": 1.35281564178298,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-05-25",
+          "current_turnover": 5293352712.0,
+          "avg_turnover_20d": 6448380584.55,
+          "turnover_expansion": 0.820880939422622,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-05-25",
+          "current_turnover": 5436396960.0,
+          "avg_turnover_20d": 5266321180.15,
+          "turnover_expansion": 1.0322949881011922,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-05-25",
+          "current_turnover": 1694121871.0,
+          "avg_turnover_20d": 2137166663.3,
+          "turnover_expansion": 0.7926952539976951,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.312266+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260525",
+      "financing_balance": 2894540135255.0,
+      "securities_lending_balance": 21667712223.0,
+      "margin_balance": 2916207847478.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 26004840525.0
+    }
+  },
+  {
+    "date": "2026-05-26",
+    "market_flow": {
+      "trade_date": "2026-05-26",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-05-26",
+          "current_turnover": 4786813577.0,
+          "avg_turnover_20d": 6048118698.75,
+          "turnover_expansion": 0.7914549656555713,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-05-26",
+          "current_turnover": 2098793863.0,
+          "avg_turnover_20d": 6445002919.0,
+          "turnover_expansion": 0.3256466892843001,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-05-26",
+          "current_turnover": 6460251325.0,
+          "avg_turnover_20d": 5191946277.6,
+          "turnover_expansion": 1.2442831608007854,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-05-26",
+          "current_turnover": 1592177146.0,
+          "avg_turnover_20d": 2108237327.5,
+          "turnover_expansion": 0.7552172258936536,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.315134+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260526",
+      "financing_balance": 2901881410316.0,
+      "securities_lending_balance": 21774832811.0,
+      "margin_balance": 2923656243127.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 7448395649.0
+    }
+  },
+  {
+    "date": "2026-05-27",
+    "market_flow": {
+      "trade_date": "2026-05-27",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-05-27",
+          "current_turnover": 3174582673.0,
+          "avg_turnover_20d": 6045024953.9,
+          "turnover_expansion": 0.5251562561295782,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-05-27",
+          "current_turnover": 2870805061.0,
+          "avg_turnover_20d": 6259075491.95,
+          "turnover_expansion": 0.45866279527898896,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-05-27",
+          "current_turnover": 7161587255.0,
+          "avg_turnover_20d": 5242628341.35,
+          "turnover_expansion": 1.3660299355028969,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-05-27",
+          "current_turnover": 1725070998.0,
+          "avg_turnover_20d": 2052260542.3,
+          "turnover_expansion": 0.8405711470078192,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.317639+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260527",
+      "financing_balance": 2905953157259.0,
+      "securities_lending_balance": 21727746893.0,
+      "margin_balance": 2927680904152.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 4024661025.0
+    }
+  },
+  {
+    "date": "2026-05-28",
+    "market_flow": {
+      "trade_date": "2026-05-28",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-05-28",
+          "current_turnover": 2155076599.0,
+          "avg_turnover_20d": 6032108746.3,
+          "turnover_expansion": 0.3572675310805512,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-05-28",
+          "current_turnover": 2857894293.0,
+          "avg_turnover_20d": 6221149565.35,
+          "turnover_expansion": 0.4593836336804443,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-05-28",
+          "current_turnover": 5679123150.0,
+          "avg_turnover_20d": 5286439742.85,
+          "turnover_expansion": 1.0742812604042467,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-05-28",
+          "current_turnover": 1592526942.0,
+          "avg_turnover_20d": 2026654897.0,
+          "turnover_expansion": 0.7857908834688001,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.320618+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260528",
+      "financing_balance": 2911570544937.0,
+      "securities_lending_balance": 21794910349.0,
+      "margin_balance": 2933365455286.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 5684551134.0
+    }
+  },
+  {
+    "date": "2026-05-29",
+    "market_flow": {
+      "trade_date": "2026-05-29",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-05-29",
+          "current_turnover": 3243446893.0,
+          "avg_turnover_20d": 5917674551.9,
+          "turnover_expansion": 0.5480948410653337,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-05-29",
+          "current_turnover": 2791724835.0,
+          "avg_turnover_20d": 6101506122.4,
+          "turnover_expansion": 0.4575468382717754,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-05-29",
+          "current_turnover": 6627594235.0,
+          "avg_turnover_20d": 5394414077.85,
+          "turnover_expansion": 1.2286031697517548,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-05-29",
+          "current_turnover": 3857661004.0,
+          "avg_turnover_20d": 1993555705.85,
+          "turnover_expansion": 1.9350655678594115,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.323138+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260529",
+      "financing_balance": 2882153674224.0,
+      "securities_lending_balance": 21444635829.0,
+      "margin_balance": 2903598310053.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -29767145233.0
+    }
+  },
+  {
+    "date": "2026-06-01",
+    "market_flow": {
+      "trade_date": "2026-06-01",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-01",
+          "current_turnover": 2443095510.0,
+          "avg_turnover_20d": 5873556548.45,
+          "turnover_expansion": 0.4159482401926853,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-01",
+          "current_turnover": 3439513885.0,
+          "avg_turnover_20d": 5976725116.5,
+          "turnover_expansion": 0.575484704073892,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-01",
+          "current_turnover": 5325031114.0,
+          "avg_turnover_20d": 5525858558.05,
+          "turnover_expansion": 0.9636567889061443,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-01",
+          "current_turnover": 1696126911.0,
+          "avg_turnover_20d": 2072862608.4,
+          "turnover_expansion": 0.8182534163753407,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.325695+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260601",
+      "financing_balance": 2874492304359.0,
+      "securities_lending_balance": 20903791455.0,
+      "margin_balance": 2895396095814.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -8202214239.0
+    }
+  },
+  {
+    "date": "2026-06-02",
+    "market_flow": {
+      "trade_date": "2026-06-02",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-02",
+          "current_turnover": 3345673270.0,
+          "avg_turnover_20d": 5688745610.7,
+          "turnover_expansion": 0.5881214416948265,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-02",
+          "current_turnover": 3836822227.0,
+          "avg_turnover_20d": 5781249316.45,
+          "turnover_expansion": 0.6636666258420449,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-02",
+          "current_turnover": 5968727720.0,
+          "avg_turnover_20d": 5597787742.0,
+          "turnover_expansion": 1.0662654596952383,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-02",
+          "current_turnover": 2030021161.0,
+          "avg_turnover_20d": 2037406482.9,
+          "turnover_expansion": 0.9963751357610838,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.330044+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260602",
+      "financing_balance": 2875830960728.0,
+      "securities_lending_balance": 20880881634.0,
+      "margin_balance": 2896711842362.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 1315746548.0
+    }
+  },
+  {
+    "date": "2026-06-03",
+    "market_flow": {
+      "trade_date": "2026-06-03",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-03",
+          "current_turnover": 3784497955.0,
+          "avg_turnover_20d": 5457743720.2,
+          "turnover_expansion": 0.693418040314527,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-03",
+          "current_turnover": 2771012957.0,
+          "avg_turnover_20d": 5645758385.3,
+          "turnover_expansion": 0.49081323852167574,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-03",
+          "current_turnover": 6853479731.0,
+          "avg_turnover_20d": 5710718276.45,
+          "turnover_expansion": 1.2001081824089534,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-03",
+          "current_turnover": 2014033602.0,
+          "avg_turnover_20d": 2029085472.0,
+          "turnover_expansion": 0.9925819438324774,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.332988+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260603",
+      "financing_balance": 2884325894829.0,
+      "securities_lending_balance": 21157466524.0,
+      "margin_balance": 2905483361353.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 8771518991.0
+    }
+  },
+  {
+    "date": "2026-06-04",
+    "market_flow": {
+      "trade_date": "2026-06-04",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-04",
+          "current_turnover": 3006706301.0,
+          "avg_turnover_20d": 5190395289.5,
+          "turnover_expansion": 0.5792827199659472,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-04",
+          "current_turnover": 2497825120.0,
+          "avg_turnover_20d": 5340670351.75,
+          "turnover_expansion": 0.4676988009906897,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-04",
+          "current_turnover": 4344953806.0,
+          "avg_turnover_20d": 5681099679.1,
+          "turnover_expansion": 0.764808584856291,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-04",
+          "current_turnover": 1857422765.0,
+          "avg_turnover_20d": 2035442115.85,
+          "turnover_expansion": 0.9125402046740794,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.336583+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260604",
+      "financing_balance": 2890892143802.0,
+      "securities_lending_balance": 20982433583.0,
+      "margin_balance": 2911874577385.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 6391216032.0
+    }
+  },
+  {
+    "date": "2026-06-05",
+    "market_flow": {
+      "trade_date": "2026-06-05",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-05",
+          "current_turnover": 3023262809.0,
+          "avg_turnover_20d": 4827594028.2,
+          "turnover_expansion": 0.6262462815514012,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-05",
+          "current_turnover": 3619954376.0,
+          "avg_turnover_20d": 4929210982.45,
+          "turnover_expansion": 0.7343881990218136,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-05",
+          "current_turnover": 5925661225.0,
+          "avg_turnover_20d": 5727908274.35,
+          "turnover_expansion": 1.0345244618416032,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-05",
+          "current_turnover": 1733219861.0,
+          "avg_turnover_20d": 2025843842.95,
+          "turnover_expansion": 0.8555545221472323,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.339541+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260605",
+      "financing_balance": 2876849604298.0,
+      "securities_lending_balance": 20972443472.0,
+      "margin_balance": 2897822047770.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -14052529615.0
+    }
+  },
+  {
+    "date": "2026-06-08",
+    "market_flow": {
+      "trade_date": "2026-06-08",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-08",
+          "current_turnover": 4394322754.0,
+          "avg_turnover_20d": 4672698964.75,
+          "turnover_expansion": 0.9404249636345033,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-08",
+          "current_turnover": 3809536499.0,
+          "avg_turnover_20d": 4624078806.4,
+          "turnover_expansion": 0.8238476588520454,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-08",
+          "current_turnover": 6918765209.0,
+          "avg_turnover_20d": 5838969799.55,
+          "turnover_expansion": 1.184929096487743,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-08",
+          "current_turnover": 1649711229.0,
+          "avg_turnover_20d": 1997445260.05,
+          "turnover_expansion": 0.8259106079125815,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.341971+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260608",
+      "financing_balance": 2853492718549.0,
+      "securities_lending_balance": 20452767287.0,
+      "margin_balance": 2873945485836.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -23876561934.0
+    }
+  },
+  {
+    "date": "2026-06-09",
+    "market_flow": {
+      "trade_date": "2026-06-09",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-09",
+          "current_turnover": 2085593718.0,
+          "avg_turnover_20d": 4369589500.25,
+          "turnover_expansion": 0.47729740239459006,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-09",
+          "current_turnover": 2955254201.0,
+          "avg_turnover_20d": 4521221075.9,
+          "turnover_expansion": 0.6536407203692696,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-09",
+          "current_turnover": 6169162414.0,
+          "avg_turnover_20d": 5923016926.45,
+          "turnover_expansion": 1.041557451313503,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-09",
+          "current_turnover": 1499460612.0,
+          "avg_turnover_20d": 1965281702.25,
+          "turnover_expansion": 0.762974900892481,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.345130+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260609",
+      "financing_balance": 2857130072324.0,
+      "securities_lending_balance": 21091514511.0,
+      "margin_balance": 2878221586835.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 4276100999.0
+    }
+  },
+  {
+    "date": "2026-06-10",
+    "market_flow": {
+      "trade_date": "2026-06-10",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-10",
+          "current_turnover": 1879211957.0,
+          "avg_turnover_20d": 4225051393.65,
+          "turnover_expansion": 0.4447784847834853,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-10",
+          "current_turnover": 2279194416.0,
+          "avg_turnover_20d": 4442865323.9,
+          "turnover_expansion": 0.5130010139491008,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-10",
+          "current_turnover": 4932052567.0,
+          "avg_turnover_20d": 5985516639.15,
+          "turnover_expansion": 0.8239978040893724,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-10",
+          "current_turnover": 1524748808.0,
+          "avg_turnover_20d": 1930949653.3,
+          "turnover_expansion": 0.7896367496657403,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.347840+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260610",
+      "financing_balance": 2849039584836.0,
+      "securities_lending_balance": 21131080904.0,
+      "margin_balance": 2870170665740.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -8050921095.0
+    }
+  },
+  {
+    "date": "2026-06-11",
+    "market_flow": {
+      "trade_date": "2026-06-11",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-11",
+          "current_turnover": 1975529542.0,
+          "avg_turnover_20d": 4002449531.8,
+          "turnover_expansion": 0.49358012544671753,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-11",
+          "current_turnover": 1474381691.0,
+          "avg_turnover_20d": 4327017196.55,
+          "turnover_expansion": 0.34073857903212124,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-11",
+          "current_turnover": 5811234668.0,
+          "avg_turnover_20d": 5990747882.35,
+          "turnover_expansion": 0.9700349242072289,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-11",
+          "current_turnover": 1547045331.0,
+          "avg_turnover_20d": 1896071054.6,
+          "turnover_expansion": 0.8159216012747839,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.350837+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260611",
+      "financing_balance": 2843816389145.0,
+      "securities_lending_balance": 20915072296.0,
+      "margin_balance": 2864731461441.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -5439204299.0
+    }
+  },
+  {
+    "date": "2026-06-12",
+    "market_flow": {
+      "trade_date": "2026-06-12",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-12",
+          "current_turnover": 3761995011.0,
+          "avg_turnover_20d": 3845292834.55,
+          "turnover_expansion": 0.9783377164928589,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-12",
+          "current_turnover": 2595066377.0,
+          "avg_turnover_20d": 4005716315.0,
+          "turnover_expansion": 0.647840778759691,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-12",
+          "current_turnover": 4861543973.0,
+          "avg_turnover_20d": 5985981046.3,
+          "turnover_expansion": 0.8121549225427256,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-12",
+          "current_turnover": 1680388440.0,
+          "avg_turnover_20d": 1862880727.9,
+          "turnover_expansion": 0.9020375887909253,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.353503+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260612",
+      "financing_balance": 2843413920944.0,
+      "securities_lending_balance": 21158637600.0,
+      "margin_balance": 2864572558544.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -158902897.0
+    }
+  },
+  {
+    "date": "2026-06-15",
+    "market_flow": {
+      "trade_date": "2026-06-15",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-15",
+          "current_turnover": 7928405421.0,
+          "avg_turnover_20d": 3776634970.85,
+          "turnover_expansion": 2.099330616327892,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-15",
+          "current_turnover": 6554819512.0,
+          "avg_turnover_20d": 3566734460.1,
+          "turnover_expansion": 1.8377649318520404,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-15",
+          "current_turnover": 5783322879.0,
+          "avg_turnover_20d": 5853525686.2,
+          "turnover_expansion": 0.98800674824653,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-15",
+          "current_turnover": 1909923046.0,
+          "avg_turnover_20d": 1840556006.7,
+          "turnover_expansion": 1.037688089385756,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.356049+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260615",
+      "financing_balance": 2867474336592.0,
+      "securities_lending_balance": 21563505023.0,
+      "margin_balance": 2889037841615.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 24465283071.0
+    }
+  },
+  {
+    "date": "2026-06-16",
+    "market_flow": {
+      "trade_date": "2026-06-16",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-16",
+          "current_turnover": 4467242130.0,
+          "avg_turnover_20d": 4031432711.3,
+          "turnover_expansion": 1.1081028631529524,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-16",
+          "current_turnover": 2749956275.0,
+          "avg_turnover_20d": 3687140849.35,
+          "turnover_expansion": 0.7458234950489578,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-16",
+          "current_turnover": 4481671130.0,
+          "avg_turnover_20d": 5870161094.1,
+          "turnover_expansion": 0.7634664633828281,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-16",
+          "current_turnover": 1422852068.0,
+          "avg_turnover_20d": 1829056993.7,
+          "turnover_expansion": 0.7779156542966504,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.358495+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260616",
+      "financing_balance": 2893839130094.0,
+      "securities_lending_balance": 21967362811.0,
+      "margin_balance": 2915806492905.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 26768651290.0
+    }
+  },
+  {
+    "date": "2026-06-17",
+    "market_flow": {
+      "trade_date": "2026-06-17",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-17",
+          "current_turnover": 6854308726.0,
+          "avg_turnover_20d": 4021285174.9,
+          "turnover_expansion": 1.7045069991014627,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-17",
+          "current_turnover": 1725519090.0,
+          "avg_turnover_20d": 3519290116.3,
+          "turnover_expansion": 0.49030316710976973,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-17",
+          "current_turnover": 4511811472.0,
+          "avg_turnover_20d": 5808640621.8,
+          "turnover_expansion": 0.7767413695843117,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-17",
+          "current_turnover": 1761590369.0,
+          "avg_turnover_20d": 1803181469.9,
+          "turnover_expansion": 0.976934600541172,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.361971+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260617",
+      "financing_balance": 2921851069611.0,
+      "securities_lending_balance": 21919591015.0,
+      "margin_balance": 2943770660626.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 27964167721.0
+    }
+  },
+  {
+    "date": "2026-06-18",
+    "market_flow": {
+      "trade_date": "2026-06-18",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-18",
+          "current_turnover": 6434057084.0,
+          "avg_turnover_20d": 4130779491.85,
+          "turnover_expansion": 1.5575890934615007,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-18",
+          "current_turnover": 2226241971.0,
+          "avg_turnover_20d": 3385723844.6,
+          "turnover_expansion": 0.6575379662315652,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-18",
+          "current_turnover": 4493982914.0,
+          "avg_turnover_20d": 5806638196.0,
+          "turnover_expansion": 0.7739388545158118,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-18",
+          "current_turnover": 1565716448.0,
+          "avg_turnover_20d": 1810017121.05,
+          "turnover_expansion": 0.8650285291730943,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.364628+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260618",
+      "financing_balance": 2934659431610.0,
+      "securities_lending_balance": 21680611010.0,
+      "margin_balance": 2956340042620.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 12569381994.0
+    }
+  },
+  {
+    "date": "2026-06-22",
+    "market_flow": {
+      "trade_date": "2026-06-22",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-22",
+          "current_turnover": 9643147387.0,
+          "avg_turnover_20d": 4156821571.25,
+          "turnover_expansion": 2.3198367362446604,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-22",
+          "current_turnover": 3279160176.0,
+          "avg_turnover_20d": 3263368904.65,
+          "turnover_expansion": 1.0048389476676998,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-22",
+          "current_turnover": 6869550101.0,
+          "avg_turnover_20d": 5670359385.05,
+          "turnover_expansion": 1.2114840761436898,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-22",
+          "current_turnover": 1711547889.0,
+          "avg_turnover_20d": 1805842003.15,
+          "turnover_expansion": 0.9477838515299128,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.367180+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260622",
+      "financing_balance": 2963677487570.0,
+      "securities_lending_balance": 22175098214.0,
+      "margin_balance": 2985852585784.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 29512543164.0
+    }
+  },
+  {
+    "date": "2026-06-23",
+    "market_flow": {
+      "trade_date": "2026-06-23",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-23",
+          "current_turnover": 13121283633.0,
+          "avg_turnover_20d": 4317898018.8,
+          "turnover_expansion": 3.0388127685902537,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-23",
+          "current_turnover": 3763746479.0,
+          "avg_turnover_20d": 3086341476.85,
+          "turnover_expansion": 1.2194847871601613,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-23",
+          "current_turnover": 8095279908.0,
+          "avg_turnover_20d": 5730795192.4,
+          "turnover_expansion": 1.4125927792247235,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-23",
+          "current_turnover": 1880933636.0,
+          "avg_turnover_20d": 1803268325.05,
+          "turnover_expansion": 1.0430691926825957,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.370286+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260623",
+      "financing_balance": 2969808893292.0,
+      "securities_lending_balance": 21977992189.0,
+      "margin_balance": 2991786885481.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 5934299697.0
+    }
+  },
+  {
+    "date": "2026-06-24",
+    "market_flow": {
+      "trade_date": "2026-06-24",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-24",
+          "current_turnover": 12839317641.0,
+          "avg_turnover_20d": 4575412647.5,
+          "turnover_expansion": 2.8061551230828083,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-24",
+          "current_turnover": 2510299817.0,
+          "avg_turnover_20d": 3009861165.2,
+          "turnover_expansion": 0.834025119172962,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-24",
+          "current_turnover": 7032563318.0,
+          "avg_turnover_20d": 5863739339.8,
+          "turnover_expansion": 1.1993308212502956,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-24",
+          "current_turnover": 1641165681.0,
+          "avg_turnover_20d": 1812608913.3,
+          "turnover_expansion": 0.9054163139979965,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.373113+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260624",
+      "financing_balance": 2983459133226.0,
+      "securities_lending_balance": 22472675074.0,
+      "margin_balance": 3005931808300.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 14144922819.0
+    }
+  },
+  {
+    "date": "2026-06-25",
+    "market_flow": {
+      "trade_date": "2026-06-25",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-25",
+          "current_turnover": 13252886361.0,
+          "avg_turnover_20d": 4978037850.7,
+          "turnover_expansion": 2.6622711113247983,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-25",
+          "current_turnover": 1860429662.0,
+          "avg_turnover_20d": 3030436462.9,
+          "turnover_expansion": 0.6139147561007259,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-25",
+          "current_turnover": 5951167240.0,
+          "avg_turnover_20d": 5892354939.45,
+          "turnover_expansion": 1.0099811197991901,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-25",
+          "current_turnover": 1350349780.0,
+          "avg_turnover_20d": 1815058340.05,
+          "turnover_expansion": 0.7439704554966544,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.375640+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260625",
+      "financing_balance": 3000942666983.0,
+      "securities_lending_balance": 22794733676.0,
+      "margin_balance": 3023737400659.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 17805592359.0
+    }
+  },
+  {
+    "date": "2026-06-26",
+    "market_flow": {
+      "trade_date": "2026-06-26",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-26",
+          "current_turnover": 4730764080.0,
+          "avg_turnover_20d": 5481953035.1,
+          "turnover_expansion": 0.8629705598916542,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-26",
+          "current_turnover": 2989805863.0,
+          "avg_turnover_20d": 2979917692.95,
+          "turnover_expansion": 1.0033182695191192,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-26",
+          "current_turnover": 6542724817.0,
+          "avg_turnover_20d": 5831833938.7,
+          "turnover_expansion": 1.1218983403458276,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-26",
+          "current_turnover": 1535230829.0,
+          "avg_turnover_20d": 1796322279.15,
+          "turnover_expansion": 0.8546522229443451,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.378615+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260626",
+      "financing_balance": 2980346094520.0,
+      "securities_lending_balance": 22420364224.0,
+      "margin_balance": 3002766458744.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -20970941915.0
+    }
+  },
+  {
+    "date": "2026-06-29",
+    "market_flow": {
+      "trade_date": "2026-06-29",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-29",
+          "current_turnover": 7294621804.0,
+          "avg_turnover_20d": 5610737409.15,
+          "turnover_expansion": 1.3001181969599787,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-29",
+          "current_turnover": 2529001020.0,
+          "avg_turnover_20d": 2986513271.45,
+          "turnover_expansion": 0.8468072263988734,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-29",
+          "current_turnover": 6516025415.0,
+          "avg_turnover_20d": 5875014022.05,
+          "turnover_expansion": 1.109108061792562,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-29",
+          "current_turnover": 1549959241.0,
+          "avg_turnover_20d": 1793457473.5,
+          "turnover_expansion": 0.8642297148954393,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.381221+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260629",
+      "financing_balance": 2971672150165.0,
+      "securities_lending_balance": 22775618868.0,
+      "margin_balance": 2994447769033.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -8318689711.0
+    }
+  },
+  {
+    "date": "2026-06-30",
+    "market_flow": {
+      "trade_date": "2026-06-30",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-06-30",
+          "current_turnover": 10142732805.0,
+          "avg_turnover_20d": 5813296154.7,
+          "turnover_expansion": 1.7447473060184089,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-06-30",
+          "current_turnover": 1843943515.0,
+          "avg_turnover_20d": 2973377080.7,
+          "turnover_expansion": 0.6201512505658698,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-06-30",
+          "current_turnover": 4776124320.0,
+          "avg_turnover_20d": 5869435581.05,
+          "turnover_expansion": 0.8137280414866714,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-06-30",
+          "current_turnover": 1199590291.0,
+          "avg_turnover_20d": 1678072385.35,
+          "turnover_expansion": 0.7148620652319467,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.384053+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260630",
+      "financing_balance": 2987788011904.0,
+      "securities_lending_balance": 23303070655.0,
+      "margin_balance": 3011091082559.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 16643313526.0
+    }
+  },
+  {
+    "date": "2026-07-01",
+    "market_flow": {
+      "trade_date": "2026-07-01",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-01",
+          "current_turnover": 4820926453.0,
+          "avg_turnover_20d": 6198278019.45,
+          "turnover_expansion": 0.7777848037587352,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-01",
+          "current_turnover": 2323654883.0,
+          "avg_turnover_20d": 2893598562.2,
+          "turnover_expansion": 0.8030329131879744,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-01",
+          "current_turnover": 5484765907.0,
+          "avg_turnover_20d": 5841990241.35,
+          "turnover_expansion": 0.9388522884167895,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-01",
+          "current_turnover": 1522709395.0,
+          "avg_turnover_20d": 1653245554.35,
+          "turnover_expansion": 0.9210424857901267,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.387960+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260701",
+      "financing_balance": 2997582784567.0,
+      "securities_lending_balance": 23483025002.0,
+      "margin_balance": 3021065809569.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 9974727010.0
+    }
+  },
+  {
+    "date": "2026-07-02",
+    "market_flow": {
+      "trade_date": "2026-07-02",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-02",
+          "current_turnover": 6704066004.0,
+          "avg_turnover_20d": 6272040678.6,
+          "turnover_expansion": 1.0688811421255695,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-02",
+          "current_turnover": 3700248977.0,
+          "avg_turnover_20d": 2817940195.0,
+          "turnover_expansion": 1.3131041544336253,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-02",
+          "current_turnover": 7700524824.0,
+          "avg_turnover_20d": 5817792150.7,
+          "turnover_expansion": 1.3236163521368616,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-02",
+          "current_turnover": 1621639591.0,
+          "avg_turnover_20d": 1627879966.05,
+          "turnover_expansion": 0.9961665631495288,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.390916+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260702",
+      "financing_balance": 2991138089764.0,
+      "securities_lending_balance": 22438198572.0,
+      "margin_balance": 3013576288336.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -7489521233.0
+    }
+  },
+  {
+    "date": "2026-07-03",
+    "market_flow": {
+      "trade_date": "2026-07-03",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-03",
+          "current_turnover": 9792434457.0,
+          "avg_turnover_20d": 6418019081.05,
+          "turnover_expansion": 1.5257721009140315,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-03",
+          "current_turnover": 2493194778.0,
+          "avg_turnover_20d": 2864401996.0,
+          "turnover_expansion": 0.8704067311367703,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-03",
+          "current_turnover": 5595214368.0,
+          "avg_turnover_20d": 5860144405.35,
+          "turnover_expansion": 0.9547912100752785,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-03",
+          "current_turnover": 1734909885.0,
+          "avg_turnover_20d": 1608260265.5,
+          "turnover_expansion": 1.078749455058274,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.393521+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260703",
+      "financing_balance": 2971471291053.0,
+      "securities_lending_balance": 22613150553.0,
+      "margin_balance": 2994084441606.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -19491846730.0
+    }
+  },
+  {
+    "date": "2026-07-06",
+    "market_flow": {
+      "trade_date": "2026-07-06",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-06",
+          "current_turnover": 3016661205.0,
+          "avg_turnover_20d": 6757305488.85,
+          "turnover_expansion": 0.44642960274294097,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-06",
+          "current_turnover": 3181978902.0,
+          "avg_turnover_20d": 2864170478.9,
+          "turnover_expansion": 1.1109600233091068,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-06",
+          "current_turnover": 4961682398.0,
+          "avg_turnover_20d": 5922657433.45,
+          "turnover_expansion": 0.8377459702425802,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-06",
+          "current_turnover": 1980356245.0,
+          "avg_turnover_20d": 1602134621.5,
+          "turnover_expansion": 1.2360735598771904,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.396040+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260706",
+      "financing_balance": 2960975633262.0,
+      "securities_lending_balance": 22460990394.0,
+      "margin_balance": 2983436623656.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -10647817950.0
+    }
+  },
+  {
+    "date": "2026-07-07",
+    "market_flow": {
+      "trade_date": "2026-07-07",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-07",
+          "current_turnover": 3378515920.0,
+          "avg_turnover_20d": 6756975408.65,
+          "turnover_expansion": 0.5000041757847696,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-07",
+          "current_turnover": 2411702319.0,
+          "avg_turnover_20d": 2842271705.2,
+          "turnover_expansion": 0.8485122356837794,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-07",
+          "current_turnover": 5277354423.0,
+          "avg_turnover_20d": 5874458492.1,
+          "turnover_expansion": 0.8983558961386843,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-07",
+          "current_turnover": 1565650124.0,
+          "avg_turnover_20d": 1614491440.7,
+          "turnover_expansion": 0.9697481724159381,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.398550+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260707",
+      "financing_balance": 2947938126108.0,
+      "securities_lending_balance": 21976023748.0,
+      "margin_balance": 2969914149856.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -13522473800.0
+    }
+  },
+  {
+    "date": "2026-07-08",
+    "market_flow": {
+      "trade_date": "2026-07-08",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-08",
+          "current_turnover": 2337287019.0,
+          "avg_turnover_20d": 6706185066.95,
+          "turnover_expansion": 0.3485270680224469,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-08",
+          "current_turnover": 4704796310.0,
+          "avg_turnover_20d": 2772379996.2,
+          "turnover_expansion": 1.6970243316026998,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-08",
+          "current_turnover": 6443919121.0,
+          "avg_turnover_20d": 5792387952.8,
+          "turnover_expansion": 1.1124805820171375,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-08",
+          "current_turnover": 1792575956.0,
+          "avg_turnover_20d": 1610288385.45,
+          "turnover_expansion": 1.1132018166417186,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.401096+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260708",
+      "financing_balance": 2929026172767.0,
+      "securities_lending_balance": 21542176295.0,
+      "margin_balance": 2950568349062.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -19345800794.0
+    }
+  },
+  {
+    "date": "2026-07-09",
+    "market_flow": {
+      "trade_date": "2026-07-09",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-09",
+          "current_turnover": 4636438104.0,
+          "avg_turnover_20d": 6718769732.0,
+          "turnover_expansion": 0.6900724818589452,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-09",
+          "current_turnover": 5127831973.0,
+          "avg_turnover_20d": 2859857101.65,
+          "turnover_expansion": 1.7930378304711405,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-09",
+          "current_turnover": 7646989098.0,
+          "avg_turnover_20d": 5806125788.15,
+          "turnover_expansion": 1.3170553613576728,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-09",
+          "current_turnover": 1786924520.0,
+          "avg_turnover_20d": 1624944152.65,
+          "turnover_expansion": 1.099683651949415,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.404367+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260709",
+      "financing_balance": 2925108130823.0,
+      "securities_lending_balance": 22031800847.0,
+      "margin_balance": 2947139931670.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -3428417392.0
+    }
+  },
+  {
+    "date": "2026-07-10",
+    "market_flow": {
+      "trade_date": "2026-07-10",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-10",
+          "current_turnover": 4039507185.0,
+          "avg_turnover_20d": 6856631039.35,
+          "turnover_expansion": 0.5891387711862267,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-10",
+          "current_turnover": 3851476791.0,
+          "avg_turnover_20d": 3002288979.5,
+          "turnover_expansion": 1.2828467936625552,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-10",
+          "current_turnover": 7609789602.0,
+          "avg_turnover_20d": 5941872614.7,
+          "turnover_expansion": 1.2807056117584257,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-10",
+          "current_turnover": 1704573423.0,
+          "avg_turnover_20d": 1638052938.25,
+          "turnover_expansion": 1.0406094840994984,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.407218+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260710",
+      "financing_balance": 2913769459433.0,
+      "securities_lending_balance": 21969302229.0,
+      "margin_balance": 2935738761662.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -11401170008.0
+    }
+  },
+  {
+    "date": "2026-07-13",
+    "market_flow": {
+      "trade_date": "2026-07-13",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-13",
+          "current_turnover": 7705111563.0,
+          "avg_turnover_20d": 6959829921.5,
+          "turnover_expansion": 1.107083312366256,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-13",
+          "current_turnover": 7517070059.0,
+          "avg_turnover_20d": 3121143734.5,
+          "turnover_expansion": 2.408434438923466,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-13",
+          "current_turnover": 7214651859.0,
+          "avg_turnover_20d": 6031800361.4,
+          "turnover_expansion": 1.1961025608820808,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-13",
+          "current_turnover": 1855242128.0,
+          "avg_turnover_20d": 1645929342.85,
+          "turnover_expansion": 1.1271699699985698,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.409991+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260713",
+      "financing_balance": 2880236492526.0,
+      "securities_lending_balance": 21062088963.0,
+      "margin_balance": 2901298581489.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -34440180173.0
+    }
+  },
+  {
+    "date": "2026-07-14",
+    "market_flow": {
+      "trade_date": "2026-07-14",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-14",
+          "current_turnover": 8630537927.0,
+          "avg_turnover_20d": 7156985749.1,
+          "turnover_expansion": 1.2058900533769124,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-14",
+          "current_turnover": 7089377081.0,
+          "avg_turnover_20d": 3367243918.6,
+          "turnover_expansion": 2.105394575617068,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-14",
+          "current_turnover": 8767464814.0,
+          "avg_turnover_20d": 6149455755.7,
+          "turnover_expansion": 1.4257302048028133,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-14",
+          "current_turnover": 1843951771.0,
+          "avg_turnover_20d": 1654672027.25,
+          "turnover_expansion": 1.114391094206491,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.413155+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260714",
+      "financing_balance": 2869278937032.0,
+      "securities_lending_balance": 21321072502.0,
+      "margin_balance": 2890600009534.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -10698571955.0
+    }
+  },
+  {
+    "date": "2026-07-15",
+    "market_flow": {
+      "trade_date": "2026-07-15",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-15",
+          "current_turnover": 3497653884.0,
+          "avg_turnover_20d": 7192092374.4,
+          "turnover_expansion": 0.4863193771606405,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-15",
+          "current_turnover": 2834423311.0,
+          "avg_turnover_20d": 3393971797.05,
+          "turnover_expansion": 0.8351346093870453,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-15",
+          "current_turnover": 6879496075.0,
+          "avg_turnover_20d": 6298662852.45,
+          "turnover_expansion": 1.0922153219113915,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-15",
+          "current_turnover": 1594776099.0,
+          "avg_turnover_20d": 1651373463.5,
+          "turnover_expansion": 0.9657270958078467,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.415842+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260715",
+      "financing_balance": 2857612701293.0,
+      "securities_lending_balance": 21141632161.0,
+      "margin_balance": 2878754333454.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -11845676080.0
+    }
+  },
+  {
+    "date": "2026-07-16",
+    "market_flow": {
+      "trade_date": "2026-07-16",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-16",
+          "current_turnover": 7909234146.0,
+          "avg_turnover_20d": 7143612962.1,
+          "turnover_expansion": 1.1071756249900373,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-16",
+          "current_turnover": 4606762538.0,
+          "avg_turnover_20d": 3398195148.85,
+          "turnover_expansion": 1.3556497894357236,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-16",
+          "current_turnover": 7769713737.0,
+          "avg_turnover_20d": 6418554099.7,
+          "turnover_expansion": 1.210508413002728,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-16",
+          "current_turnover": 1892878218.0,
+          "avg_turnover_20d": 1659969665.05,
+          "turnover_expansion": 1.140308921213319,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.418553+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260716",
+      "financing_balance": 2829025639574.0,
+      "securities_lending_balance": 20455080346.0,
+      "margin_balance": 2849480719920.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -29273613534.0
+    }
+  },
+  {
+    "date": "2026-07-17",
+    "market_flow": {
+      "trade_date": "2026-07-17",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-17",
+          "current_turnover": 14648790580.0,
+          "avg_turnover_20d": 7196359233.1,
+          "turnover_expansion": 2.035583564620035,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-17",
+          "current_turnover": 5754369790.0,
+          "avg_turnover_20d": 3542257321.25,
+          "turnover_expansion": 1.6244923132714097,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-17",
+          "current_turnover": 15426969214.0,
+          "avg_turnover_20d": 6581449212.95,
+          "turnover_expansion": 2.344007940324921,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-17",
+          "current_turnover": 2614414130.0,
+          "avg_turnover_20d": 1666534057.5,
+          "turnover_expansion": 1.5687732982318605,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.421085+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260717",
+      "financing_balance": 2749144882466.0,
+      "securities_lending_balance": 19419081949.0,
+      "margin_balance": 2768563964415.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -80916755505.0
+    }
+  },
+  {
+    "date": "2026-07-20",
+    "market_flow": {
+      "trade_date": "2026-07-20",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-20",
+          "current_turnover": 18562451759.0,
+          "avg_turnover_20d": 7607095907.9,
+          "turnover_expansion": 2.4401495634783332,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-20",
+          "current_turnover": 8720456391.0,
+          "avg_turnover_20d": 3718663712.2,
+          "turnover_expansion": 2.345051089828418,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-20",
+          "current_turnover": 19456636144.0,
+          "avg_turnover_20d": 7128098527.95,
+          "turnover_expansion": 2.7295689120609863,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-20",
+          "current_turnover": 2221486283.0,
+          "avg_turnover_20d": 1718968941.6,
+          "turnover_expansion": 1.2923364868548828,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.424423+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260720",
+      "financing_balance": 2689460075224.0,
+      "securities_lending_balance": 19801589439.0,
+      "margin_balance": 2709261664663.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -59302299752.0
+    }
+  },
+  {
+    "date": "2026-07-21",
+    "market_flow": {
+      "trade_date": "2026-07-21",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-21",
+          "current_turnover": 12894642144.0,
+          "avg_turnover_20d": 8053061126.5,
+          "turnover_expansion": 1.6012100170912567,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-21",
+          "current_turnover": 8991652651.0,
+          "avg_turnover_20d": 3990728522.95,
+          "turnover_expansion": 2.2531356365862867,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-21",
+          "current_turnover": 15265724240.0,
+          "avg_turnover_20d": 7757452830.1,
+          "turnover_expansion": 1.9678784485503873,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-21",
+          "current_turnover": 1870501124.0,
+          "avg_turnover_20d": 1744465861.3,
+          "turnover_expansion": 1.0722486266404072,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.428054+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260721",
+      "financing_balance": 2689522075532.0,
+      "securities_lending_balance": 20402449231.0,
+      "margin_balance": 2709924524763.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 662860100.0
+    }
+  },
+  {
+    "date": "2026-07-22",
+    "market_flow": {
+      "trade_date": "2026-07-22",
+      "main_net_inflow": null,
+      "super_large_net_inflow": null,
+      "large_net_inflow": null,
+      "availability": "unknown",
+      "source": "unavailable",
+      "reason": "historical provider did not return replay date"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-22",
+          "current_turnover": 6059305801.0,
+          "avg_turnover_20d": 8041729052.05,
+          "turnover_expansion": 0.7534829589235364,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-22",
+          "current_turnover": 5831657523.0,
+          "avg_turnover_20d": 4252123831.55,
+          "turnover_expansion": 1.371469353674543,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-22",
+          "current_turnover": 9480428888.0,
+          "avg_turnover_20d": 8115975046.7,
+          "turnover_expansion": 1.1681195214929592,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-22",
+          "current_turnover": 1871270291.0,
+          "avg_turnover_20d": 1743944235.7,
+          "turnover_expansion": 1.0730103937348046,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-25T14:13:00.431118+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260722",
+      "financing_balance": 2690267596509.0,
+      "securities_lending_balance": 21149245138.0,
+      "margin_balance": 2711416841647.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 1492316884.0
+    }
+  }
+]

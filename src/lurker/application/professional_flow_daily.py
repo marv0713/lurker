@@ -330,7 +330,15 @@ def _core_stock_flow_leaders(stock_flows: list[dict[str, Any]], *, limit: int = 
 # 市场温度备注
 # ---------------------------------------------------------------------------
 
-def _market_notes(market_flow: dict[str, Any], margin: dict[str, Any], temperature: str) -> list[str]:
+def _market_notes(
+    market_flow: dict[str, Any],
+    margin: dict[str, Any],
+    temperature: str,
+    *,
+    etf_batch: CoreEtfBatch | None = None,
+    etf_status: str = "unknown",
+    margin_signal: str = "unknown",
+) -> list[str]:
     notes = [f"市场温度：{temperature}"]
     if market_flow:
         notes.append(
@@ -343,6 +351,33 @@ def _market_notes(market_flow: dict[str, Any], margin: dict[str, Any], temperatu
         if margin.get("margin_balance_change") is not None:
             note += f"，变化 {_as_float(margin.get('margin_balance_change')):.0f}"
         notes.append(note)
+    if etf_status == "active" and etf_batch is not None:
+        active_items = [
+            item
+            for item in etf_batch.items
+            if item.turnover_expansion is not None
+            and item.turnover_expansion >= 1.2
+            and item.availability == "turnover_only"
+        ]
+        if active_items:
+            leader = max(
+                active_items,
+                key=lambda item: float(item.turnover_expansion or 0.0),
+            )
+            notes.append(
+                f"ETF 状态：active（{leader.name or leader.symbol} "
+                f"放量 {leader.turnover_expansion:.2f}x）"
+            )
+        else:
+            notes.append("ETF 状态：active")
+    elif etf_status == "inactive":
+        notes.append("ETF 状态：inactive（未发现 ≥1.20x 放量）")
+    elif etf_batch is not None and etf_batch.failures:
+        detail = "全部采集失败" if not etf_batch.items else "部分采集失败"
+        notes.append(f"ETF 状态：unknown（{detail}）")
+    else:
+        notes.append("ETF 状态：unknown（未采集或数据不足）")
+    notes.append(f"两融信号：{margin_signal}")
     if temperature == "防守":
         notes.append("⚠️ 防守模式：所有标的降级至观察，仅极少数超强确认标的保留候选资格。")
     elif temperature == "观察":
@@ -389,8 +424,6 @@ def run_professional_flow_daily(
         is_trading_day=resolved_calendar,
         now=resolved_now,
     )
-    temperature = prepared.etf_status  # Wait — we need the temperature classification
-    # Actually: use the prepared inputs to classify temperature
     from lurker.application.market_temperature import classify_market_temperature
     temperature = classify_market_temperature(
         market_flow=prepared.market_flow,
@@ -496,6 +529,11 @@ def run_professional_flow_daily(
 
     # 数据质量
     data_quality: list[str] = []
+    data_quality.extend(prepared.quality_notes)
+    for failure in etf_batch.failures:
+        data_quality.append(
+            f"核心 ETF {failure.get('symbol')}：{failure.get('reason')}"
+        )
     for failure in flow_snapshot.get("failures", []):
         data_quality.append(f"{failure.get('source')}：{failure.get('reason')}")
     if not flow_snapshot:
@@ -514,7 +552,14 @@ def run_professional_flow_daily(
     content = render_professional_flow_report(
         report_date=report_date,
         market_temperature=temperature,
-        market_notes=_market_notes(market_flow, margin, temperature),
+        market_notes=_market_notes(
+            prepared.market_flow,
+            margin,
+            temperature,
+            etf_batch=etf_batch,
+            etf_status=prepared.etf_status,
+            margin_signal=prepared.margin_signal,
+        ),
         sector_leaders=sector_leaders,
         stock_flow_leaders=_core_stock_flow_leaders(stock_flows),
         two_percent_candidates=two_percent,

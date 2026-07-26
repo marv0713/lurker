@@ -1,5 +1,7 @@
 import argparse
+import hashlib
 import json
+import math
 from datetime import date
 from pathlib import Path
 
@@ -42,6 +44,203 @@ from lurker.universe.resolved_seed_pool import (
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _check_temperature_gate(
+    artifact_path: Path,
+    *,
+    replay_path: Path,
+    current_rules_fingerprint: str,
+    max_ratio: float = 0.80,
+) -> tuple[bool, str]:
+    """Validate the approved 60-day replay artifact before report push."""
+    if not artifact_path.exists():
+        return False, "缺少 rollout artifact"
+    if not replay_path.exists():
+        return False, "缺少回放文件"
+
+    try:
+        artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return False, f"rollout artifact 无法读取: {exc}"
+    if not isinstance(artifact, dict):
+        return False, "rollout artifact 格式错误"
+
+    if artifact.get("rules_version") != "2026-07-23":
+        return False, "规则版本已变更，需重新回放"
+    if artifact.get("rules_fingerprint") != current_rules_fingerprint:
+        return False, "规则指纹不一致"
+
+    configured_replay = Path(str(artifact.get("replay_path", "")))
+    if not configured_replay.is_absolute():
+        configured_replay = (ROOT / configured_replay).resolve()
+    if configured_replay != replay_path.resolve():
+        return False, "回放路径不一致"
+
+    try:
+        replay_bytes = replay_path.read_bytes()
+    except OSError as exc:
+        return False, f"回放文件无法读取: {exc}"
+    replay_digest = "sha256:" + hashlib.sha256(replay_bytes).hexdigest()
+    if artifact.get("replay_sha256") != replay_digest:
+        return False, "回放文件已变化"
+
+    if artifact.get("approved") is not True:
+        return False, "回放尚未通过人工审查"
+    if not artifact.get("approved_by") or not artifact.get("approved_at"):
+        return False, "审批信息不完整"
+
+    trading_days = artifact.get("trading_days")
+    if isinstance(trading_days, bool) or not isinstance(trading_days, int):
+        return False, "交易日数格式错误"
+    if trading_days < 60:
+        return False, "历史不足60日"
+
+    distribution = artifact.get("distribution")
+    if not isinstance(distribution, dict):
+        return False, "状态分布格式错误"
+    statuses = ("进攻", "观察", "防守")
+    if set(distribution) != set(statuses):
+        return False, "状态分布格式错误"
+    if any(
+        isinstance(distribution[status], bool)
+        or not isinstance(distribution[status], int)
+        for status in statuses
+    ):
+        return False, "状态分布格式错误"
+    counts = {status: distribution[status] for status in statuses}
+    if any(count < 0 for count in counts.values()):
+        return False, "状态分布格式错误"
+    if sum(counts.values()) != trading_days:
+        return False, "分布与交易日数不一致"
+
+    try:
+        replay_records = json.loads(replay_bytes)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return False, f"回放文件无法读取: {exc}"
+    if not isinstance(replay_records, list):
+        return False, "回放文件格式错误"
+    try:
+        replay_dates = [
+            date.fromisoformat(str(record["date"]))
+            for record in replay_records
+            if isinstance(record, dict)
+        ]
+    except (KeyError, TypeError, ValueError):
+        return False, "回放日期格式错误"
+    if len(replay_dates) != len(replay_records):
+        return False, "回放日期格式错误"
+    if any(
+        current <= previous
+        for previous, current in zip(replay_dates, replay_dates[1:])
+    ):
+        return False, "回放日期必须严格递增且不重复"
+    non_trading_dates = [
+        replay_date.isoformat()
+        for replay_date in replay_dates
+        if not is_cn_trading_day(replay_date)
+    ]
+    if non_trading_dates:
+        return False, f"回放包含非交易日: {non_trading_dates[0]}"
+
+    from lurker.application.temperature_replay import (
+        replay_temperature_records,
+        summarize_replay,
+    )
+
+    try:
+        replay_rows = replay_temperature_records(replay_records)
+        actual_summary = summarize_replay(replay_rows)
+    except (KeyError, TypeError, ValueError) as exc:
+        return False, f"回放文件内容无效: {exc}"
+
+    actual_days = int(actual_summary["trading_days"])
+    actual_distribution = actual_summary["distribution"]
+    if actual_days != trading_days or actual_distribution != counts:
+        return False, "回放统计与 artifact 不一致"
+
+    if replay_rows:
+        actual_start = replay_rows[0]["date"]
+        actual_end = replay_rows[-1]["date"]
+        if (
+            artifact.get("replay_start") != actual_start
+            or artifact.get("replay_end") != actual_end
+        ):
+            return False, "回放日期范围与 artifact 不一致"
+
+    leading_status = max(actual_distribution, key=actual_distribution.get)
+    leading_ratio = actual_distribution[leading_status] / actual_days
+    if leading_ratio > max_ratio:
+        return False, f"状态{leading_status}占比{leading_ratio:.1%}超过80%"
+    if math.isclose(leading_ratio, max_ratio, rel_tol=0.0, abs_tol=1e-12):
+        return True, f"状态{leading_status}恰好80%，请人工复核"
+    return True, ""
+
+
+def build_temperature_replay(
+    *,
+    etf_start: str,
+    margin_start: str,
+    output_start: str,
+    output_end: str,
+    output_path: Path,
+    artifact_path: Path,
+    replay_collector=None,
+) -> str:
+    """Collect, replay, and persist an unapproved rollout artifact."""
+    from lurker.application.temperature_replay import (
+        build_rollout_artifact,
+        replay_temperature_records,
+        summarize_replay,
+    )
+    from lurker.config import load_core_etfs
+    from lurker.ingest.temperature_history import collect_temperature_replay
+
+    collector = replay_collector or collect_temperature_replay
+    output_path = output_path.resolve()
+    artifact_path = artifact_path.resolve()
+    records = collector(
+        etf_configs=load_core_etfs(ROOT / "configs" / "core_etfs.yaml"),
+        etf_start=etf_start,
+        margin_start=margin_start,
+        output_start=output_start,
+        output_end=output_end,
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        json.dumps(records, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
+
+    replay_rows = replay_temperature_records(records)
+    artifact = build_rollout_artifact(
+        replay_path=output_path,
+        replay_rows=replay_rows,
+        replay_start=output_start,
+        replay_end=output_end,
+    )
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    artifact_path.write_text(
+        json.dumps(artifact, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    summary = summarize_replay(replay_rows)
+    return (
+        f"Wrote temperature replay to {output_path} "
+        f"(trading_days={summary['trading_days']}, "
+        f"distribution={summary['distribution']}, "
+        f"unknown_degradation_days={summary['unknown_degradation_days']})\n"
+        f"Wrote unapproved rollout artifact to {artifact_path}"
+    )
+
+
+def _annotate_temperature_gate(content: str, reason: str, *, blocked: bool) -> str:
+    label = "⚠️" if blocked else "ℹ️"
+    note = f"- {label} 市场温度上线闸门：{reason}"
+    marker = "## 数据质量\n"
+    if marker in content:
+        return content.replace(marker, f"{marker}\n{note}\n", 1)
+    return content.rstrip() + f"\n\n## 数据质量\n\n{note}\n"
 
 
 def parse_markets(value: str) -> list[str]:
@@ -555,6 +754,8 @@ def daily_job(
     markets_path: Path | None = None,
     db_path: Path | None = None,
     push: bool = True,
+    temperature_artifact_path: Path | None = None,
+    temperature_replay_path: Path | None = None,
 ) -> str:
     job_date = report_date or date.today().isoformat()
     if all_markets_are_cn(markets) and not is_cn_trading_day(job_date):
@@ -645,6 +846,46 @@ def daily_job(
             db_session=session,
         )
 
+    if strategy_names:
+        selected_strategies = strategy_names
+    elif strategy_config_path is not None:
+        selected_strategies = [
+            config.name
+            for config in select_strategy_configs(
+                load_strategy_configs(strategy_config_path),
+                names=None,
+                cadence=strategy_cadence,
+            )
+        ]
+    else:
+        selected_strategies = ["long_term_trend"]
+
+    temperature_gate_applies = "professional_flow_daily" in selected_strategies
+    temperature_gate_allowed = True
+    temperature_gate_reason = ""
+    if temperature_gate_applies:
+        from lurker.application.temperature_replay import current_rules_fingerprint
+
+        resolved_artifact_path = (
+            temperature_artifact_path
+            or ROOT / "data" / "processed" / "temperature_rollout.json"
+        )
+        resolved_replay_path = (
+            temperature_replay_path
+            or ROOT / "tests" / "fixtures" / "etf_60d_replay.json"
+        )
+        temperature_gate_allowed, temperature_gate_reason = _check_temperature_gate(
+            resolved_artifact_path,
+            replay_path=resolved_replay_path,
+            current_rules_fingerprint=current_rules_fingerprint(),
+        )
+        if not temperature_gate_allowed or temperature_gate_reason:
+            report.content_md = _annotate_temperature_gate(
+                report.content_md,
+                temperature_gate_reason,
+                blocked=not temperature_gate_allowed,
+            )
+
     # Save final report to Report table
     if session:
         from lurker.storage.models import Report
@@ -683,19 +924,6 @@ def daily_job(
         + "\n",
         encoding="utf-8",
     )
-    if strategy_names:
-        selected_strategies = strategy_names
-    elif strategy_config_path is not None:
-        selected_strategies = [
-            config.name
-            for config in select_strategy_configs(
-                load_strategy_configs(strategy_config_path),
-                names=None,
-                cadence=strategy_cadence,
-            )
-        ]
-    else:
-        selected_strategies = ["long_term_trend"]
     index_path = append_report_archive_index(
         report_dir=report_dir,
         report_date=job_date,
@@ -747,7 +975,7 @@ def daily_job(
 
     push_msg = ""
 
-    if is_valid and push:
+    if is_valid and push and temperature_gate_allowed:
         notifier = build_notifier_from_env()
         try:
             notifier.send(title=report.push_title, markdown_content=report.content_md)
@@ -757,8 +985,17 @@ def daily_job(
             push_msg = f"\nFailed to push report: {e}"
     elif not is_valid:
         push_msg = f"\nSkipped pushing report: validation failed ({validation_error})."
+    elif push and temperature_gate_applies and not temperature_gate_allowed:
+        push_msg = (
+            "\nSkipped pushing report: temperature gate blocked "
+            f"({temperature_gate_reason})."
+        )
     else:
         push_msg = "\nSkipped pushing report (--no-push)."
+        if temperature_gate_applies:
+            gate_state = "allowed" if temperature_gate_allowed else "blocked"
+            detail = f": {temperature_gate_reason}" if temperature_gate_reason else ""
+            push_msg += f"\nTemperature gate {gate_state}{detail}."
 
     return (
         f"Wrote price snapshot to {snapshot_path} "
@@ -1166,6 +1403,25 @@ def build_parser() -> argparse.ArgumentParser:
         default=ROOT / "data" / "lurker.sqlite",
     )
 
+    temperature_replay = subparsers.add_parser(
+        "build-temperature-replay",
+        help="采集历史资金事实并生成市场温度 60 日回放与未审批上线产物",
+    )
+    temperature_replay.add_argument("--etf-start", required=True)
+    temperature_replay.add_argument("--margin-start", required=True)
+    temperature_replay.add_argument("--output-start", required=True)
+    temperature_replay.add_argument("--output-end", required=True)
+    temperature_replay.add_argument(
+        "--output",
+        type=Path,
+        default=ROOT / "tests" / "fixtures" / "etf_60d_replay.json",
+    )
+    temperature_replay.add_argument(
+        "--artifact",
+        type=Path,
+        default=ROOT / "data" / "processed" / "temperature_rollout.json",
+    )
+
     daily = subparsers.add_parser(
         "daily-job",
         help="刷新本地行情快照，生成并落盘每日 Markdown 日报",
@@ -1235,6 +1491,16 @@ def build_parser() -> argparse.ArgumentParser:
         default=ROOT / "data" / "lurker.sqlite",
     )
     daily.add_argument("--no-push", action="store_true")
+    daily.add_argument(
+        "--temperature-artifact",
+        type=Path,
+        default=ROOT / "data" / "processed" / "temperature_rollout.json",
+    )
+    daily.add_argument(
+        "--temperature-replay",
+        type=Path,
+        default=ROOT / "tests" / "fixtures" / "etf_60d_replay.json",
+    )
 
     list_reports_cmd = subparsers.add_parser(
         "list-reports",
@@ -1408,6 +1674,19 @@ def main() -> None:
         )
         return
 
+    if args.command == "build-temperature-replay":
+        print(
+            build_temperature_replay(
+                etf_start=args.etf_start,
+                margin_start=args.margin_start,
+                output_start=args.output_start,
+                output_end=args.output_end,
+                output_path=args.output,
+                artifact_path=args.artifact,
+            )
+        )
+        return
+
     if args.command == "daily-job":
         api_key = args.api_key or read_api_key_file(args.api_key_file)
         print(
@@ -1435,6 +1714,8 @@ def main() -> None:
                 markets_path=args.markets_path,
                 db_path=args.db_path,
                 push=not args.no_push,
+                temperature_artifact_path=args.temperature_artifact,
+                temperature_replay_path=args.temperature_replay,
             )
         )
         return

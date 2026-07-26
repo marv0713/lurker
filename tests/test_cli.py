@@ -1,10 +1,13 @@
 import json
+from datetime import date, timedelta
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from lurker.reports.models import DailyReport
 from lurker.cli import (
+    build_temperature_replay,
     build_data_snapshot,
     build_demo_report,
     build_notifier_from_env,
@@ -842,7 +845,10 @@ def test_watchlist_checkup_passes_no_push_and_returns_counts(monkeypatch, tmp_pa
     assert "checked=2, alerts=1, failures=1, pushed=False" in message
 
 
-def test_daily_job_pushes_professional_report_when_stock_flows_are_empty(monkeypatch, tmp_path):
+def test_daily_job_blocks_professional_push_when_rollout_artifact_is_missing(
+    monkeypatch,
+    tmp_path,
+):
     seed_pool_path = tmp_path / "resolved_seed_pool.json"
     seed_pool_path.write_text(
         """
@@ -914,10 +920,14 @@ strategies:
         report_date="2026-06-08",
         strategy_config_path=strategy_config,
         strategy_cadence="daily",
+        temperature_artifact_path=tmp_path / "missing-artifact.json",
+        temperature_replay_path=tmp_path / "missing-replay.json",
     )
 
-    assert sends
-    assert "Pushed report successfully" in message
+    assert sends == []
+    assert "temperature gate blocked (缺少 rollout artifact)" in message
+    report_text = (tmp_path / "reports" / "2026-06-08.md").read_text(encoding="utf-8")
+    assert "市场温度上线闸门：缺少 rollout artifact" in report_text
 
 
 def test_daily_job_pushes_professional_report_when_only_stock_flows_fail(monkeypatch, tmp_path):
@@ -979,6 +989,7 @@ strategies:
     monkeypatch.setattr("lurker.cli.collect_price_snapshot_batch", fake_price_collector)
     monkeypatch.setattr("lurker.cli.collect_flow_snapshot", fake_flow_collector)
     monkeypatch.setattr("lurker.cli.build_notifier_from_env", lambda: FakeNotifier())
+    replay_path, artifact_path = _write_approved_temperature_artifact(tmp_path)
 
     message = daily_job(
         seed_pool_path=seed_pool_path,
@@ -992,11 +1003,95 @@ strategies:
         report_date="2026-06-12",
         strategy_config_path=strategy_config,
         strategy_cadence="daily",
+        temperature_artifact_path=artifact_path,
+        temperature_replay_path=replay_path,
     )
 
     assert sends
     assert "stock_flows" in sends[0][1]
     assert "Pushed report successfully" in message
+
+
+def _write_approved_temperature_artifact(tmp_path):
+    from lurker.application.temperature_replay import (
+        build_rollout_artifact,
+        replay_temperature_records,
+    )
+    from lurker.trading_calendar import is_cn_trading_day
+
+    replay_path = tmp_path / "etf_60d_replay.json"
+    records = []
+    cursor = date(2026, 4, 24)
+    states = [
+        (10.0, 5.0, 1.3, 1.0),
+        (10.0, 5.0, 1.0, None),
+        (-10.0, -5.0, 1.0, -1.0),
+    ]
+    for index in range(60):
+        while not is_cn_trading_day(cursor):
+            cursor += timedelta(days=1)
+        trade_day = cursor.isoformat()
+        cursor += timedelta(days=1)
+        main_flow, super_flow, expansion, margin_change = states[index % 3]
+        records.append(
+            {
+                "date": trade_day,
+                "market_flow": {
+                    "trade_date": trade_day,
+                    "main_net_inflow": main_flow,
+                    "super_large_net_inflow": super_flow,
+                    "availability": "fresh",
+                },
+                "core_etfs": {
+                    "configured_symbols": ["510300.SH"],
+                    "items": [
+                        {
+                            "symbol": "510300.SH",
+                            "name": "沪深300ETF",
+                            "trade_date": trade_day,
+                            "current_turnover": 100.0,
+                            "avg_turnover_20d": 100.0 / expansion,
+                            "turnover_expansion": expansion,
+                            "shares": None,
+                            "shares_date": None,
+                            "status": "active" if expansion >= 1.2 else "inactive",
+                            "source": "fixture",
+                            "availability": "turnover_only",
+                            "error": None,
+                        }
+                    ],
+                    "failures": [],
+                    "generated_at": f"{trade_day}T08:00:00+00:00",
+                    "schema_version": 1,
+                },
+                "margin": {
+                    "trade_date": trade_day.replace("-", ""),
+                    "margin_balance_change": margin_change,
+                    "availability": "fresh",
+                },
+            }
+        )
+    replay_path.write_text(json.dumps(records), encoding="utf-8")
+    artifact = build_rollout_artifact(
+        replay_path=replay_path,
+        replay_rows=replay_temperature_records(records),
+        replay_start=records[0]["date"],
+        replay_end=records[-1]["date"],
+    )
+    artifact.update(
+        {
+            "approved": True,
+            "approved_by": "reviewer",
+            "approved_at": "2026-07-25T12:00:00+08:00",
+            "notes": "approved",
+        }
+    )
+    artifact_path = tmp_path / "temperature_rollout.json"
+    artifact_path.write_text(
+        json.dumps(artifact, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    return replay_path, artifact_path
 
 
 def test_daily_job_skips_cn_non_trading_day(monkeypatch, tmp_path):
@@ -1053,3 +1148,126 @@ def test_parser_has_list_reports_command():
 
     assert args.command == "list-reports"
     assert args.limit == 3
+
+
+def test_parser_has_build_temperature_replay_command():
+    args = build_parser().parse_args(
+        [
+            "build-temperature-replay",
+            "--etf-start",
+            "2026-03-26",
+            "--margin-start",
+            "2026-04-23",
+            "--output-start",
+            "2026-04-24",
+            "--output-end",
+            "2026-07-22",
+        ]
+    )
+
+    assert args.command == "build-temperature-replay"
+    assert args.output.name == "etf_60d_replay.json"
+    assert args.artifact.name == "temperature_rollout.json"
+
+
+def test_build_temperature_replay_writes_fixture_and_unapproved_artifact(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.chdir(tmp_path)
+    output = Path("relative/etf_60d_replay.json")
+    artifact = Path("relative/temperature_rollout.json")
+    records = [
+        {
+            "date": f"2026-05-{day:02d}",
+            "market_flow": {
+                "trade_date": f"2026-05-{day:02d}",
+                "main_net_inflow": 10.0,
+                "super_large_net_inflow": 5.0,
+                "availability": "fresh",
+            },
+            "core_etfs": {
+                "configured_symbols": ["510300.SH"],
+                "items": [
+                    {
+                        "symbol": "510300.SH",
+                        "name": "沪深300ETF",
+                        "trade_date": f"2026-05-{day:02d}",
+                        "current_turnover": 130.0,
+                        "avg_turnover_20d": 100.0,
+                        "turnover_expansion": 1.3,
+                        "shares": None,
+                        "shares_date": None,
+                        "status": "active",
+                        "source": "fixture",
+                        "availability": "turnover_only",
+                        "error": None,
+                    }
+                ],
+                "failures": [],
+                "generated_at": "2026-07-25T00:00:00+00:00",
+                "schema_version": 1,
+            },
+            "margin": {
+                "trade_date": f"202605{day:02d}",
+                "margin_balance_change": 1.0,
+                "availability": "fresh",
+            },
+        }
+        for day in range(1, 31)
+    ] + [
+        {
+            "date": f"2026-06-{day:02d}",
+            "market_flow": {
+                "trade_date": f"2026-06-{day:02d}",
+                "main_net_inflow": -10.0,
+                "super_large_net_inflow": -5.0,
+                "availability": "fresh",
+            },
+            "core_etfs": {
+                "configured_symbols": ["510300.SH"],
+                "items": [
+                    {
+                        "symbol": "510300.SH",
+                        "name": "沪深300ETF",
+                        "trade_date": f"2026-06-{day:02d}",
+                        "current_turnover": 100.0,
+                        "avg_turnover_20d": 100.0,
+                        "turnover_expansion": 1.0,
+                        "shares": None,
+                        "shares_date": None,
+                        "status": "inactive",
+                        "source": "fixture",
+                        "availability": "turnover_only",
+                        "error": None,
+                    }
+                ],
+                "failures": [],
+                "generated_at": "2026-07-25T00:00:00+00:00",
+                "schema_version": 1,
+            },
+            "margin": {
+                "trade_date": f"202606{day:02d}",
+                "margin_balance_change": -1.0,
+                "availability": "fresh",
+            },
+        }
+        for day in range(1, 31)
+    ]
+
+    message = build_temperature_replay(
+        etf_start="2026-03-26",
+        margin_start="2026-04-23",
+        output_start="2026-05-01",
+        output_end="2026-06-30",
+        output_path=output,
+        artifact_path=artifact,
+        replay_collector=lambda **_: records,
+    )
+
+    assert len(json.loads(output.read_text(encoding="utf-8"))) == 60
+    artifact_data = json.loads(artifact.read_text(encoding="utf-8"))
+    assert artifact_data["approved"] is False
+    assert artifact_data["distribution"] == {"进攻": 30, "观察": 0, "防守": 30}
+    assert artifact_data["replay_path"] == str(output.resolve())
+    assert "trading_days=60" in message

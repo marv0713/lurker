@@ -7,6 +7,7 @@ from lurker.application.professional_flow_daily import (
     _trend_scores,
     run_professional_flow_daily,
 )
+from lurker.ingest.etf_flows import CoreEtfBatch
 
 
 # ---------------------------------------------------------------------------
@@ -52,6 +53,97 @@ def test_market_notes_show_margin_balance_change_when_available():
     )
 
     assert "两融余额 770，变化 40" in notes
+
+
+def test_market_notes_show_active_etf_and_margin_signal():
+    batch = CoreEtfBatch.from_dict(
+        {
+            "configured_symbols": ["510300.SH"],
+            "items": [
+                {
+                    "symbol": "510300.SH",
+                    "name": "沪深300ETF",
+                    "trade_date": "2026-07-23",
+                    "current_turnover": 135.0,
+                    "avg_turnover_20d": 100.0,
+                    "turnover_expansion": 1.35,
+                    "shares": None,
+                    "shares_date": None,
+                    "status": "active",
+                    "source": "fixture",
+                    "availability": "turnover_only",
+                    "error": None,
+                }
+            ],
+            "failures": [],
+            "generated_at": "2026-07-23T08:00:00+00:00",
+            "schema_version": 1,
+        }
+    )
+
+    notes = _market_notes(
+        {"main_net_inflow": 1.0, "super_large_net_inflow": 2.0},
+        {"margin_balance": 770.0},
+        "进攻",
+        etf_batch=batch,
+        etf_status="active",
+        margin_signal="supportive",
+    )
+
+    assert "ETF 状态：active（沪深300ETF 放量 1.35x）" in notes
+    assert "两融信号：supportive" in notes
+
+
+def test_report_data_quality_lists_partial_etf_failure_and_freshness():
+    report = run_professional_flow_daily(
+        price_snapshot={"snapshots": []},
+        flow_snapshot={
+            "market_flow": {
+                "trade_date": "2026-07-23",
+                "main_net_inflow": 1.0,
+                "super_large_net_inflow": 2.0,
+                "availability": "fresh",
+            },
+            "sector_flows": [],
+            "stock_flows": [],
+            "margin": {
+                "trade_date": "20260723",
+                "margin_balance_change": 1.0,
+                "availability": "fresh",
+            },
+            "core_etfs": {
+                "configured_symbols": ["510300.SH", "510500.SH"],
+                "items": [
+                    {
+                        "symbol": "510300.SH",
+                        "name": "沪深300ETF",
+                        "trade_date": "2026-07-23",
+                        "current_turnover": 135.0,
+                        "avg_turnover_20d": 100.0,
+                        "turnover_expansion": 1.35,
+                        "shares": None,
+                        "shares_date": None,
+                        "status": "active",
+                        "source": "fixture",
+                        "availability": "turnover_only",
+                        "error": None,
+                    }
+                ],
+                "failures": [{"symbol": "510500.SH", "reason": "provider timeout"}],
+                "generated_at": "2026-07-23T08:00:00+00:00",
+                "schema_version": 1,
+            },
+            "failures": [],
+        },
+        theme_mapping={},
+        report_date="2026-07-23",
+    )
+
+    assert "ETF 状态：active（沪深300ETF 放量 1.35x）" in report.content_md
+    assert "两融信号：supportive" in report.content_md
+    assert "核心 ETF：截止 2026-07-23，状态 partial" in report.content_md
+    assert "核心 ETF 510500.SH：provider timeout" in report.content_md
+    assert "⚠️ 部分数据非当日或采集不完整" in report.content_md
 
 
 def test_market_temperature_defense_downgrades_candidates():

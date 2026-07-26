@@ -5,6 +5,7 @@ from contextlib import contextmanager
 
 import pandas as pd
 import pytest
+import requests
 
 from lurker.ingest.etf_flows import (
     CoreEtfBatch,
@@ -452,3 +453,108 @@ def test_fetch_core_etfs_default_provider_uses_akshare_request_scope(monkeypatch
 
     assert entered == [True]
     assert batch.items[0].symbol == "510300.SH"
+
+
+def test_fetch_core_etfs_uses_auditable_fallback_when_primary_is_empty():
+    dates = pd.bdate_range("2026-06-26", periods=21)
+    fallback = pd.DataFrame(
+        {
+            "日期": dates,
+            "成交额": [100.0] * 20 + [130.0],
+        }
+    )
+    fallback.attrs["source"] = "akshare_fund_etf_hist_sina"
+    fallback_calls = []
+
+    batch = fetch_core_etfs(
+        etf_configs=[
+            {
+                "symbol": "510300",
+                "canonical_symbol": "510300.SH",
+                "name": "沪深300ETF",
+            }
+        ],
+        hist_fetcher=lambda **_: pd.DataFrame(),
+        fallback_hist_fetcher=lambda **kwargs: (
+            fallback_calls.append(kwargs) or fallback
+        ),
+        now=datetime(
+            2026,
+            7,
+            24,
+            16,
+            0,
+            tzinfo=timezone(timedelta(hours=8)),
+        ),
+    )
+
+    assert batch.failures == []
+    assert batch.items[0].source == "akshare_fund_etf_hist_sina"
+    assert batch.items[0].status == "active"
+    assert fallback_calls[0]["symbol"] == "510300"
+
+
+def test_fetch_core_etfs_uses_fallback_when_primary_network_fails():
+    fallback = _etf_history(latest_turnover=130.0)
+    fallback.attrs["source"] = "akshare_fund_etf_hist_sina"
+
+    def network_failure(**_):
+        raise requests.ConnectionError("primary unavailable")
+
+    batch = fetch_core_etfs(
+        etf_configs=[
+            {
+                "symbol": "510300",
+                "canonical_symbol": "510300.SH",
+                "name": "沪深300ETF",
+            }
+        ],
+        hist_fetcher=network_failure,
+        fallback_hist_fetcher=lambda **_: fallback,
+        now=datetime(
+            2026,
+            7,
+            23,
+            16,
+            0,
+            tzinfo=timezone(timedelta(hours=8)),
+        ),
+    )
+
+    assert batch.failures == []
+    assert batch.items[0].source == "akshare_fund_etf_hist_sina"
+
+
+def test_fetch_core_etfs_does_not_hide_primary_programming_errors():
+    fallback_called = False
+
+    def programming_error(**_):
+        raise TypeError("bad call contract")
+
+    def fallback(**_):
+        nonlocal fallback_called
+        fallback_called = True
+        return _etf_history()
+
+    with pytest.raises(TypeError, match="bad call contract"):
+        fetch_core_etfs(
+            etf_configs=[
+                {
+                    "symbol": "510300",
+                    "canonical_symbol": "510300.SH",
+                    "name": "沪深300ETF",
+                }
+            ],
+            hist_fetcher=programming_error,
+            fallback_hist_fetcher=fallback,
+            now=datetime(
+                2026,
+                7,
+                23,
+                16,
+                0,
+                tzinfo=timezone(timedelta(hours=8)),
+            ),
+        )
+
+    assert fallback_called is False

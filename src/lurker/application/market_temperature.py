@@ -289,6 +289,7 @@ class PreparedTemperatureInputs:
     etf_status: str
     margin_signal: str
     expected_trade_date: str
+    quality_notes: tuple[str, ...]
 
 
 def prepare_temperature_inputs(
@@ -379,9 +380,51 @@ def prepare_temperature_inputs(
     else:
         margin_signal = classify_margin_signal(margin)
 
+    market_status = str(flow.get("availability") or "unknown")
+    market_cutoff = flow_trade_date or "-"
+
+    etf_dates = [
+        _normalize_trade_date(item.trade_date)
+        for item in core_etfs_batch.items
+        if _normalize_trade_date(item.trade_date)
+    ]
+    etf_cutoff = max(etf_dates, default="-")
+    if core_etfs_batch.failures and fresh_items:
+        etf_freshness = "partial"
+    elif core_etfs_batch.failures:
+        etf_freshness = "unknown"
+    elif fresh_items and len(fresh_items) == len(core_etfs_batch.configured_symbols):
+        etf_freshness = "fresh"
+    elif core_etfs_batch.items:
+        etf_freshness = "stale"
+    else:
+        etf_freshness = "unknown"
+
+    if margin_availability == "stale_cache":
+        margin_status = "stale_cache"
+    elif margin_trade_date == expected_trade_date:
+        margin_status = str(margin_availability or "fresh")
+    elif margin_trade_date:
+        margin_status = "stale"
+    else:
+        margin_status = "unknown"
+    margin_cutoff = margin_trade_date or "-"
+
+    quality_notes = [
+        f"大盘资金：截止 {market_cutoff}，状态 {market_status}",
+        f"核心 ETF：截止 {etf_cutoff}，状态 {etf_freshness}",
+        f"两融：截止 {margin_cutoff}，状态 {margin_status}",
+    ]
+    if any(
+        status != "fresh"
+        for status in (market_status, etf_freshness, margin_status)
+    ):
+        quality_notes.append("⚠️ 部分数据非当日或采集不完整")
+
     return PreparedTemperatureInputs(
         market_flow=flow,
         etf_status=etf_status,
         margin_signal=margin_signal,
         expected_trade_date=expected_trade_date,
+        quality_notes=tuple(quality_notes),
     )

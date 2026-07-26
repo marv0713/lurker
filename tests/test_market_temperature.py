@@ -720,3 +720,60 @@ def test_classify_etf_status_ignores_intraday_partial_expansion():
     )
 
     assert classify_etf_status(batch) == "unknown"
+
+
+def test_prepare_temperature_inputs_exposes_source_freshness_notes():
+    from lurker.application.market_temperature import prepare_temperature_inputs
+
+    batch = CoreEtfBatch(
+        configured_symbols=["510300.SH", "510500.SH"],
+        items=[
+            CoreEtfItem(
+                symbol="510300.SH",
+                name="沪深300ETF",
+                trade_date="2026-07-23",
+                current_turnover=130.0,
+                avg_turnover_20d=100.0,
+                turnover_expansion=1.3,
+                shares=None,
+                shares_date=None,
+                status="active",
+                source="fixture",
+                availability="turnover_only",
+                error=None,
+            )
+        ],
+        failures=[{"symbol": "510500.SH", "reason": "timeout"}],
+        generated_at="2026-07-23T08:00:00+00:00",
+    )
+
+    prepared = prepare_temperature_inputs(
+        market_flow={
+            "trade_date": "2026-07-23",
+            "main_net_inflow": 1.0,
+            "super_large_net_inflow": 1.0,
+        },
+        core_etfs_batch=batch,
+        margin={
+            "trade_date": "20260722",
+            "margin_balance_change": 1.0,
+            "availability": "stale_cache",
+        },
+        report_date="2026-07-23",
+        is_trading_day=lambda _: True,
+        now=datetime(
+            2026,
+            7,
+            23,
+            16,
+            0,
+            tzinfo=timezone(timedelta(hours=8)),
+        ),
+    )
+
+    assert prepared.quality_notes == (
+        "大盘资金：截止 2026-07-23，状态 fresh",
+        "核心 ETF：截止 2026-07-23，状态 partial",
+        "两融：截止 2026-07-22，状态 stale_cache",
+        "⚠️ 部分数据非当日或采集不完整",
+    )

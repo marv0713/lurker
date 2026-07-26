@@ -1,0 +1,202 @@
+[
+  {
+    "case_id": "defense_001",
+    "market_flow": {"main_net_inflow": -10.0, "super_large_net_inflow": -5.0},
+    "etf_status": "inactive",
+    "margin_signal": "weakening",
+    "expected": "防守",
+    "rationale": "双负，ETF 与两融均提供防守确认"
+  },
+  {
+    "case_id": "defense_002",
+    "market_flow": {"main_net_inflow": -10.0, "super_large_net_inflow": -5.0},
+    "etf_status": "inactive",
+    "margin_signal": "unknown",
+    "expected": "防守",
+    "rationale": "双负，ETF inactive 独立确认"
+  },
+  {
+    "case_id": "defense_003",
+    "market_flow": {"main_net_inflow": -10.0, "super_large_net_inflow": -5.0},
+    "etf_status": "unknown",
+    "margin_signal": "weakening",
+    "expected": "防守",
+    "rationale": "双负，两融 weakening 独立确认"
+  },
+  {
+    "case_id": "observe_001",
+    "market_flow": {"main_net_inflow": -10.0, "super_large_net_inflow": -5.0},
+    "etf_status": "unknown",
+    "margin_signal": "unknown",
+    "expected": "观察",
+    "rationale": "双负但两个确认源均未知"
+  },
+  {
+    "case_id": "defense_004",
+    "market_flow": {"main_net_inflow": -10.0, "super_large_net_inflow": -5.0},
+    "etf_status": "active",
+    "margin_signal": "weakening",
+    "expected": "防守",
+    "rationale": "双负，两融 weakening 独立确认"
+  },
+  {
+    "case_id": "defense_005",
+    "market_flow": {"main_net_inflow": -10.0, "super_large_net_inflow": -5.0},
+    "etf_status": "inactive",
+    "margin_signal": "supportive",
+    "expected": "防守",
+    "rationale": "双负，ETF inactive 独立确认"
+  },
+  {
+    "case_id": "defense_006",
+    "market_flow": {"main_net_inflow": -10.0, "super_large_net_inflow": -5.0},
+    "etf_status": "inactive",
+    "margin_signal": "overheated",
+    "expected": "防守",
+    "rationale": "两融 overheated 最高优先级"
+  },
+  {
+    "case_id": "attack_001",
+    "market_flow": {"main_net_inflow": 10.0, "super_large_net_inflow": 5.0},
+    "etf_status": "active",
+    "margin_signal": "supportive",
+    "expected": "进攻",
+    "rationale": "双正，ETF 与两融均提供进攻确认"
+  },
+  {
+    "case_id": "attack_002",
+    "market_flow": {"main_net_inflow": 10.0, "super_large_net_inflow": 5.0},
+    "etf_status": "active",
+    "margin_signal": "unknown",
+    "expected": "进攻",
+    "rationale": "双正，ETF active 独立确认"
+  },
+  {
+    "case_id": "attack_003",
+    "market_flow": {"main_net_inflow": 10.0, "super_large_net_inflow": 5.0},
+    "etf_status": "unknown",
+    "margin_signal": "supportive",
+    "expected": "进攻",
+    "rationale": "双正，两融 supportive 独立确认"
+  },
+  {
+    "case_id": "observe_002",
+    "market_flow": {"main_net_inflow": 10.0, "super_large_net_inflow": 5.0},
+    "etf_status": "unknown",
+    "margin_signal": "unknown",
+    "expected": "观察",
+    "rationale": "双正但两个确认源均未知"
+  },
+  {
+    "case_id": "observe_003",
+    "market_flow": {"main_net_inflow": 10.0, "super_large_net_inflow": 5.0},
+    "etf_status": "inactive",
+    "margin_signal": "unknown",
+    "expected": "观察",
+    "rationale": "双正但无正向确认"
+  },
+  {
+    "case_id": "observe_004",
+    "market_flow": {"main_net_inflow": 10.0, "super_large_net_inflow": 5.0},
+    "etf_status": "unknown",
+    "margin_signal": "weakening",
+    "expected": "观察",
+    "rationale": "双正但无正向确认"
+  },
+  {
+    "case_id": "observe_005",
+    "market_flow": {"main_net_inflow": 10.0, "super_large_net_inflow": -5.0},
+    "etf_status": "active",
+    "margin_signal": "supportive",
+    "expected": "观察",
+    "rationale": "资金方向不一致"
+  },
+  {
+    "case_id": "observe_006",
+    "market_flow": {"main_net_inflow": -10.0, "super_large_net_inflow": 5.0},
+    "etf_status": "inactive",
+    "margin_signal": "weakening",
+    "expected": "观察",
+    "rationale": "资金方向不一致"
+  },
+  {
+    "case_id": "defense_007",
+    "market_flow": {"main_net_inflow": 10.0, "super_large_net_inflow": 5.0},
+    "etf_status": "active",
+    "margin_signal": "overheated",
+    "expected": "防守",
+    "rationale": "两融 overheated 覆盖双正"
+  },
+  {
+    "case_id": "defense_008",
+    "market_flow": {"main_net_inflow": -10.0, "super_large_net_inflow": -5.0},
+    "etf_status": "unknown",
+    "margin_signal": "overheated",
+    "expected": "防守",
+    "rationale": "两融 overheated 覆盖其他状态"
+  },
+  {
+    "case_id": "defense_009",
+    "market_flow": {"main_net_inflow": 10.0, "super_large_net_inflow": -5.0},
+    "etf_status": "unknown",
+    "margin_signal": "overheated",
+    "expected": "防守",
+    "rationale": "两融 overheated 覆盖方向分歧"
+  },
+  {
+    "case_id": "observe_007",
+    "market_flow": {"main_net_inflow": null, "super_large_net_inflow": 5.0},
+    "etf_status": "active",
+    "margin_signal": "supportive",
+    "expected": "观察",
+    "rationale": "主力资金缺失"
+  },
+  {
+    "case_id": "observe_008",
+    "market_flow": {"main_net_inflow": "NaN", "super_large_net_inflow": 5.0},
+    "etf_status": "active",
+    "margin_signal": "supportive",
+    "expected": "观察",
+    "rationale": "NaN 不提供方向证据"
+  },
+  {
+    "case_id": "observe_009",
+    "market_flow": {"main_net_inflow": "Infinity", "super_large_net_inflow": 5.0},
+    "etf_status": "active",
+    "margin_signal": "supportive",
+    "expected": "观察",
+    "rationale": "正无穷不提供方向证据"
+  },
+  {
+    "case_id": "observe_010",
+    "market_flow": {"main_net_inflow": "-Infinity", "super_large_net_inflow": -5.0},
+    "etf_status": "inactive",
+    "margin_signal": "weakening",
+    "expected": "观察",
+    "rationale": "负无穷不提供方向证据"
+  },
+  {
+    "case_id": "observe_011",
+    "market_flow": {"main_net_inflow": 0.0, "super_large_net_inflow": 0.0},
+    "etf_status": "active",
+    "margin_signal": "supportive",
+    "expected": "观察",
+    "rationale": "零值为 neutral"
+  },
+  {
+    "case_id": "observe_012",
+    "market_flow": {},
+    "etf_status": "unknown",
+    "margin_signal": "unknown",
+    "expected": "观察",
+    "rationale": "空资金事实不提供方向证据"
+  },
+  {
+    "case_id": "observe_013",
+    "market_flow": {"main_net_inflow": -10.0},
+    "etf_status": "inactive",
+    "margin_signal": "weakening",
+    "expected": "观察",
+    "rationale": "缺失超大单方向"
+  }
+]

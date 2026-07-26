@@ -114,7 +114,7 @@ class CoreEtfItem:
     shares: float | None           # 份额（股），本阶段不采集（fund_etf_hist_em 不提供）
     shares_date: str | None        # 份额数据日期，本阶段固定为None
     status: str                    # "active" | "inactive" | "unknown"
-    source: str                    # "akshare_fund_etf_hist_em"
+    source: str                    # "akshare_fund_etf_hist_em" | "akshare_fund_etf_hist_sina"
     availability: str              # "turnover_only" | "insufficient_history" | "intraday_partial" | "invalid_average" | "stale"
 
 @dataclass
@@ -143,6 +143,8 @@ class CoreEtfBatch:
 
 **关键规则**：
 - `current_turnover` 和 `avg_turnover_20d` 必须关联同一 `trade_date`
+- 日常采集优先 `ak.fund_etf_hist_em()`；若该接口返回空表，使用
+  `ak.fund_etf_hist_sina()` 作为可审计 fallback，并在 `source` 中保留实际来源
 - `avg_turnover_20d` 计算使用前 20 个有效交易日，**不含当日**
 - 单标的完全失败（网络错误、接口异常、无返回数据）→ **不进入 `items`**，只进入 `failures`
 - `items` 仅保存有可用成交额事实的记录（即使 `status = "unknown"`，只要 `current_turnover` 可计算就进入 items）
@@ -1010,8 +1012,12 @@ PYTHONPATH=src .venv/bin/lurker build-temperature-replay \
 **`build-temperature-replay` 命令设计**：
 - 按 `trade_date` 对齐三个数据源：
   1. **大盘资金历史**：`ak.stock_market_fund_flow()` 历史序列，按日期匹配
-  2. **ETF 历史行情**：`ak.fund_etf_hist_em()` 指定日期范围，提取成交额
-  3. **两融历史**：Tushare `pro.margin(trade_date="20260424")` 形式按交易日逐日查询
+  2. **ETF 历史行情**：优先 `ak.fund_etf_hist_em()`；空表或网络/提供方
+     可恢复异常时使用 `ak.fund_etf_hist_sina()`，统一提取成交额并保存
+     实际 `source`。`TypeError`、字段契约错误等程序错误不得触发 fallback
+     或被吞掉
+  3. **两融历史**：优先 Tushare `pro.margin(trade_date="20260424")`；
+     token 无权限时使用 AkShare 金十沪深两市历史汇总，并保存实际 `source`
 - 每个交易日输出一条记录，包含原始事实（不包含分类结果，分类由回放脚本在运行时计算）
 - 如某个来源某日缺失，标记 `availability` 而非跳过该日
 
@@ -1107,7 +1113,12 @@ def test_60d_replay_shows_rule_diff_columns():
 - `rules_fingerprint` = 规范化规则载荷的 SHA256。载荷至少包含 `rules_version`、ETF 阈值、真值表版本、四个必需 ETF role 和新鲜度策略；任一规则参数变化都会使 artifact 失效
 - `replay_sha256` = 回放 fixture 文件的 SHA256（fixture 被修改后 → artifact 失效）
 - 人工审查通过后，将 `approved` 改为 `true`，填写 `approved_by` 和 `approved_at`
-- `distribution` 必须由逐日新规则结果重新统计，不能由人工直接填写
+- 闸门读取原始 fixture，逐日重新执行当前规则；`trading_days`、`distribution`、
+  `replay_start` 和 `replay_end` 必须与重算结果一致，不能由人工填写绕过
+- 回放只读取一次；SHA256 校验和规则执行必须使用同一份 bytes，避免两次
+  读取之间文件被替换
+- 回放日期必须是项目交易日历确认的中国交易日，并且严格递增、不重复；
+  60 个连续自然日不能冒充 60 个交易日。状态计数必须是非负整数
 
 **Artifact 生命周期**：
 - 由 `build-temperature-replay` 命令在输出 fixture 的同时生成（带 `approved: false`）
@@ -1132,11 +1143,14 @@ def _check_temperature_gate(
     - artifact.rules_fingerprint != current_rules_fingerprint → False, "规则指纹不一致"
     - artifact.replay_path 解析后的路径 != replay_path → False, "回放路径不一致"
     - replay 文件 SHA256 != artifact.replay_sha256 → False, "回放文件已变化"
+    - replay 文件不可读或路径为目录 → False, "回放文件无法读取"
     - artifact.approved == false → False, "回放尚未通过人工审查"
     - approved_by / approved_at 缺失 → False, "审批信息不完整"
     - trading_days < 60 → False, "历史不足60日"
     - sum(distribution.values()) != trading_days → False, "分布与交易日数不一致"
-    - 根据 distribution 重新计算最高占比；不得信任 artifact.max_ratio
+    - 从回放文件逐日重跑当前规则，校验日期属于中国交易日且严格递增、不重复
+    - 重算 trading_days/distribution/日期范围必须与 artifact 一致
+    - 根据重算后的 distribution 计算最高占比；不得信任 artifact.max_ratio
     - 重算后任一状态占比 > max_ratio → False, "状态X占比Y%超过80%"
     - 任一状态占比 == max_ratio → True, 附带 "状态X恰好80%，请人工复核"
     - 否则 → True, ""
@@ -1211,6 +1225,24 @@ def test_temperature_gate_blocks_when_trading_days_below_60():
 def test_temperature_gate_recomputes_ratio_instead_of_trusting_artifact_value():
     """伪造 artifact.max_ratio 不能绕过 >80% 闸门"""
 
+def test_temperature_gate_rejects_forged_summary_for_empty_replay():
+    """空回放 + 人工填写 60 日分布不能绕过闸门"""
+
+def test_temperature_gate_rejects_forged_distribution_with_same_total():
+    """总数相同但与逐日重算不一致的分布必须阻断"""
+
+def test_temperature_gate_rejects_duplicate_or_unsorted_replay_dates():
+    """回放日期必须严格递增且不重复"""
+
+def test_temperature_gate_rejects_non_trading_replay_dates():
+    """周末/节假日不能计入 60 个交易日"""
+
+def test_temperature_gate_fails_closed_when_replay_path_is_directory():
+    """路径存在但不可读时返回阻断原因，不能让 daily-job 异常退出"""
+
+def test_temperature_gate_hashes_and_executes_same_replay_bytes():
+    """哈希与规则执行使用同一次读取，避免 TOCTOU"""
+
 def test_temperature_gate_requires_complete_approval_metadata():
     """approved=true 但 approved_by/approved_at 缺失 → False"""
 
@@ -1265,9 +1297,9 @@ feat: add synthetic truth table replay, 60-day real replay, and >80% temperature
 | `test_report_data_quality_lists_partial_etf_failure` | 同上 |
 
 **GREEN 步骤**：
-- [ ] 更新 `_market_notes()` 签名和内容
-- [ ] 更新报告模板
-- [ ] 运行报告测试并确认全部变绿
+- [x] 更新 `_market_notes()` 签名和内容
+- [x] 更新报告模板
+- [x] 运行报告测试并确认全部变绿
 
 **测试命令**：
 ```bash
@@ -1462,9 +1494,9 @@ PYTHONPATH=src .venv/bin/pytest tests/ -v
 
 | 风险 | 缓解 |
 |------|------|
-| AkShare ETF 接口不稳定或字段变化 | Task 2 Schema 预检在前；单 ETF 失败不阻塞其他 |
-| Tushare 不可用时两融为 unknown → 温度偏观察 | 符合总设计：缺失不是负向证据 |
-| 60 日真实快照不足，需补采集 | 如无法补采集，使用受控合成 + 标注局限性 |
+| AkShare ETF 接口不稳定或字段变化 | Task 2 Schema 预检在前；东方财富空表或可恢复外部异常时使用新浪 ETF 历史 fallback，实际来源写入 `source`；程序/契约错误直接抛出 |
+| Tushare 不可用时两融为 unknown → 温度偏观察 | 日常快照仍严格降级 unknown；历史回放可使用 AkShare 金十沪深汇总 fallback 并记录 provenance |
+| 大盘历史资金接口只返回最新一行 | 回放保留该日缺失事实，不伪造历史值；当前 60 日回放因此 100% 为观察并由 >80% 闸门阻断 |
 | 模块导入错误静默回退 | **已修复**：导入错误明确抛异常；`EtfProviderError`/`EtfSchemaError` 用于已知降级场景 |
 | `margin_balance_change == 0` 边界 | 明确定义为 `"unknown"`（持平不提供方向证据），保持四态契约 |
 | NaN/None/inf 通过 `_as_float` 变 0 | **已修复**：`_flow_direction()` 返回 `"unknown"`；0 返回 `"neutral"` |
@@ -1472,7 +1504,7 @@ PYTHONPATH=src .venv/bin/pytest tests/ -v
 | 部分 ETF 失败被误判为 inactive | **已修复**：存在 any failure + no active → `"unknown"` |
 | ingest 已把缺失资金流转成 0 | **已修复**：市场资金字段使用 `_to_optional_float()`，缺失保存为 `None` |
 | 旧缓存或滞后数据继续提供温度证据 | **已修复**：统一准备层按最近已完成交易日降级 stale 数据 |
-| rollout artifact 被陈旧规则或修改后的 fixture 复用 | **已修复**：校验规则指纹、fixture SHA256、审批信息、交易日数和重算分布 |
+| rollout artifact 被陈旧规则、修改后的 fixture 或伪造摘要复用 | **已修复**：校验规则指纹、fixture SHA256、审批信息，并从原始回放逐日重算交易日数、状态分布和日期范围；逐日验证中国交易日，文件读取失败时 fail closed |
 | ETF 配置缺少必需市场代表 | **已修复**：配置 loader 强制四个必需 role 且拒绝重复 symbol |
 
 ### 10.2 已确认决策
@@ -1480,10 +1512,10 @@ PYTHONPATH=src .venv/bin/pytest tests/ -v
 | 决策 | 结论 |
 |------|------|
 | A500 ETF 代码 | `159361.SZ`（易方达中证A500ETF，深交所）。如需华泰柏瑞，代码为 `563360.SH` |
-| ETF 成交额数据源 | `ak.fund_etf_hist_em()`，**仅用于成交额**。份额不从此接口采集 |
-| ETF 份额数据源 | 本阶段不采集。后续阶段使用 Tushare `etf_share_size` |
+| ETF 成交额数据源 | 主源 `ak.fund_etf_hist_em()`；空表或可恢复外部异常 fallback 为 `ak.fund_etf_hist_sina()`。均**仅用于成交额**，并保存实际 `source` |
+| ETF 份额数据源 | 本阶段不采集。后续宏观周报使用 Tushare `fund_share` 的 `fd_share`（万份）；`fund_etf_hist_em()` 不提供份额，不能代理申赎 |
 | 60 日回放区间 | 2026-04-24 至 2026-07-22（60 个完整交易日） |
-| 60 日回放采集方式 | 新增 `build-temperature-replay` 命令，按 trade_date 对齐三个数据源。**不使用** `refresh-flows --date` |
+| 60 日回放采集方式 | 新增 `build-temperature-replay` 命令，按 trade_date 对齐三个数据源。**不使用** `refresh-flows --date`；缺失日保留 unavailable 事实 |
 | 两融过热分母 | Tushare `daily_basic.circ_mv`（流通市值，万元）。分子使用 `financing_balance`/`rzye`（不含融券）。分子分母同一交易日 |
 | 两融过热实现 | 本阶段固定为 `"unknown"`。分母数据和阈值回放校准后再启用 |
 
@@ -1503,8 +1535,8 @@ PYTHONPATH=src .venv/bin/pytest tests/ -v
 | 资金双负 + 两融 weakening（即使 ETF unknown）→ 防守 | Task 1, 4 | `test_defense_when_dual_negative_etf_unknown_margin_weakening` |
 | 资金双正 + ETF active → 进攻 | Task 1, 4 | `test_attack_when_dual_positive_etf_active_margin_unknown` |
 | 资金双正 + 两融 supportive → 进攻 | Task 1, 4 | `test_attack_when_dual_positive_etf_unknown_margin_supportive` |
-| 60 日回放完成 | Task 6 | `test_60d_replay_outputs_status_distribution` |
-| 任一状态 >80% 阻止上线 | Task 6 | `test_temperature_gate_blocks_when_any_state_exceeds_80_percent` |
+| 60 日回放完成 | Task 6 | `test_real_60d_replay_has_auditable_source_provenance` |
+| 任一状态 >80% 阻止上线 | Task 6 | `test_temperature_gate_blocks_invalid_artifacts` |
 | 恰好 80% 允许但输出复核警告 | Task 6 | `test_temperature_gate_warns_at_exact_80_percent` |
 | artifact 缺失或未审批 → 阻断 | Task 6 | `test_temperature_gate_blocks_when_artifact_missing` |
 | 规则版本变更 → artifact 失效 | Task 6 | `test_temperature_gate_blocks_when_rules_version_changed` |
@@ -1517,6 +1549,41 @@ PYTHONPATH=src .venv/bin/pytest tests/ -v
 | ETF 配置覆盖四个必需 role | Task 3 | `test_config_requires_all_four_roles` |
 | artifact 规则指纹与 replay 哈希必须有效 | Task 6 | fingerprint/hash 篡改测试 |
 | artifact 分布和交易日数重新校验 | Task 6 | distribution/trading-days 测试 |
+| artifact 摘要不能脱离原始回放伪造 | Task 6 | 空回放、同总数伪分布、重复日期、非交易日测试 |
 | 新增测试先红后绿 | Task 1 → 4 | Task 1 全部 RED；Task 4 全部 GREEN |
 | 全量测试 + lint 通过 | Task 8 | `pytest tests/ -v` + `ruff check` |
 | `--no-push` 演练 | Task 8 | 真实数据执行 |
+
+---
+
+## 12. Task 6–8 真实验收记录（2026-07-25/26）
+
+- 合成真值表：25 条，覆盖双正、双负、方向分歧、overheated、
+  `None/NaN/±inf/0` 边界。
+- 固定回放：`tests/fixtures/etf_60d_replay.json`，区间
+  2026-04-24 至 2026-07-22，共 60 个交易日。
+- ETF 历史：四只 ETF × 60 日均成功，实际来源为
+  `akshare_fund_etf_hist_sina`；东方财富历史接口在当前网络返回空表。
+- 两融历史：60 日均成功，实际来源为 `akshare_jin10_margin_sh_sz`；
+  当前 Tushare token 无 `margin` 权限。
+- 大盘历史资金：东方财富 history 端点在当前网络不可达，delay 端点仅返回
+  最新一行；60 个回放日均明确保存为 `availability=unknown`、
+  `source=unavailable`，没有伪造或日期回填。
+- 回放分布：进攻 0、观察 60、防守 0；最高占比 100%。
+- rollout artifact：已生成但保持 `approved=false`。即使人工改为 approved，
+  重算后的 100% 观察仍会触发 `>80%` 闸门，因此当前不得上线推送。
+- 安全复核后闸门改为直接读取原始回放并逐日执行当前规则；artifact 中的
+  `trading_days`、`distribution`、日期范围和 `max_ratio` 均不能作为独立
+  可信输入。空回放、伪分布、重复日期、周末/节假日均会阻断；回放文件
+  不可读时返回阻断原因，不中断报告落盘流程；哈希与执行使用同一份 bytes，
+  不存在二次读取替换窗口。
+- 历史采集不再尝试非 TLS 的市场资金接口；AkShare 只返回最新行时明确
+  标记历史不足。ETF 主源仅在网络/提供方可恢复异常时 fallback，程序错误
+  直接抛出。
+- 日常核心 ETF 实采：4/4 成功，截止 2026-07-24，均使用新浪 fallback，
+  `CoreEtfBatch.is_complete() == true`。
+- 日报演练：已显示 ETF inactive、两融 unknown、三个来源截止日和
+  “部分数据非当日或采集不完整”提示。
+- 结论：代码、回放、报告和闸门验收完成；**上线验收未通过**，阻断原因是
+  大盘历史资金 60 日不可用导致状态集中度 100%。不得人工批准 artifact，
+  直至取得完整历史源并重新生成回放。
