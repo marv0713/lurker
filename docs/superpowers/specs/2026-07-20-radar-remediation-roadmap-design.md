@@ -313,6 +313,11 @@ active | inactive | unknown
 
 所有出现在 `markets.yaml` 的过滤配置最终必须满足二选一：存在可测试的执行路径，或在启动时明确报告不支持。
 
+采用两阶段可审计过滤引擎：种子池执行北交所和 ST 预过滤，价格快照执行固定
+20 日成交额、港股价格和带日期的美股市值过滤；缺失数据策略默认严格排除，但允许
+显式配置为带警告纳入。配置、来源、缓存一致性、reason codes 和验收契约见
+`docs/superpowers/specs/2026-07-26-market-filters-design.md`。
+
 ## 9. 阶段六：Legacy、标签和交易日历
 
 ### 9.1 Legacy 收口
