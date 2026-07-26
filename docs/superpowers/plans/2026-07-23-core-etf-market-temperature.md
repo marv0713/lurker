@@ -150,7 +150,7 @@ class CoreEtfBatch:
 - `items` 仅保存有可用成交额事实的记录（即使 `status = "unknown"`，只要 `current_turnover` 可计算就进入 items）
 - 有效历史不足 21 日 → `status = "unknown"`，`availability = "insufficient_history"`，但仍在 `items` 中（成交额数据存在）
 - 全量采集失败 → `items = []`，`failures` 记录全部
-- `shares` 和 `shares_date` 本阶段固定为 `None`——`ak.fund_etf_hist_em()` 仅提供成交额，不提供份额；份额数据后续阶段通过 Tushare `etf_share_size` 接口采集
+- `shares` 和 `shares_date` 本阶段固定为 `None`——`ak.fund_etf_hist_em()` 仅提供成交额，不提供份额；份额数据后续阶段通过 Tushare `fund_share` 的 `fd_share` 采集
 - `turnover_expansion` 中 `avg_turnover_20d == 0` → `turnover_expansion = None`，`status = "unknown"`，`availability = "invalid_average"`——**不得写入 `float("inf")`**（非标准 JSON）
 - 反序列化必须使用 `CoreEtfBatch.from_dict(data)`，不能依赖 `CoreEtfBatch(**dict)`（嵌套 dataclass 不会自动恢复）
 - `configured_symbols` 必须非空、规范化且唯一；`items` 与 `failures` 中的 symbol 也必须唯一，不能用集合相等掩盖重复记录
@@ -680,7 +680,7 @@ def fetch_core_etfs(
 **AkShare 接口处理**（基于 Task 2 预检结果）：
 - 如果 AkShare 不接受 `.SH`/`.SZ` 后缀，在适配器内部 strip 后缀，`canonical_symbol` 仅用于报告显示
 - 如果当日数据为盘中数据（收盘前不完整），标记 `availability = "intraday_partial"`，`status = "unknown"`
-- `shares` 和 `shares_date` 本阶段固定为 `None`（`fund_etf_fund_info_em` 不提供份额；份额后续通过 Tushare `etf_share_size` 采集）
+- `shares` 和 `shares_date` 本阶段固定为 `None`（`fund_etf_fund_info_em` 不提供份额；份额后续通过 Tushare `fund_share` 的 `fd_share` 采集）
 - `< 21 日有效历史 → `status = "unknown"`，`availability = "insufficient_history"`
 - `avg_turnover_20d == 0` → `turnover_expansion = None`，`status = "unknown"`，`availability = "invalid_average"`
 

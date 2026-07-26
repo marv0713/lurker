@@ -31,27 +31,57 @@ Date: 2026-06-04
 #### ETF 净申购趋势
 
 - 核心 ETF（510300、510500、159915 以及可配置的 A500 ETF）的周度申购/赎回变化。
-- 使用 AkShare `fund_etf_hist_em` 获取 ETF 成交量和份额变化作为申购强度代理。
+- **份额主数据源**：Tushare `fund_share`。字段 `fd_share` 的单位为万份；
+  使用 `trade_date`、`start_date`、`end_date` 拉取真实历史份额。
+- AkShare `fund_etf_hist_em` **只提供成交量/成交额，不提供 ETF 份额**，
+  不得再用成交量变化冒充申购赎回。
+- 成交额仅作为确认项：真实份额增加但成交额未放大时，仍记为净申购，
+  但标注“成交确认偏弱”。
+- 成交确认按最近 5 个完整交易日的 ETF 成交额合计与前 5 个交易日合计比较：
+  本周合计大于前周为 `expanded`，否则为 `not_expanded`；任一窗口不足 5 日
+  为 `unknown`。确认项不改变真实份额方向。
+- “份额平稳但价格上涨”的价格条件使用四只核心 ETF 周度收盘价：至少
+  3/4 只本周最后交易日相对前周最后交易日上涨超过 0.5%，定义为价格上涨；
+  任一 ETF 价格端点缺失则价格状态为 `unknown`。
+- 每只 ETF 的周度份额变化率：
+  `current_fd_share / previous_week_fd_share - 1`。两端分别取对应周最后一个
+  有效交易日，禁止使用自然周末日期做前向填充。
+- 四只 ETF 必须完整；任何一只缺失时 ETF 聚合状态为 `unknown`，缺失不能
+  被当作净赎回。
+- 聚合规则（死区为 ±0.5%）：
+  - 至少 3/4 只周度份额变化率 > 0.5% → `净申购`
+  - 至少 3/4 只周度份额变化率 < -0.5% → `净赎回`
+  - 四只均在 ±0.5% 内 → `份额平稳`
+  - 其余完整组合 → `分化`
 - 信号：
-  - 连续两周净申购 → `持续进场`
-  - 本周净赎回 → `资金撤退`
+  - 连续两周聚合为净申购 → `持续进场`
+  - 本周聚合为净赎回 → `资金撤退`
   - 份额平稳但价格上涨 → `存量博弈`
 
 #### 两融余额周度变化
 
-- 使用 Tushare `margin`（需 `TUSHARE_TOKEN`），按周汇总。
+- 主源使用 Tushare `margin`（需 `TUSHARE_TOKEN`），按周汇总。
+- 若 token 无权限，允许使用 AkShare
+  `macro_china_market_margin_sh` + `macro_china_market_margin_sz`
+  的沪深历史汇总作为可审计 fallback；必须保存实际 `source`。
 - 四档判断：
 
 | 状态 | 条件 | 含义 |
 |------|------|------|
 | `健康上升` | 周度增速 1–5% | 杠杆温和扩张 |
 | `过热预警` | 周度增速 > 5% | 杠杆扩张过快 |
-| `高位盘整` | 绝对值高位但增速 < 1% | 警惕转折 |
+| `盘整` | 周度变化在 -3% 至 1% 之间 | 杠杆未形成方向 |
 | `恐慌出清` | 周度降幅 > 3% | 可能是底部信号 |
 
 #### 超大单周度净流入
 
 - 使用 AkShare `stock_market_fund_flow` 汇总一周的超大单净流入。
+- 当前部署网络的历史端点可能只返回最新一行，因此周报优先聚合本地
+  `flow_snapshots` 中五个完整交易日的原始事实。少于五个交易日时为
+  `unknown`，不得把缺失日补零。
+- 指数涨跌使用沪深300（`sh000300`）最近 5 个完整交易日收盘价，主源为
+  AkShare `stock_zh_index_daily`（Sina）。绝对周涨跌不超过 0.5% 定义为
+  “指数平”。
 - 对比当周指数涨跌：
   - 指数平但超大单净流入 → `聪明钱进场，价格滞后`
   - 指数涨但超大单净流出 → `散户拉盘，主力减仓`
@@ -60,6 +90,11 @@ Date: 2026-06-04
 #### 板块强弱周度排序
 
 - 使用 AkShare `stock_sector_fund_flow_rank` 获取行业和概念板块的周度资金流。
+- 使用 `indicator="5日"` 取得本周排序；连续性标签必须读取上一期
+  `weekly_macro_flow` 原始排名快照，不能用本周名次反推上周。
+- 当前实测 `indicator="5日"` 返回 `名称`、`5日涨跌幅`、
+  `5日主力净流入-净额`、`5日超大单净流入-净额` 等列；Schema 变化必须
+  明确失败或降级 `unknown`，不能把缺列当作 0。
 - 连续性判断（对比上周排名）：
   - 连续两周前5 → `持续主线`
   - 本周进入前5、上周不在 → `新兴热点`
@@ -171,24 +206,35 @@ Date: 2026-06-04
 
 | 指标 | 数据源 | 依赖 | 可用性 |
 |------|--------|------|--------|
-| ETF 份额/成交量 | AkShare `fund_etf_hist_em` | 无 | ✅ 无需配置 |
+| ETF 份额 | Tushare `fund_share`（`fd_share`，万份） | `TUSHARE_TOKEN` + 至少 2000 积分 | ❌ 当前 token 无权限；严格降级 unknown |
+| ETF 成交额确认 | AkShare `fund_etf_hist_em`，空表时新浪 ETF 历史 fallback | 无 | ✅ 已有适配器 |
 | 板块周度资金流 | AkShare `stock_sector_fund_flow_rank` | 无 | ✅ 无需配置 |
 | 超大单周度流入 | AkShare `stock_market_fund_flow` | 无 | ✅ 无需配置 |
-| 两融余额 | Tushare `margin` | `TUSHARE_TOKEN` | ✅ 已配置 |
+| 两融余额 | Tushare `margin`；AkShare 金十沪深历史 fallback | `TUSHARE_TOKEN`（主源） | ⚠️ 当前 token 无 margin 权限，fallback 已验证 |
 | M2/M1 增速 | AkShare `macro_china_money_supply` | 无 | ✅ 需测试 |
 | 居民存款 | AkShare 宏观数据 | 无 | ⚠️ 需测试可用性 |
 | 非银存款 | AkShare 宏观数据 | 无 | ⚠️ 需测试可用性 |
 | 融资余额/流通市值 | Tushare + 估算 | `TUSHARE_TOKEN` | ✅ 可计算 |
+
+2026-07-26 部署预检：当前 token 调用 `fund_share` 返回“无接口访问权限”。
+Phase 1 必须完整实现该数据源和权限失败降级，但真实上线时 ETF 份额项保持
+`unknown`，直至 token 权限补齐并重新验收；不得启用成交量代理。
 
 ---
 
 ## Rollout
 
 ### Phase 1（周报）
-- 新增 `src/lurker/ingest/macro_flows.py`：抓取 ETF 申购、板块周度资金流、超大单汇总、两融周度数据。
+- 新增 `src/lurker/ingest/macro_flows.py`：使用 Tushare `fund_share`
+  抓取真实 ETF 份额，抓取板块周度资金流、超大单原始事实和两融周度数据。
 - 新增 `src/lurker/application/weekly_macro_flow.py`：周度评分与报告生成。
 - 在 `configs/strategies.yaml` 中启用 `weekly_macro_flow`，cadence=weekly。
 - 新增 `tests/test_weekly_macro_flow.py`。
+- 新增独立 `weekly-macro-flow` CLI；与旧 `weekly-report`（资金快照周报）
+  并存，不替换、不复用其“延续/新主线/退潮”标签。
+- 原始事实保存至独立 `macro_flow_snapshots/YYYY-MM-DD.json`；同日期重复
+  运行覆盖而非追加。周末手动运行向前解析到最近中国交易日，不直接跳过。
+- 推送使用日报接收人配置；提供 `--no-push` 演练模式。
 
 ### Phase 2（月报）
 - 新增 `src/lurker/ingest/macro_monthly.py`：拉取 M1/M2、居民存款、融资余额。
