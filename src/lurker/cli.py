@@ -1103,12 +1103,21 @@ def build_run_daily(
     calendar: CnTradingCalendar | None = None,
 ) -> str:
     store = FilePriceSnapshotStore(price_snapshot_dir)
-    snapshot_batch = store.load_latest()
-    if snapshot_batch is None:
-        return "没有找到本地行情快照，请先运行 `lurker refresh-prices`。"
     resolved_today = today or shanghai_today()
+    requested = parse_iso_date(report_date) if report_date else resolved_today
+    if requested > resolved_today:
+        raise FutureReportDateError(
+            f"future report date {requested.isoformat()} exceeds "
+            f"Shanghai today {resolved_today.isoformat()}"
+        )
+    snapshot_batch = store.load_on_or_before(requested.isoformat())
+    if snapshot_batch is None:
+        return (
+            f"没有找到 {requested.isoformat()} 或更早的本地行情快照，"
+            "请先运行 `lurker refresh-prices`。"
+        )
     resolution = _resolve_daily_job_date(
-        report_date,
+        requested.isoformat(),
         today=resolved_today,
         markets=[str(item) for item in snapshot_batch.get("markets", [])],
         calendar=calendar,
@@ -1162,7 +1171,9 @@ def build_run_daily(
             ).content_md
         flow_snapshot = None
         if flow_snapshot_dir is not None:
-            flow_snapshot = FileFlowSnapshotStore(flow_snapshot_dir).load_latest()
+            flow_snapshot = FileFlowSnapshotStore(
+                flow_snapshot_dir
+            ).load_on_or_before(job_date)
         return build_strategy_report(
             snapshot_batch=snapshot_batch,
             flow_snapshot=flow_snapshot,

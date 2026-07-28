@@ -20,6 +20,11 @@ class PriceSnapshotStore(Protocol):
 
     def load_latest(self) -> PriceSnapshotBatch | None: ...
 
+    def load_on_or_before(
+        self,
+        snapshot_date: str,
+    ) -> PriceSnapshotBatch | None: ...
+
 DEFAULT_FETCHERS: MarketFetchers = {
     "cn": fetch_cn_prices,
     "us": fetch_yfinance_prices,
@@ -242,3 +247,19 @@ class FilePriceSnapshotStore:
         if latest_path is None:
             return None
         return load_price_snapshot_file(latest_path)
+
+    def load_on_or_before(
+        self,
+        snapshot_date: str,
+    ) -> PriceSnapshotBatch | None:
+        if not self.directory.exists():
+            return None
+        candidates = sorted(
+            path
+            for path in self.directory.glob("*.json")
+            if path.name != "latest.json"
+            and path.stem <= snapshot_date
+        )
+        if not candidates:
+            return None
+        return load_price_snapshot_file(candidates[-1])

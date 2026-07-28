@@ -173,6 +173,17 @@ def test_file_price_snapshot_store_saves_and_loads_latest(tmp_path):
     assert store.load_latest() == snapshot
 
 
+def test_file_price_snapshot_store_loads_on_or_before_cutoff(tmp_path):
+    store = FilePriceSnapshotStore(tmp_path)
+    older = {"snapshots": [{"symbol": "OLD"}]}
+    newer = {"snapshots": [{"symbol": "NEW"}]}
+    store.save(older, snapshot_date="2026-06-18")
+    store.save(newer, snapshot_date="2026-06-20")
+
+    assert store.load_on_or_before("2026-06-19") == older
+    assert store.load_on_or_before("2026-06-17") is None
+
+
 def test_collect_price_snapshot_batch_applies_market_filters():
     markets_config = {
         "hk": {

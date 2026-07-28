@@ -25,6 +25,11 @@ class FlowSnapshotStore(Protocol):
 
     def load_latest(self) -> FlowSnapshot | None: ...
 
+    def load_on_or_before(
+        self,
+        snapshot_date: str,
+    ) -> FlowSnapshot | None: ...
+
 
 def _capture(source: str, fetcher: Callable[[], Any], failures: list[dict[str, str]]) -> Any:
     try:
@@ -143,3 +148,19 @@ class FileFlowSnapshotStore:
         if latest_path is None:
             return None
         return load_flow_snapshot_file(latest_path)
+
+    def load_on_or_before(
+        self,
+        snapshot_date: str,
+    ) -> FlowSnapshot | None:
+        if not self.directory.exists():
+            return None
+        candidates = sorted(
+            path
+            for path in self.directory.glob("*.json")
+            if path.name != "latest.json"
+            and path.stem <= snapshot_date
+        )
+        if not candidates:
+            return None
+        return load_flow_snapshot_file(candidates[-1])

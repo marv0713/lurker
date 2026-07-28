@@ -85,3 +85,14 @@ def test_file_flow_snapshot_store_round_trips(tmp_path):
 
     assert loaded == snapshot
     assert store.load_latest() == snapshot
+
+
+def test_file_flow_snapshot_store_loads_on_or_before_cutoff(tmp_path):
+    store = FileFlowSnapshotStore(tmp_path)
+    older = {"market": "cn", "marker": "OLD"}
+    newer = {"market": "cn", "marker": "NEW"}
+    store.save(older, snapshot_date="2026-06-18")
+    store.save(newer, snapshot_date="2026-06-20")
+
+    assert store.load_on_or_before("2026-06-19") == older
+    assert store.load_on_or_before("2026-06-17") is None
