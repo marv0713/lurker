@@ -178,20 +178,48 @@ sector_signal:
 删除 `new_high_ratio`、`chain_segments`、`turnover_persistent` 的占位值。不重分配
 被删除的 45 分，因此当前发行版板块 Legacy 评分最高仍为 55 分。
 
-### 4.3 长周期窗口一致性
+### 4.3 权重键与指标键映射
+
+`scoring.yaml` 的 weight key 是稳定的“评分维度名”，调用方传入的 metric key 是
+“已计算事实名”。两者不要求同名，映射只在评分函数中维护；调用方不能为了匹配配置
+而复制或改名指标。
+
+发行版映射固定为：
+
+| 评分 | weight key | metric key | 触发条件 |
+|---|---|---|---|
+| 个股 | `return_20d` | `return_20d_percentile` | `>= 0.90` |
+| 个股 | `return_60d` | `return_60d_percentile` | `>= 0.90` |
+| 个股 | `return_180d` | `return_180d` | `>= 0.30` |
+| 个股 | `double_bagger` | `return_180d` | `>= 0.80` |
+| 板块 | `sector_strength` | `sector_outperformance` | `is True` |
+| 板块 | `strong_stock_count` | `strong_stock_count` | `>= 3` |
+| 板块 | `cross_market_mapping` | `cross_market_count` | `>= 2` |
+
+配置加载器校验 weight key，评分函数读取 metric key。映射测试必须逐项使用非默认
+权重，证明修改某个 weight 只影响对应条件，避免实现时误用同名查找。
+
+### 4.4 长周期窗口一致性
 
 `stock_strength` 评分和 double-bagger 分类统一使用 `return_180d`：
 
 - `return_180d >= 0.30` 触发中长周期强度分；
-- `return_180d >= 0.80 / 1.00 / 2.00` 分别形成 near-double、double、
-  multi-bagger 分类；
 - 不再使用 `max(return_120d, return_180d)`；
 - 180 日数据缺失时该分类为 `none`，不能用 120 日收益冒充 180 日收益。
+
+分类按从高到低的顺序判断：
+
+| 条件 | 分类 |
+|---|---|
+| `return_180d >= 2.00` | `multi_bagger` |
+| `1.00 <= return_180d < 2.00` | `double` |
+| `0.80 <= return_180d < 1.00` | `near_double` |
+| `return_180d < 0.80` 或缺失 | `none` |
 
 这会修正 Legacy 报告中长周期分类窗口不一致，但不改变评分权重、得分上限或 active
 职业资金策略。
 
-### 4.4 兼容边界
+### 4.5 兼容边界
 
 - 不为旧键 `return_120_180d` 建立长期迁移层；
 - 仓库内配置、测试和文档全部改用 `return_180d`；
@@ -241,6 +269,10 @@ sector_signal:
 
 ### 6.2 强制披露
 
+`2%候选` 是职业资金日报沿用的最高置信观察层标签：标的必须同时通过板块资金、个股
+资金、趋势强度、板块领导者和无重大背离等门槛。名称中的“2%”不是 2% 收益率、
+涨跌幅或资金流阈值，也不构成仓位或交易建议；本阶段不重命名这一既有报告枚举。
+
 出现以下任一情况时，个股资金流覆盖状态为 `degraded`：
 
 - `failures` 中存在 `source: stock_flows`；
@@ -280,11 +312,17 @@ exchange_calendars>=4.13.2,<5
 
 ```python
 class CnTradingCalendarProvider(Protocol):
-    provider_name: str
-    provider_version: str
+    @property
+    def provider_name(self) -> str: ...
+
+    @property
+    def provider_version(self) -> str: ...
 
     def sessions_in_range(self, start: date, end: date) -> tuple[date, ...]: ...
 ```
+
+`provider_name` 和 `provider_version` 是实例级只读属性。默认适配器在实例构造后提供
+实际库名与已导入版本；固定测试 provider 可以返回 fixture 中声明的值。
 
 基于这一最小接口，由服务层实现：
 
@@ -340,13 +378,14 @@ data/cache/trading_calendars/xshg_sessions.json
 ### 8.2 读取、扩展和失败
 
 1. 缓存 schema、市场、时区、覆盖边界和 session 顺序校验通过，且覆盖本次查询所需
-   范围：直接使用缓存；provider 版本不同不使已确认覆盖失效；
-2. 缓存不足：调用当前 provider 重新查询“原有效覆盖范围与本次所需自然年”的完整
-   并集，再以当前 provider 版本原子写回，不能把不同版本的局部结果拼接后统一标成
-   新版本；
-3. provider 版本变化但 provider 不可用：已完整覆盖的旧缓存仍可使用，并保留其原始
-   版本；未覆盖日期失败关闭；
-4. 缓存损坏、缺失或覆盖不足且 provider 不可用：抛出
+   范围：直接使用缓存；不得仅为比较版本而初始化或调用 provider，provider 版本变化
+   本身也不触发刷新；
+2. 有效缓存覆盖不足时，调用当前 provider 重新查询“原有效覆盖范围与本次所需
+   自然年”的完整并集，再以当前 provider 版本原子写回；如果此时版本与缓存不同，
+   完整并集的重查同时完成版本升级，不能把不同版本的局部结果拼接后统一标成新版本；
+3. 缓存损坏或缺失时，调用当前 provider 查询本次所需自然年并创建新缓存，不能合并
+   无法验证的旧内容；
+4. 第 2 或第 3 步中 provider 不可用时，抛出
    `TradingCalendarUnavailable`，不猜测工作日。
 
 写入流程为同目录临时文件、flush、`fsync`、`os.replace`。写入失败不能破坏上一份有效
@@ -364,7 +403,10 @@ data/cache/trading_calendars/xshg_sessions.json
 
 ### 9.1 通用规则
 
-- 未传 `--date`：requested date 为上海当地今天；
+- 未传 `--date`：requested date 必须由
+  `datetime.now(ZoneInfo("Asia/Shanghai")).date()` 获取；
+- 每次命令入口只解析一次“上海当地今天”，并把这个 `date` 注入后续解析函数，避免
+  运行跨越午夜时同一任务出现两个 today；
 - 显式传入的日期晚于上海当地今天：抛出用户可读错误，且不写文件、不写数据库、
   不推送；
 - 日历无法证明日期状态：失败关闭，且不产生部分报告。
@@ -423,6 +465,8 @@ requested date，造成快照、文件名、数据库或通知日期分裂。
 ### 10.3 日历
 
 - `pyproject.toml`：固定依赖范围；
+- `requirements/ci-constraints.txt`：固定 CI 基线
+  `exchange_calendars==4.13.2`；
 - `src/lurker/trading_calendar.py`：provider、缓存和日期解析；
 - `src/lurker/cli.py`：日报/周报统一使用日期解析结果；
 - 使用 `is_cn_trading_day` 的回放和市场温度代码：通过兼容入口或依赖注入迁移，
@@ -452,6 +496,7 @@ requested date，造成快照、文件名、数据库或通知日期分裂。
 - active 策略不显示警告；
 - 调用方 metrics 中不存在四个个股和三个板块占位键；
 - 发行版评分配置不存在死权重和旧键；
+- 权重键与指标键的七条映射逐项使用非默认权重验证；
 - `return_180d` 自定义权重实际生效，旧键明确报错；
 - 当前发行版个股、板块最高分分别保持 60、55；
 - double-bagger 分类继续只使用一致的 180 日窗口。
@@ -471,7 +516,9 @@ requested date，造成快照、文件名、数据库或通知日期分裂。
 - 跨年寻找上一 session，不依赖 2026 常量；
 - 缓存命中时不调用 provider；
 - 缓存不足时按自然年扩展并原子替换；
-- provider 版本变化的重验与旧缓存降级；
+- provider 版本变化但缓存覆盖充分时仍直接命中，不初始化 provider；
+- provider 版本变化且缓存需要扩展时重查完整并集并升级版本；
+- provider 不可用但旧缓存覆盖充分时仍可直接使用；
 - 缓存损坏、provider 失败且覆盖不足时失败关闭；
 - 日报非交易日跳过；
 - 周报周末和节假日回退；
@@ -481,6 +528,16 @@ requested date，造成快照、文件名、数据库或通知日期分裂。
 
 真实 `XSHG` 适配器只做一组轻量集成测试；CI 的行为测试全部使用固定 provider 和临时
 缓存，不依赖网络或当前日期。
+
+生产依赖保留 `exchange_calendars>=4.13.2,<5`，CI 和标准验收环境通过
+`requirements/ci-constraints.txt` 精确安装 `4.13.2`。仓库当前没有 CI workflow，
+本阶段不新建 CI 服务；但所有文档化的 CI/验收安装命令都必须应用该 constraints 文件。
+升级基线版本必须通过独立依赖升级提交，并重新运行真实适配器的名称、返回类型和日期
+转换契约测试，不能由依赖解析器自动漂移。
+
+标准验收命令必须先断言 `importlib.metadata.version("exchange-calendars") == "4.13.2"`，
+再运行真实适配器契约测试；版本断言只属于受 constraints 控制的 CI/验收入口，不放进
+可在生产依赖范围内任意 4.x 版本运行的普通单元测试。
 
 ## 13. 验收标准
 
@@ -496,8 +553,9 @@ requested date，造成快照、文件名、数据库或通知日期分裂。
 8. requested/effective date 在快照、报告、文件、数据库、通知中完全一致；
 9. 未来日期和不可证明的交易日状态在任何写入或推送前失败；
 10. 相关测试、全量测试和 lint 通过；
-11. 使用固定 fixture 完成一次日报降级演练和一次周报回退 `--no-push` 演练；
-12. 实现说明、配置示例和 CLI 行为文档已同步更新。
+11. 标准验收环境确认安装 `exchange_calendars==4.13.2`，真实适配器契约测试通过；
+12. 使用固定 fixture 完成一次日报降级演练和一次周报回退 `--no-push` 演练；
+13. 实现说明、配置示例和 CLI 行为文档已同步更新。
 
 ## 14. 非目标
 
