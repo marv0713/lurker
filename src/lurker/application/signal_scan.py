@@ -111,29 +111,23 @@ def scan_signals(
 
             # 构造 score_stock_strength 所需 metrics
             metrics: dict[str, float | bool] = {
-                **pcts,
-                # 180d 收益用于翻倍股判断
-                "return_180d": raw_returns.get("return_180d", 0.0),
-                # 120d 也传入以兼容 double_bagger 分类逻辑
-                "return_120d": raw_returns.get("return_120d", 0.0),
-                # 以下字段快照里暂无，留 0 / False 占位，后续可补
-                "near_52w_high": False,
-                "relative_market_strength": 0.0,
-                "relative_sector_strength": 0.0,
-                "turnover_expansion": 0.0,
+                key: pcts[key]
+                for key in (
+                    "return_20d_percentile",
+                    "return_60d_percentile",
+                )
+                if key in pcts
             }
+            metrics["return_180d"] = raw_returns.get("return_180d", 0.0)
 
             score = score_stock_strength(metrics, config=scoring_config)
 
             if score < threshold:
                 continue
 
-            # 翻倍股分类取最长可用窗口
-            max_return = raw_returns.get(
-                "return_180d",
-                raw_returns.get("return_120d", 0.0),
+            db_class = classify_double_bagger(
+                raw_returns.get("return_180d", 0.0)
             )
-            db_class = classify_double_bagger(max_return)
 
             signals.append(
                 StockSignal(

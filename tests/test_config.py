@@ -37,6 +37,64 @@ def test_load_scoring_weights_sum_to_one():
     assert sum(weights.values()) == 1.0
 
 
+def test_shipped_scoring_exposes_only_wired_dimensions():
+    scoring = load_scoring(ROOT / "configs" / "scoring.yaml")
+    assert set(scoring["stock_signal"]["weights"]) == {
+        "return_20d",
+        "return_60d",
+        "return_180d",
+        "double_bagger",
+    }
+    assert set(scoring["sector_signal"]["weights"]) == {
+        "sector_strength",
+        "strong_stock_count",
+        "cross_market_mapping",
+    }
+
+
+def test_load_scoring_rejects_old_weight_key(tmp_path):
+    old = tmp_path / "old.yaml"
+    old.write_text(
+        """
+stock_signal:
+  weights: {return_120_180d: 15}
+sector_signal:
+  weights: {sector_strength: 20}
+""",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="return_120_180d.*return_180d"):
+        load_scoring(old)
+
+
+def test_load_scoring_rejects_unknown_and_invalid_weights(tmp_path):
+    unknown = tmp_path / "unknown.yaml"
+    unknown.write_text(
+        """
+stock_signal:
+  weights: {return_20d: 15, mystery: 10}
+sector_signal:
+  weights: {sector_strength: 20}
+""",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="unknown stock_signal.weights field: mystery"):
+        load_scoring(unknown)
+
+    invalid = tmp_path / "invalid.yaml"
+    invalid.write_text(
+        """
+stock_signal:
+  weights: {return_20d: .nan}
+sector_signal:
+  weights: {sector_strength: 20}
+""",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        load_scoring(invalid)
+
+
 def test_load_core_etfs_uses_design_roles():
     configured = load_core_etfs(ROOT / "configs" / "core_etfs.yaml")
 

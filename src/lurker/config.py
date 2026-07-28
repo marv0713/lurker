@@ -72,10 +72,6 @@ def load_markets(path: str | Path) -> dict[str, Any]:
     return load_yaml(path)
 
 
-def load_scoring(path: str | Path) -> dict[str, Any]:
-    return load_yaml(path)
-
-
 def _ratio(value: Any, field: str) -> float:
     if isinstance(value, bool):
         raise ValueError(f"{field} must be within (0, 1]")
@@ -110,6 +106,60 @@ def _reject_unknown_fields(
     unknown = sorted(set(mapping) - allowed)
     if unknown:
         raise ValueError(f"unknown {context} field: {unknown[0]}")
+
+
+_STOCK_WEIGHT_KEYS = {
+    "return_20d",
+    "return_60d",
+    "return_180d",
+    "double_bagger",
+}
+_SECTOR_WEIGHT_KEYS = {
+    "sector_strength",
+    "strong_stock_count",
+    "cross_market_mapping",
+}
+
+
+def _validate_weight_mapping(
+    values: Any,
+    allowed: set[str],
+    context: str,
+) -> None:
+    mapping = _mapping(values, context)
+    if "return_120_180d" in mapping:
+        raise ValueError(
+            "unsupported scoring weight return_120_180d; use return_180d"
+        )
+    _reject_unknown_fields(mapping, allowed, context)
+    for key, value in mapping.items():
+        if isinstance(value, bool):
+            raise ValueError(f"{context}.{key} must be finite and non-negative")
+        try:
+            number = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"{context}.{key} must be finite and non-negative"
+            ) from exc
+        if not math.isfinite(number) or number < 0:
+            raise ValueError(f"{context}.{key} must be finite and non-negative")
+
+
+def load_scoring(path: str | Path) -> dict[str, Any]:
+    data = load_yaml(path)
+    stock = _mapping(data.get("stock_signal"), "stock_signal")
+    sector = _mapping(data.get("sector_signal"), "sector_signal")
+    _validate_weight_mapping(
+        stock.get("weights"),
+        _STOCK_WEIGHT_KEYS,
+        "stock_signal.weights",
+    )
+    _validate_weight_mapping(
+        sector.get("weights"),
+        _SECTOR_WEIGHT_KEYS,
+        "sector_signal.weights",
+    )
+    return data
 
 
 def load_watchlist(path: str | Path) -> WatchlistConfig:

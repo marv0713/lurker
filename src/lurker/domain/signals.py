@@ -15,7 +15,7 @@ def score_stock_strength(metrics: dict[str, float | bool], config: dict | None =
 
     w_20d = weights.get("return_20d", 15)
     w_60d = weights.get("return_60d", 15)
-    w_180d_mid = weights.get("return_120_180d", 15)
+    w_180d_mid = weights.get("return_180d", 15)
     w_180d_high = weights.get("double_bagger", 15)
     w_near_high = weights.get("near_52w_high", 10)
     w_mkt_str = weights.get("relative_market_strength", 10)
@@ -72,4 +72,3 @@ def score_sector_breadth(metrics: dict[str, float | int | bool], config: dict | 
         score += w_turnover_persist
 
     return score
-

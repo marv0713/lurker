@@ -48,16 +48,10 @@ def compute_theme_scores(
         metrics: dict[str, float | int | bool] = {
             "strong_stock_count": strong_count,
             "cross_market_count": len(markets_with_strong),
-            # 占位：如果有较多强势股，认为整体跑赢
             "sector_outperformance": strong_count >= 5,
-            # 其他指标后续接入更多数据时补充
-            "new_high_ratio": 0.0,
-            "chain_segments": 0,
-            "turnover_persistent": False,
         }
 
         score = min(100, score_sector_breadth(metrics, config=scoring_config))
         theme_scores[theme_id] = score
 
     return theme_scores
-

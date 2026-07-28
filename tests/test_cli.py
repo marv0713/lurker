@@ -309,6 +309,40 @@ strategies:
     assert "# 大趋势雷达日报" in report
 
 
+def test_build_run_daily_propagates_invalid_scoring_config(tmp_path):
+    snapshot_dir = tmp_path / "snapshots"
+    snapshot_dir.mkdir()
+    (snapshot_dir / "2026-07-28.json").write_text(
+        """
+{
+  "generated_at": "2026-07-28T08:00:00+00:00",
+  "markets": ["cn"],
+  "windows": [20, 60, 120, 180],
+  "snapshots": [],
+  "failures": []
+}
+""",
+        encoding="utf-8",
+    )
+    scoring_path = tmp_path / "scoring.yaml"
+    scoring_path.write_text(
+        """
+stock_signal:
+  weights: {return_120_180d: 15}
+sector_signal:
+  weights: {sector_strength: 20}
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="return_120_180d.*return_180d"):
+        build_run_daily(
+            price_snapshot_dir=snapshot_dir,
+            report_date="2026-07-28",
+            scoring_config_path=scoring_path,
+        )
+
+
 def test_daily_job_refreshes_prices_and_writes_report(monkeypatch, tmp_path):
     seed_pool_path = tmp_path / "resolved_seed_pool.json"
     seed_pool_path.write_text(

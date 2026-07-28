@@ -807,10 +807,7 @@ def daily_job(
     from lurker.config import load_scoring
     scoring = {}
     if scoring_config_path and scoring_config_path.exists():
-        try:
-            scoring = load_scoring(scoring_config_path)
-        except Exception as e:
-            print(f"Warning: failed to load scoring config from {scoring_config_path}: {e}")
+        scoring = load_scoring(scoring_config_path)
 
     symbol_names = seed_pool.get("symbol_names", {})
     if strategy_config_path is None and strategy_names is None:
@@ -1075,10 +1072,7 @@ def build_run_daily(
     from lurker.config import load_scoring
     scoring = {}
     if scoring_config_path and scoring_config_path.exists():
-        try:
-            scoring = load_scoring(scoring_config_path)
-        except Exception as e:
-            print(f"Warning: failed to load scoring config from {scoring_config_path}: {e}")
+        scoring = load_scoring(scoring_config_path)
 
     session = None
     if db_path:
