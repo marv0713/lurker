@@ -17,6 +17,8 @@ def score_stock_strength(metrics: dict[str, float | bool], config: dict | None =
     w_60d = weights.get("return_60d", 15)
     w_180d_mid = weights.get("return_180d", 15)
     w_180d_high = weights.get("double_bagger", 15)
+    # Domain-only extension points; the shipped config omits them until
+    # their upstream metrics are wired into the production scan.
     w_near_high = weights.get("near_52w_high", 10)
     w_mkt_str = weights.get("relative_market_strength", 10)
     w_sec_str = weights.get("relative_sector_strength", 10)
@@ -51,10 +53,12 @@ def score_sector_breadth(metrics: dict[str, float | int | bool], config: dict | 
 
     w_sec_strength = weights.get("sector_strength", 20)
     w_strong_stock = weights.get("strong_stock_count", 20)
+    # Domain-only extension points; the shipped config omits them until
+    # their upstream metrics are wired into the production scan.
     w_new_high = weights.get("new_high_ratio", 15)
-    w_chain_diff = weights.get("chain_diffusion", 20)
+    w_chain_diff = weights.get("chain_segments", 20)
     w_cross_mkt = weights.get("cross_market_mapping", 15)
-    w_turnover_persist = weights.get("turnover_persistence", 10)
+    w_turnover_persist = weights.get("turnover_persistent", 10)
 
     score = 0
 

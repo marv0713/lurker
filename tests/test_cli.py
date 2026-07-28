@@ -476,6 +476,148 @@ def test_daily_job_refreshes_prices_and_writes_report(monkeypatch, tmp_path):
     assert "2026-05-18" in index_path.read_text(encoding="utf-8")
 
 
+def test_daily_job_closes_db_session_when_price_collection_fails(
+    monkeypatch,
+    tmp_path,
+):
+    from sqlalchemy.orm import Session
+
+    seed_pool_path = tmp_path / "resolved_seed_pool.json"
+    seed_pool_path.write_text(
+        """
+{
+  "generated_at": "2026-05-16T12:00:00+00:00",
+  "markets": {"cn": {"symbols": ["300308.SZ"], "sources": {}}}
+}
+""",
+        encoding="utf-8",
+    )
+    sessions = []
+
+    class TrackingSession(Session):
+        was_closed = False
+
+        def close(self):
+            self.was_closed = True
+            super().close()
+
+    def fake_create_session(engine):
+        session = TrackingSession(engine)
+        sessions.append(session)
+        return session
+
+    def fail_collection(**kwargs):
+        raise RuntimeError("price collection failed")
+
+    monkeypatch.setattr(
+        "lurker.storage.db.create_session",
+        fake_create_session,
+    )
+    monkeypatch.setattr(
+        "lurker.cli.collect_price_snapshot_batch",
+        fail_collection,
+    )
+
+    with pytest.raises(RuntimeError, match="price collection failed"):
+        daily_job(
+            seed_pool_path=seed_pool_path,
+            price_snapshot_dir=tmp_path / "price_snapshots",
+            report_dir=tmp_path / "reports",
+            markets=["cn"],
+            windows=[20],
+            period="6mo",
+            limit_per_market=1,
+            report_date="2026-05-18",
+            db_path=tmp_path / "lurker.sqlite",
+            push=False,
+        )
+
+    assert len(sessions) == 1
+    assert sessions[0].was_closed is True
+
+
+def test_daily_job_keeps_db_session_open_until_report_is_persisted(
+    monkeypatch,
+    tmp_path,
+):
+    from sqlalchemy.orm import Session
+
+    seed_pool_path = tmp_path / "resolved_seed_pool.json"
+    seed_pool_path.write_text(
+        """
+{
+  "generated_at": "2026-05-16T12:00:00+00:00",
+  "markets": {"cn": {"symbols": ["300308.SZ"], "sources": {}}}
+}
+""",
+        encoding="utf-8",
+    )
+    sessions = []
+
+    class TrackingSession(Session):
+        was_closed = False
+
+        def close(self):
+            self.was_closed = True
+            super().close()
+
+    def fake_create_session(engine):
+        session = TrackingSession(engine)
+        sessions.append(session)
+        return session
+
+    def fake_collector(**kwargs):
+        assert kwargs["db_session"].was_closed is False
+        return {
+            "generated_at": "2026-05-18T12:00:00+00:00",
+            "seed_pool_generated_at": "2026-05-16T12:00:00+00:00",
+            "markets": ["cn"],
+            "windows": [20],
+            "snapshots": [
+                {
+                    "symbol": "300308.SZ",
+                    "market": "cn",
+                    "latest_close": 140.0,
+                }
+            ],
+            "failures": [],
+        }
+
+    def fake_run_daily(**kwargs):
+        assert kwargs["db_session"].was_closed is False
+        return DailyReport(
+            report_date="2026-05-18",
+            main_candidates_count=1,
+            content_md="# 日报\n",
+        )
+
+    monkeypatch.setattr(
+        "lurker.storage.db.create_session",
+        fake_create_session,
+    )
+    monkeypatch.setattr(
+        "lurker.cli.collect_price_snapshot_batch",
+        fake_collector,
+    )
+    monkeypatch.setattr("lurker.cli.run_daily", fake_run_daily)
+
+    daily_job(
+        seed_pool_path=seed_pool_path,
+        price_snapshot_dir=tmp_path / "price_snapshots",
+        report_dir=tmp_path / "reports",
+        markets=["cn"],
+        windows=[20],
+        period="6mo",
+        limit_per_market=1,
+        report_date="2026-05-18",
+        db_path=tmp_path / "lurker.sqlite",
+        push=False,
+    )
+
+    assert len(sessions) == 1
+    assert sessions[0].was_closed is True
+
+
 def test_daily_job_candidate_history_includes_symbol_names(monkeypatch, tmp_path):
     seed_pool_path = tmp_path / "resolved_seed_pool.json"
     seed_pool_path.write_text(

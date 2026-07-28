@@ -145,6 +145,7 @@ def _read_cache(path: Path) -> CalendarCache | None:
         return CalendarCache.from_dict(
             json.loads(path.read_text(encoding="utf-8"))
         )
+    # json.JSONDecodeError inherits from ValueError and is covered here.
     except (OSError, KeyError, TypeError, ValueError):
         return None
 

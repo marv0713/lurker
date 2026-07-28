@@ -49,6 +49,24 @@ def test_sector_weight_to_metric_mapping(weight, metrics, expected):
     assert score_sector_breadth(metrics, config=config) == expected
 
 
+@pytest.mark.parametrize(
+    ("weight", "metrics", "expected"),
+    [
+        ("new_high_ratio", {"new_high_ratio": 0.15}, 4),
+        ("chain_segments", {"chain_segments": 2}, 8),
+        ("turnover_persistent", {"turnover_persistent": True}, 16),
+    ],
+)
+def test_reserved_sector_weight_keys_match_metric_keys(weight, metrics, expected):
+    weights = dict.fromkeys(
+        ("new_high_ratio", "chain_segments", "turnover_persistent"),
+        0,
+    )
+    weights[weight] = expected
+    config = {"sector_signal": {"weights": weights}}
+    assert score_sector_breadth(metrics, config=config) == expected
+
+
 def test_shipped_legacy_score_ceilings_stay_60_and_55():
     config = load_scoring(ROOT / "configs" / "scoring.yaml")
     assert score_stock_strength(

@@ -741,6 +741,20 @@ def build_watchlist_notifier_from_env():
     return CompositeNotifier(notifiers)
 
 
+def _validated_report_date(
+    report_date: str | None,
+    *,
+    today: date,
+) -> date:
+    requested = parse_iso_date(report_date) if report_date else today
+    if requested > today:
+        raise FutureReportDateError(
+            f"future report date {requested.isoformat()} exceeds "
+            f"Shanghai today {today.isoformat()}"
+        )
+    return requested
+
+
 def _resolve_daily_job_date(
     report_date: str | None,
     *,
@@ -748,12 +762,7 @@ def _resolve_daily_job_date(
     markets: list[str],
     calendar: CnTradingCalendar | None,
 ) -> ReportDateResolution:
-    requested = parse_iso_date(report_date) if report_date else today
-    if requested > today:
-        raise FutureReportDateError(
-            f"future report date {requested.isoformat()} exceeds "
-            f"Shanghai today {today.isoformat()}"
-        )
+    requested = _validated_report_date(report_date, today=today)
     if not all_markets_are_cn(markets):
         return ReportDateResolution(requested, requested, False)
     resolved_calendar = calendar or build_default_cn_calendar()
@@ -832,8 +841,10 @@ def daily_job(
             markets_config=markets_cfg,
             db_session=session,
         )
-    finally:
-        pass
+    except BaseException:
+        if session is not None:
+            session.close()
+        raise
 
     snapshot_path = FilePriceSnapshotStore(price_snapshot_dir).save(
         snapshot_batch,
@@ -932,21 +943,26 @@ def daily_job(
 
     # Save final report to Report table
     if session:
-        from lurker.storage.models import Report
-        import datetime
-        t_date = datetime.datetime.strptime(job_date, "%Y-%m-%d").date()
-        db_report = session.query(Report).filter_by(report_date=t_date, report_type="daily").first()
-        if db_report:
-            db_report.content = report.content_md
-        else:
-            db_report = Report(
+        try:
+            from lurker.storage.models import Report
+            import datetime
+            t_date = datetime.datetime.strptime(job_date, "%Y-%m-%d").date()
+            db_report = session.query(Report).filter_by(
                 report_date=t_date,
                 report_type="daily",
-                content=report.content_md,
-            )
-            session.add(db_report)
-        session.commit()
-        session.close()
+            ).first()
+            if db_report:
+                db_report.content = report.content_md
+            else:
+                db_report = Report(
+                    report_date=t_date,
+                    report_type="daily",
+                    content=report.content_md,
+                )
+                session.add(db_report)
+            session.commit()
+        finally:
+            session.close()
 
     report_dir.mkdir(parents=True, exist_ok=True)
     report_path = report_dir / f"{job_date}.md"
@@ -1104,12 +1120,7 @@ def build_run_daily(
 ) -> str:
     store = FilePriceSnapshotStore(price_snapshot_dir)
     resolved_today = today or shanghai_today()
-    requested = parse_iso_date(report_date) if report_date else resolved_today
-    if requested > resolved_today:
-        raise FutureReportDateError(
-            f"future report date {requested.isoformat()} exceeds "
-            f"Shanghai today {resolved_today.isoformat()}"
-        )
+    requested = _validated_report_date(report_date, today=resolved_today)
     snapshot_batch = store.load_on_or_before(requested.isoformat())
     if snapshot_batch is None:
         return (
