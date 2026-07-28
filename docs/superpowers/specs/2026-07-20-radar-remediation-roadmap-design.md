@@ -320,6 +320,11 @@ active | inactive | unknown
 
 ## 9. 阶段六：Legacy、标签和交易日历
 
+本阶段的生命周期矩阵、评分配置收口、标签文案、降级披露、`XSHG` provider、
+原子缓存、requested/effective date 规则和验收契约，统一以
+[Legacy 策略、报告语义与交易日历收口设计](2026-07-28-legacy-labels-trading-calendar-design.md)
+为准。
+
 ### 9.1 Legacy 收口
 
 `long_term_trend` 保持关闭，并标记为 deprecated。手动选择时输出明确弃用提示。当前固定为零的 52 周高点、相对强度、成交量扩张和板块广度权重不再作为“已支持能力”展示。
@@ -432,6 +437,8 @@ active | inactive | unknown
 3. `weekly-macro-flow` 实施计划。
 4. `monthly-macro-flow` 实施计划。
 5. `market-filter-cleanup` 实施计划。
-6. `legacy-calendar-cleanup` 实施计划。
+6. 基于
+   [Legacy 策略、报告语义与交易日历收口设计](2026-07-28-legacy-labels-trading-calendar-design.md)
+   编写 `legacy-calendar-cleanup` 实施计划。
 
 计划必须按上述顺序编写和执行；每份计划都要给出精确文件、测试、命令、预期失败和提交检查点。
