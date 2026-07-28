@@ -2,20 +2,25 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 import yaml
 
 from lurker.reports.models import DailyReport
 
 
+StrategyLifecycle = Literal["active", "deprecated"]
+
+
 @dataclass
 class StrategyConfig:
     name: str
     enabled: bool = True
+    lifecycle: StrategyLifecycle = "active"
     cadence: str = "daily"
     universe: str = "resolved_seed_pool"
     title: str | None = None
+    limitations: tuple[str, ...] = ()
     params: dict[str, Any] = field(default_factory=dict)
 
 
@@ -45,24 +50,52 @@ class Strategy(Protocol):
     def run(self, context: StrategyContext, config: StrategyConfig) -> StrategyResult: ...
 
 
+def _strategy_config(name: str, raw: Any) -> StrategyConfig:
+    if raw is None:
+        raw = {}
+    if not isinstance(raw, dict):
+        raise ValueError(f"strategy {name} must be a mapping")
+    enabled = raw.get("enabled", True)
+    if not isinstance(enabled, bool):
+        raise ValueError(f"strategy {name} enabled must be a boolean")
+    lifecycle = raw.get("lifecycle", "active")
+    if lifecycle not in {"active", "deprecated"}:
+        raise ValueError(f"strategy {name} has invalid lifecycle: {lifecycle}")
+    raw_limitations = raw.get("limitations", [])
+    if not isinstance(raw_limitations, list) or any(
+        not isinstance(item, str) or not item.strip() for item in raw_limitations
+    ):
+        raise ValueError(f"strategy {name} limitations must be non-empty strings")
+    limitations = tuple(item.strip() for item in raw_limitations)
+    if lifecycle == "deprecated" and enabled:
+        raise ValueError(f"deprecated strategy must be disabled: {name}")
+    if lifecycle == "deprecated" and not limitations:
+        raise ValueError(f"deprecated strategy requires limitations: {name}")
+    if lifecycle == "active" and limitations:
+        raise ValueError(f"active strategy cannot declare limitations: {name}")
+    return StrategyConfig(
+        name=name,
+        enabled=enabled,
+        lifecycle=lifecycle,
+        cadence=str(raw.get("cadence", "daily")),
+        universe=str(raw.get("universe", "resolved_seed_pool")),
+        title=raw.get("title"),
+        limitations=limitations,
+        params=dict(raw.get("params", {}) or {}),
+    )
+
+
 def load_strategy_configs(path: Path | None) -> dict[str, StrategyConfig]:
     if path is None or not path.exists():
         return {}
-
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     strategy_items = data.get("strategies", data)
-    configs: dict[str, StrategyConfig] = {}
-    for name, raw_config in strategy_items.items():
-        raw_config = raw_config or {}
-        configs[name] = StrategyConfig(
-            name=name,
-            enabled=bool(raw_config.get("enabled", True)),
-            cadence=str(raw_config.get("cadence", "daily")),
-            universe=str(raw_config.get("universe", "resolved_seed_pool")),
-            title=raw_config.get("title"),
-            params=dict(raw_config.get("params", {}) or {}),
-        )
-    return configs
+    if not isinstance(strategy_items, dict):
+        raise ValueError("strategies must be a mapping")
+    return {
+        str(name): _strategy_config(str(name), raw)
+        for name, raw in strategy_items.items()
+    }
 
 
 def build_default_strategy_configs(names: list[str]) -> dict[str, StrategyConfig]:
@@ -88,7 +121,9 @@ def select_strategy_configs(
     selected: list[StrategyConfig] = []
     name_set = set(names or [])
     for config in configs.values():
-        if names is None and not config.enabled:
+        if names is None and (
+            not config.enabled or config.lifecycle == "deprecated"
+        ):
             continue
         if names is not None and config.name not in name_set:
             continue
@@ -113,6 +148,54 @@ def _strip_report_title(markdown: str) -> str:
     return markdown.strip()
 
 
+def _strategy_metadata(config: StrategyConfig) -> dict[str, Any]:
+    return {
+        "cadence": config.cadence,
+        "universe": config.universe,
+        "lifecycle": config.lifecycle,
+        "limitations": list(config.limitations),
+    }
+
+
+def _deprecated_notice(result: StrategyResult) -> str | None:
+    if result.metadata.get("lifecycle") != "deprecated":
+        return None
+    limitations = [
+        str(item).strip()
+        for item in result.metadata.get("limitations", [])
+        if str(item).strip()
+    ]
+    return (
+        f"> ⚠️ 弃用策略：`{result.name}` 仅供历史兼容，不代表当前推荐信号。\n"
+        f"> 能力缺口：{'；'.join(limitations)}。"
+    )
+
+
+def _decorate_result(result: StrategyResult) -> StrategyResult:
+    notice = _deprecated_notice(result)
+    if notice is None:
+        return result
+    lines = result.report.content_md.rstrip().splitlines()
+    insertion = (
+        4
+        if len(lines) >= 3
+        and lines[0].startswith("# ")
+        and lines[2].startswith("日期：")
+        else 0
+    )
+    decorated = [*lines[:insertion], notice, "", *lines[insertion:]]
+    return StrategyResult(
+        name=result.name,
+        title=result.title,
+        report=DailyReport(
+            report_date=result.report.report_date,
+            main_candidates_count=result.report.main_candidates_count,
+            content_md="\n".join(decorated).rstrip() + "\n",
+        ),
+        metadata=result.metadata,
+    )
+
+
 def render_strategy_results(report_date: str, results: list[StrategyResult]) -> DailyReport:
     if not results:
         return DailyReport(
@@ -120,6 +203,8 @@ def render_strategy_results(report_date: str, results: list[StrategyResult]) -> 
             main_candidates_count=0,
             content_md=f"# 多策略雷达日报\n\n日期：{report_date}\n\n今日无启用策略。\n",
         )
+
+    results = [_decorate_result(result) for result in results]
 
     if len(results) == 1 and results[0].name == "long_term_trend":
         return results[0].report
@@ -162,7 +247,7 @@ class LongTermTrendStrategy:
             name=self.name,
             title=config.title or "中长期趋势雷达",
             report=report,
-            metadata={"cadence": config.cadence, "universe": config.universe},
+            metadata=_strategy_metadata(config),
         )
 
 
@@ -184,7 +269,7 @@ class ProfessionalFlowDailyStrategy:
             name=self.name,
             title=config.title or "职业资金雷达日报",
             report=report,
-            metadata={"cadence": config.cadence, "universe": config.universe},
+            metadata=_strategy_metadata(config),
         )
 
 
@@ -214,7 +299,10 @@ def run_strategies(
                         main_candidates_count=0,
                         content_md=f"策略 `{config.name}` 尚未实现。"
                     ),
-                    metadata={"status": "missing"},
+                    metadata={
+                        **_strategy_metadata(config),
+                        "status": "missing",
+                    },
                 )
             )
             continue
