@@ -30,7 +30,11 @@ def render_professional_flow_report(
     conclusion: str | None = None,
 ) -> str:
     sector_lines = [
-        f"{item['name']}：主力净流入 {_format_money(item.get('main_net_inflow'))}，{item.get('label', '主线')}"
+        (
+            f"{item['name']}：主力净流入 "
+            f"{_format_money(item.get('main_net_inflow'))}，"
+            f"当日资金状态：{item.get('label', '主线')}"
+        )
         for item in sector_leaders
     ]
     candidate_lines = [

@@ -217,3 +217,41 @@ def test_build_weekly_flow_report_handles_empty_snapshot_dir(tmp_path):
     assert "职业资金雷达周报" in report.content_md
     assert "没有可用资金快照" in report.content_md
     assert report.main_candidates_count == 0
+
+
+def test_weekly_sector_labels_keep_algorithm_and_add_time_scope(tmp_path):
+    flow_dir = tmp_path / "flow_snapshots"
+    flow_dir.mkdir()
+    _write_flow(
+        flow_dir / "2026-06-04.json",
+        "2026-06-04",
+        temperature_flow={"main_net_inflow": 1.0, "super_large_net_inflow": 1.0},
+        sectors=[
+            {"name": "延续板块", "main_net_inflow": 20.0, "rank": 1},
+            {"name": "退潮板块", "main_net_inflow": 10.0, "rank": 2},
+        ],
+        stocks=[],
+    )
+    _write_flow(
+        flow_dir / "2026-06-05.json",
+        "2026-06-05",
+        temperature_flow={"main_net_inflow": 1.0, "super_large_net_inflow": 1.0},
+        sectors=[
+            {"name": "延续板块", "main_net_inflow": 30.0, "rank": 1},
+            {"name": "新主线板块", "main_net_inflow": 15.0, "rank": 2},
+            {"name": "退潮板块", "main_net_inflow": -5.0, "rank": 3},
+        ],
+        stocks=[],
+    )
+
+    report = build_weekly_flow_report(
+        flow_snapshot_dir=flow_dir,
+        report_date="2026-06-05",
+    )
+
+    assert "- 延续板块：周度持续状态：延续，" in report.content_md
+    assert "- 新主线板块：周度持续状态：新主线，" in report.content_md
+    assert "- 退潮板块：周度持续状态：退潮，" in report.content_md
+    assert "周度持续状态—延续：延续板块" in report.content_md
+    assert "周度持续状态—新主线：新主线板块" in report.content_md
+    assert "周度持续状态—退潮：退潮板块" in report.content_md

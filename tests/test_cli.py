@@ -1042,7 +1042,8 @@ strategies:
     )
 
     assert sends
-    assert "stock_flows" in sends[0][1]
+    assert "个股资金流不可用" in sends[0][1]
+    assert "空列表不代表确认没有机会" in sends[0][1]
     assert "Pushed report successfully" in message
 
 

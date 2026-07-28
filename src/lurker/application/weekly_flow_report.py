@@ -237,7 +237,7 @@ def build_weekly_flow_report(
     if sectors:
         for row in sectors:
             lines.append(
-                f"- {row['name']}：{_sector_label(row)}，"
+                f"- {row['name']}：周度持续状态：{_sector_label(row)}，"
                 f"正流入 {row['positive_days']} 天，"
                 f"连续 {row['positive_days']} 天，"
                 f"累计 {_format_amount(row['cumulative_inflow'])}，"
@@ -250,9 +250,9 @@ def build_weekly_flow_report(
         [
             "",
             "## 主线变化",
-            f"延续：{'、'.join(continued) if continued else '无'}",
-            f"新主线：{'、'.join(new) if new else '无'}",
-            f"退潮：{'、'.join(ebb) if ebb else '无'}",
+            f"周度持续状态—延续：{'、'.join(continued) if continued else '无'}",
+            f"周度持续状态—新主线：{'、'.join(new) if new else '无'}",
+            f"周度持续状态—退潮：{'、'.join(ebb) if ebb else '无'}",
             "",
             "## 核心股票资金流向",
         ]

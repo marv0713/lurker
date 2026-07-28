@@ -1,3 +1,5 @@
+import pytest
+
 from lurker.application.market_temperature import classify_market_temperature
 from lurker.application.professional_flow_daily import (
     _detect_contradiction,
@@ -8,6 +10,7 @@ from lurker.application.professional_flow_daily import (
     run_professional_flow_daily,
 )
 from lurker.ingest.etf_flows import CoreEtfBatch
+from lurker.reports.professional_flow_report import render_professional_flow_report
 
 
 # ---------------------------------------------------------------------------
@@ -685,3 +688,71 @@ def test_trend_score_no_penalty_for_controlled_drawdown():
     scores = _trend_scores(snapshots)
     # 600036 回撤 = 0.10，无惩罚，分数应该高于 600037
     assert scores["600036.SH"] > scores["600037.SH"]
+
+
+@pytest.mark.parametrize("label", ["主线", "扩散", "分化", "退潮"])
+def test_daily_sector_labels_include_time_scope(label):
+    report = render_professional_flow_report(
+        report_date="2026-07-28",
+        market_temperature="观察",
+        market_notes=[],
+        sector_leaders=[
+            {"name": "测试板块", "main_net_inflow": 1.0, "label": label}
+        ],
+        stock_flow_leaders=[],
+        two_percent_candidates=[],
+        setup_watch=[],
+        invalidation_alerts=[],
+        data_quality=[],
+    )
+    assert f"当日资金状态：{label}" in report
+
+
+@pytest.mark.parametrize(
+    "flow_patch",
+    [
+        {},
+        {"stock_flows": "invalid"},
+        {
+            "stock_flows": [],
+            "failures": [
+                {"source": "stock_flows", "reason": "ReadTimeout"}
+            ],
+        },
+    ],
+)
+def test_stock_flow_unavailable_warns_candidate_lists_are_incomplete(flow_patch):
+    flow = {
+        "market_flow": {"main_net_inflow": 1, "super_large_net_inflow": 1},
+        "sector_flows": [],
+        "margin": {},
+        "core_etfs": [],
+        "failures": [],
+    }
+    flow.update(flow_patch)
+    report = run_professional_flow_daily(
+        price_snapshot={"snapshots": []},
+        flow_snapshot=flow,
+        theme_mapping={},
+        report_date="2026-07-28",
+    )
+    assert "个股资金流不可用" in report.content_md
+    assert "空列表不代表确认没有机会" in report.content_md
+
+
+def test_successful_empty_stock_flow_is_distinct_from_failure():
+    report = run_professional_flow_daily(
+        price_snapshot={"snapshots": []},
+        flow_snapshot={
+            "market_flow": {"main_net_inflow": 1, "super_large_net_inflow": 1},
+            "sector_flows": [],
+            "stock_flows": [],
+            "margin": {},
+            "core_etfs": [],
+            "failures": [],
+        },
+        theme_mapping={},
+        report_date="2026-07-28",
+    )
+    assert "本次个股资金流来源返回 0 条记录" in report.content_md
+    assert "个股资金流不可用" not in report.content_md

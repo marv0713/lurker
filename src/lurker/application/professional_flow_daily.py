@@ -29,6 +29,26 @@ def _as_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def _stock_flow_coverage(
+    flow_snapshot: dict[str, Any],
+) -> tuple[str, list[dict[str, Any]]]:
+    failures = flow_snapshot.get("failures", [])
+    failed = isinstance(failures, list) and any(
+        isinstance(item, dict) and item.get("source") == "stock_flows"
+        for item in failures
+    )
+    if "stock_flows" not in flow_snapshot:
+        return "degraded", []
+    raw = flow_snapshot["stock_flows"]
+    if not isinstance(raw, list):
+        return "degraded", []
+    if failed:
+        return "degraded", raw
+    if not raw:
+        return "available_empty", []
+    return "available", raw
+
+
 # ---------------------------------------------------------------------------
 # 市场温度（委托给 application/market_temperature.py）
 # ---------------------------------------------------------------------------
@@ -403,7 +423,7 @@ def run_professional_flow_daily(
     market_flow = flow_snapshot.get("market_flow", {})
     margin = flow_snapshot.get("margin", {})
     sector_flows = flow_snapshot.get("sector_flows", [])
-    stock_flows = flow_snapshot.get("stock_flows", [])
+    stock_flow_coverage, stock_flows = _stock_flow_coverage(flow_snapshot)
 
     # --- ETF: schema v2 (dict) or v1 (list) ---
     core_etfs_data = flow_snapshot.get("core_etfs")
@@ -530,6 +550,13 @@ def run_professional_flow_daily(
     # 数据质量
     data_quality: list[str] = []
     data_quality.extend(prepared.quality_notes)
+    if stock_flow_coverage == "degraded":
+        data_quality.append(
+            "⚠️ 个股资金流不可用，2%候选、资金确认和核心股票资金流向"
+            "列表不完整；空列表不代表确认没有机会。"
+        )
+    elif stock_flow_coverage == "available_empty":
+        data_quality.append("本次个股资金流来源返回 0 条记录。")
     for failure in etf_batch.failures:
         data_quality.append(
             f"核心 ETF {failure.get('symbol')}：{failure.get('reason')}"
