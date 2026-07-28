@@ -19,6 +19,10 @@ class TradingCalendarUnavailable(RuntimeError):
     pass
 
 
+class FutureReportDateError(ValueError):
+    pass
+
+
 class CnTradingCalendarProvider(Protocol):
     @property
     def provider_name(self) -> str: ...
@@ -231,6 +235,67 @@ class CnTradingCalendar:
             if sessions:
                 return sessions[-1]
             cursor_year -= 1
+
+
+@dataclass(frozen=True)
+class ReportDateResolution:
+    requested: date
+    effective: date | None
+    adjusted: bool
+    reason: str | None = None
+
+
+def shanghai_today(now: datetime | None = None) -> date:
+    if now is None:
+        return datetime.now(ZoneInfo("Asia/Shanghai")).date()
+    if now.tzinfo is None:
+        raise ValueError("now must be timezone-aware")
+    return now.astimezone(SHANGHAI_TZ).date()
+
+
+def _requested_date(value: str | None, today: date) -> date:
+    requested = parse_iso_date(value) if value is not None else today
+    if requested > today:
+        raise FutureReportDateError(
+            f"future report date {requested.isoformat()} exceeds "
+            f"Shanghai today {today.isoformat()}"
+        )
+    return requested
+
+
+def resolve_daily_date(
+    value: str | None,
+    today: date,
+    calendar: CnTradingCalendar,
+) -> ReportDateResolution:
+    requested = _requested_date(value, today)
+    if not calendar.is_trading_day(requested):
+        return ReportDateResolution(
+            requested=requested,
+            effective=None,
+            adjusted=False,
+            reason="cn market closed",
+        )
+    return ReportDateResolution(requested, requested, False)
+
+
+def resolve_weekly_date(
+    value: str | None,
+    today: date,
+    calendar: CnTradingCalendar,
+) -> ReportDateResolution:
+    requested = _requested_date(value, today)
+    effective = calendar.previous_or_same_session(requested)
+    return ReportDateResolution(
+        requested=requested,
+        effective=effective,
+        adjusted=effective != requested,
+        reason=(
+            "previous confirmed CN trading session"
+            if effective != requested
+            else None
+        ),
+    )
 
 
 DEFAULT_CALENDAR_CACHE = (

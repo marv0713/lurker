@@ -1,5 +1,5 @@
 import json
-from datetime import date
+from datetime import UTC, date, datetime
 from importlib.metadata import version
 from pathlib import Path
 
@@ -8,8 +8,13 @@ import pytest
 from lurker.trading_calendar import (
     CnTradingCalendar,
     ExchangeCalendarsCnProvider,
+    FutureReportDateError,
+    ReportDateResolution,
     TradingCalendarUnavailable,
     is_cn_trading_day,
+    resolve_daily_date,
+    resolve_weekly_date,
+    shanghai_today,
 )
 
 
@@ -176,3 +181,58 @@ def test_atomic_write_failure_preserves_previous_cache(monkeypatch, tmp_path):
     with pytest.raises(OSError, match="replace failed"):
         calendar.is_trading_day(date(2026, 1, 5))
     assert cache_path.read_bytes() == original
+
+
+def test_shanghai_today_converts_utc_across_local_midnight():
+    assert shanghai_today(
+        datetime(2026, 7, 27, 16, 30, tzinfo=UTC)
+    ) == date(2026, 7, 28)
+
+
+def test_future_requested_date_is_rejected():
+    calendar = CnTradingCalendar(
+        Path("unused"),
+        provider_factory=lambda: FakeProvider([]),
+    )
+    with pytest.raises(FutureReportDateError, match="2026-07-29.*2026-07-28"):
+        resolve_daily_date("2026-07-29", date(2026, 7, 28), calendar)
+
+
+def test_daily_non_session_skips_without_backfill(tmp_path):
+    provider = FakeProvider([date(2026, 6, 18)])
+    calendar = CnTradingCalendar(
+        tmp_path / "calendar.json",
+        provider_factory=lambda: provider,
+    )
+    assert resolve_daily_date(
+        "2026-06-19",
+        date(2026, 7, 28),
+        calendar,
+    ) == ReportDateResolution(
+        requested=date(2026, 6, 19),
+        effective=None,
+        adjusted=False,
+        reason="cn market closed",
+    )
+
+
+def test_weekly_holiday_and_cross_year_fall_back_to_confirmed_session(tmp_path):
+    provider = FakeProvider(
+        [date(2025, 12, 31), date(2026, 1, 5), date(2026, 6, 18)]
+    )
+    calendar = CnTradingCalendar(
+        tmp_path / "calendar.json",
+        provider_factory=lambda: provider,
+    )
+    holiday = resolve_weekly_date(
+        "2026-06-21",
+        date(2026, 7, 28),
+        calendar,
+    )
+    assert holiday.effective == date(2026, 6, 18)
+    cross_year = resolve_weekly_date(
+        "2026-01-04",
+        date(2026, 7, 28),
+        calendar,
+    )
+    assert cross_year.effective == date(2025, 12, 31)
