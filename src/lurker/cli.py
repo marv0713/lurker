@@ -34,7 +34,19 @@ from lurker.pipeline import rank_candidates
 from lurker.reports.daily_report import render_daily_report
 from lurker.reports.models import DailyReport
 from lurker.reports.trend_card import render_trend_card
-from lurker.trading_calendar import all_markets_are_cn, is_cn_trading_day
+from lurker.trading_calendar import (
+    CnTradingCalendar,
+    FutureReportDateError,
+    ReportDateResolution,
+    TradingCalendarUnavailable,
+    all_markets_are_cn,
+    build_default_cn_calendar,
+    is_cn_trading_day,
+    parse_iso_date,
+    resolve_daily_date,
+    resolve_weekly_date,
+    shanghai_today,
+)
 from lurker.universe.resolved_seed_pool import (
     build_resolved_seed_pool,
     extract_seed_symbols,
@@ -729,6 +741,29 @@ def build_watchlist_notifier_from_env():
     return CompositeNotifier(notifiers)
 
 
+def _resolve_daily_job_date(
+    report_date: str | None,
+    *,
+    today: date,
+    markets: list[str],
+    calendar: CnTradingCalendar | None,
+) -> ReportDateResolution:
+    requested = parse_iso_date(report_date) if report_date else today
+    if requested > today:
+        raise FutureReportDateError(
+            f"future report date {requested.isoformat()} exceeds "
+            f"Shanghai today {today.isoformat()}"
+        )
+    if not all_markets_are_cn(markets):
+        return ReportDateResolution(requested, requested, False)
+    resolved_calendar = calendar or build_default_cn_calendar()
+    return resolve_daily_date(
+        requested.isoformat(),
+        today,
+        resolved_calendar,
+    )
+
+
 def daily_job(
     *,
     seed_pool_path: Path,
@@ -756,10 +791,22 @@ def daily_job(
     push: bool = True,
     temperature_artifact_path: Path | None = None,
     temperature_replay_path: Path | None = None,
+    today: date | None = None,
+    calendar: CnTradingCalendar | None = None,
 ) -> str:
-    job_date = report_date or date.today().isoformat()
-    if all_markets_are_cn(markets) and not is_cn_trading_day(job_date):
-        return f"Skipped daily job: cn market closed on {job_date}."
+    resolved_today = today or shanghai_today()
+    resolution = _resolve_daily_job_date(
+        report_date,
+        today=resolved_today,
+        markets=markets,
+        calendar=calendar,
+    )
+    if resolution.effective is None:
+        return (
+            "Skipped daily job: cn market closed on "
+            f"{resolution.requested.isoformat()}."
+        )
+    job_date = resolution.effective.isoformat()
 
     seed_pool = load_resolved_seed_pool(seed_pool_path)
 
@@ -1052,11 +1099,26 @@ def build_run_daily(
     base_url: str | None = None,
     scoring_config_path: Path | None = None,
     db_path: Path | None = None,
+    today: date | None = None,
+    calendar: CnTradingCalendar | None = None,
 ) -> str:
     store = FilePriceSnapshotStore(price_snapshot_dir)
     snapshot_batch = store.load_latest()
     if snapshot_batch is None:
         return "没有找到本地行情快照，请先运行 `lurker refresh-prices`。"
+    resolved_today = today or shanghai_today()
+    resolution = _resolve_daily_job_date(
+        report_date,
+        today=resolved_today,
+        markets=[str(item) for item in snapshot_batch.get("markets", [])],
+        calendar=calendar,
+    )
+    if resolution.effective is None:
+        return (
+            "Skipped run-daily: cn market closed on "
+            f"{resolution.requested.isoformat()}."
+        )
+    job_date = resolution.effective.isoformat()
 
     theme_mapping = {}
     symbol_names = {}
@@ -1090,7 +1152,7 @@ def build_run_daily(
                 attributor=attributor,
                 theme_mapping=theme_mapping,
                 symbol_names=symbol_names,
-                report_date=report_date,
+                report_date=job_date,
                 signal_threshold=signal_threshold,
                 main_limit=main_limit,
                 low_score_watch_limit=low_score_watch_limit,
@@ -1107,7 +1169,7 @@ def build_run_daily(
             theme_mapping=theme_mapping,
             symbol_names=symbol_names,
             attributor=attributor,
-            report_date=report_date or date.today().isoformat(),
+            report_date=job_date,
             signal_threshold=signal_threshold,
             main_limit=main_limit,
             low_score_watch_limit=low_score_watch_limit,
@@ -1134,18 +1196,30 @@ def weekly_report(
     stock_limit: int = 20,
     push: bool = False,
     db_path: Path | None = None,
+    today: date | None = None,
+    calendar: CnTradingCalendar | None = None,
 ) -> str:
     from lurker.application.weekly_flow_report import build_weekly_flow_report
-    job_date = report_date or date.today().isoformat()
-    if not is_cn_trading_day(job_date):
-        return f"Skipped weekly report: cn market closed on {job_date}."
+    resolved_today = today or shanghai_today()
+    resolved_calendar = calendar or build_default_cn_calendar()
+    resolution = resolve_weekly_date(
+        report_date,
+        resolved_today,
+        resolved_calendar,
+    )
+    if resolution.effective is None:
+        raise TradingCalendarUnavailable("weekly report has no effective date")
+    requested_date = resolution.requested.isoformat()
+    job_date = resolution.effective.isoformat()
 
     report = build_weekly_flow_report(
         flow_snapshot_dir=flow_snapshot_dir,
         report_date=job_date,
+        requested_date=requested_date if resolution.adjusted else None,
         lookback_days=lookback_days,
         sector_limit=sector_limit,
         stock_limit=stock_limit,
+        is_trading_day=resolved_calendar.is_trading_day,
     )
 
     # Save to report directory
@@ -1558,6 +1632,13 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _print_with_calendar_errors(parser: argparse.ArgumentParser, action: Any) -> None:
+    try:
+        print(action())
+    except (FutureReportDateError, TradingCalendarUnavailable) as exc:
+        parser.error(str(exc))
+
+
 def main() -> None:
     # Load env vars from .env file in project root if present
     env_path = ROOT / ".env"
@@ -1620,8 +1701,9 @@ def main() -> None:
 
     if args.command == "run-daily":
         api_key = args.api_key or read_api_key_file(args.api_key_file)
-        print(
-            build_run_daily(
+        _print_with_calendar_errors(
+            parser,
+            lambda: build_run_daily(
                 price_snapshot_dir=args.price_snapshots,
                 flow_snapshot_dir=args.flow_snapshots,
                 seed_pool=args.seed_pool,
@@ -1638,7 +1720,7 @@ def main() -> None:
                 base_url=args.base_url,
                 scoring_config_path=args.scoring_config,
                 db_path=args.db_path,
-            )
+            ),
         )
         return
 
@@ -1683,8 +1765,9 @@ def main() -> None:
 
     if args.command == "daily-job":
         api_key = args.api_key or read_api_key_file(args.api_key_file)
-        print(
-            daily_job(
+        _print_with_calendar_errors(
+            parser,
+            lambda: daily_job(
                 seed_pool_path=args.seed_pool,
                 price_snapshot_dir=args.price_snapshots,
                 flow_snapshot_dir=args.flow_snapshots,
@@ -1710,13 +1793,14 @@ def main() -> None:
                 push=not args.no_push,
                 temperature_artifact_path=args.temperature_artifact,
                 temperature_replay_path=args.temperature_replay,
-            )
+            ),
         )
         return
 
     if args.command == "weekly-report":
-        print(
-            weekly_report(
+        _print_with_calendar_errors(
+            parser,
+            lambda: weekly_report(
                 flow_snapshot_dir=args.flow_snapshots,
                 report_dir=args.report_dir,
                 report_date=args.date,
@@ -1725,7 +1809,7 @@ def main() -> None:
                 stock_limit=args.stock_limit,
                 push=args.push,
                 db_path=args.db_path,
-            )
+            ),
         )
         return
 

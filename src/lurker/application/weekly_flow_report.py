@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone, timedelta
+from collections.abc import Callable
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,9 @@ from lurker.application.market_temperature import (
 from lurker.ingest.etf_flows import CoreEtfBatch
 from lurker.reports.models import DailyReport
 from lurker.trading_calendar import is_cn_trading_day
+
+
+TradingDayPredicate = Callable[[date], bool]
 
 
 def _as_float(value: Any, default: float = 0.0) -> float:
@@ -48,6 +52,7 @@ def _load_latest_snapshots(
     flow_snapshot_dir: Path | str,
     report_date: str,
     lookback_days: int,
+    is_trading_day: TradingDayPredicate,
 ) -> tuple[list[tuple[Any, dict[str, Any]]], list[dict[str, Any]]]:
     report_dt = datetime.strptime(report_date, "%Y-%m-%d").date()
     flow_dir = Path(flow_snapshot_dir)
@@ -63,7 +68,7 @@ def _load_latest_snapshots(
                 file_dt = datetime.strptime(match.group(1), "%Y-%m-%d").date()
             except ValueError:
                 continue
-            if file_dt <= report_dt and is_cn_trading_day(file_dt):
+            if file_dt <= report_dt and is_trading_day(file_dt):
                 snapshot_files.append((file_dt, path))
 
     snapshot_files.sort(key=lambda item: item[0])
@@ -83,7 +88,10 @@ def _load_latest_snapshots(
     return loaded, failures
 
 
-def _status_counts(loaded_snapshots: list[tuple[Any, dict[str, Any]]]) -> dict[str, int]:
+def _status_counts(
+    loaded_snapshots: list[tuple[Any, dict[str, Any]]],
+    is_trading_day: TradingDayPredicate,
+) -> dict[str, int]:
     counts = {"进攻": 0, "观察": 0, "防守": 0}
     for file_dt, data in loaded_snapshots:
         core_etfs_data = data.get("core_etfs")
@@ -100,7 +108,7 @@ def _status_counts(loaded_snapshots: list[tuple[Any, dict[str, Any]]]) -> dict[s
             core_etfs_batch=etf_batch,
             margin=margin,
             report_date=snapshot_date,
-            is_trading_day=is_cn_trading_day,
+            is_trading_day=is_trading_day,
             now=datetime.now(tz=timezone(timedelta(hours=8))),
         )
         temperature = classify_market_temperature(
@@ -178,24 +186,37 @@ def build_weekly_flow_report(
     lookback_days: int = 5,
     sector_limit: int = 10,
     stock_limit: int = 20,
+    requested_date: str | None = None,
+    is_trading_day: TradingDayPredicate = is_cn_trading_day,
 ) -> DailyReport:
     """Aggregates the latest N available A-share flow snapshots into a weekly report."""
     loaded_snapshots, failures = _load_latest_snapshots(
         flow_snapshot_dir=flow_snapshot_dir,
         report_date=report_date,
         lookback_days=lookback_days,
+        is_trading_day=is_trading_day,
     )
 
     if not loaded_snapshots:
         return DailyReport(
             report_date=report_date,
             main_candidates_count=0,
-            content_md="# 职业资金雷达周报\n\n没有可用资金快照。\n",
+            content_md=(
+                "# 职业资金雷达周报\n\n"
+                "没有可用资金快照。\n"
+                + (
+                    f"\n请求日期 {requested_date}，按最近交易日 "
+                    f"{report_date} 生成。\n"
+                    if requested_date is not None
+                    and requested_date != report_date
+                    else ""
+                )
+            ),
         )
 
     start_date_str = str(loaded_snapshots[0][0])
     end_date_str = str(loaded_snapshots[-1][0])
-    status = _status_counts(loaded_snapshots)
+    status = _status_counts(loaded_snapshots, is_trading_day)
     sectors = _aggregate_named_flows(loaded_snapshots, "sector_flows")[:sector_limit]
     stocks = _aggregate_named_flows(
         loaded_snapshots,
@@ -279,6 +300,10 @@ def build_weekly_flow_report(
     )
     if len(loaded_snapshots) < lookback_days:
         lines.append(f"可用交易日少于目标 {lookback_days} 份，周报按现有数据生成。")
+    if requested_date is not None and requested_date != report_date:
+        lines.append(
+            f"请求日期 {requested_date}，按最近交易日 {report_date} 生成。"
+        )
 
     return DailyReport(
         report_date=report_date,

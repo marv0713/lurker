@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-from datetime import date
 from typing import Any
 
 from lurker.ai.attributor import Attributor, StubAttributor
@@ -26,6 +25,7 @@ from lurker.application.signal_scan import StockSignal, scan_signals
 from lurker.reports.daily_report import render_daily_report
 from lurker.reports.models import DailyReport
 from lurker.reports.trend_card import render_trend_card
+from lurker.trading_calendar import shanghai_today
 
 
 # 缺少主题映射时使用保守默认分，避免无映射标的被静默丢弃。
@@ -139,7 +139,7 @@ def run_daily(
     if attributor is None:
         attributor = StubAttributor()
 
-    today = report_date or date.today().isoformat()
+    today = report_date or shanghai_today().isoformat()
     windows: list[int] = snapshot_batch.get("windows", [20, 60, 120, 180])
     snapshots: list[dict[str, Any]] = snapshot_batch.get("snapshots", [])
 

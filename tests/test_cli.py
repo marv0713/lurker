@@ -26,7 +26,57 @@ from lurker.cli import (
     resolve_seed_pool,
     weekly_report,
     watchlist_checkup,
+    main,
 )
+from lurker.storage.db import create_session, init_db
+from lurker.storage.models import Report
+from lurker.trading_calendar import (
+    FutureReportDateError,
+    TradingCalendarUnavailable,
+)
+
+
+class FakeCalendar:
+    def __init__(self, sessions):
+        self.sessions = tuple(sessions)
+
+    def is_trading_day(self, day):
+        return day in self.sessions
+
+    def previous_or_same_session(self, day):
+        candidates = [item for item in self.sessions if item <= day]
+        if not candidates:
+            raise TradingCalendarUnavailable("no confirmed prior session")
+        return candidates[-1]
+
+
+def _write_flow_snapshot(path, *, snapshot_date, sector_name):
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "generated_at": f"{snapshot_date}T08:00:00+00:00",
+                "market": "cn",
+                "market_flow": {
+                    "main_net_inflow": 1.0,
+                    "super_large_net_inflow": 1.0,
+                },
+                "sector_flows": [
+                    {
+                        "name": sector_name,
+                        "main_net_inflow": 100.0,
+                        "rank": 1,
+                    }
+                ],
+                "stock_flows": [],
+                "margin": {},
+                "core_etfs": [],
+                "failures": [],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
 
 
 def test_build_demo_report_returns_markdown():
@@ -739,7 +789,10 @@ def test_weekly_report_pushes_when_enabled(monkeypatch, tmp_path):
     assert "Pushed weekly report successfully" in message
 
 
-def test_weekly_report_skips_push_on_cn_non_trading_day(monkeypatch, tmp_path):
+def test_weekly_report_falls_back_and_pushes_on_cn_non_trading_day(
+    monkeypatch,
+    tmp_path,
+):
     flow_dir = tmp_path / "flow_snapshots"
     flow_dir.mkdir()
     (flow_dir / "2026-06-18.json").write_text(
@@ -771,13 +824,17 @@ def test_weekly_report_skips_push_on_cn_non_trading_day(monkeypatch, tmp_path):
         flow_snapshot_dir=flow_dir,
         report_dir=tmp_path / "reports",
         report_date="2026-06-19",
+        today=date(2026, 7, 28),
+        calendar=FakeCalendar([date(2026, 6, 18)]),
         push=True,
         db_path=None,
     )
 
-    assert sends == []
-    assert "Skipped weekly report: cn market closed on 2026-06-19" in message
+    assert sends
+    assert sends[0][0] == "Lurker 周报 (2026-06-18)"
+    assert "请求日期 2026-06-19，按最近交易日 2026-06-18 生成" in message
     assert not (tmp_path / "reports" / "weekly_2026-06-19.md").exists()
+    assert (tmp_path / "reports" / "weekly_2026-06-18.md").exists()
 
 
 def test_build_notifier_from_env_can_build_composite(monkeypatch):
@@ -1045,6 +1102,153 @@ strategies:
     assert "个股资金流不可用" in sends[0][1]
     assert "空列表不代表确认没有机会" in sends[0][1]
     assert "Pushed report successfully" in message
+
+
+def test_weekly_report_falls_back_and_uses_effective_date_everywhere(
+    monkeypatch,
+    tmp_path,
+):
+    flow_dir = tmp_path / "flow_snapshots"
+    flow_dir.mkdir()
+    _write_flow_snapshot(
+        flow_dir / "2026-06-18.json",
+        snapshot_date="2026-06-18",
+        sector_name="有效板块",
+    )
+    _write_flow_snapshot(
+        flow_dir / "2026-06-19.json",
+        snapshot_date="2026-06-19",
+        sector_name="未来污染",
+    )
+    calendar = FakeCalendar([date(2026, 6, 18)])
+    sends = []
+
+    class FakeNotifier:
+        def send(self, title, markdown_content):
+            sends.append((title, markdown_content))
+
+    monkeypatch.setattr(
+        "lurker.cli.build_notifier_from_env",
+        lambda: FakeNotifier(),
+    )
+    db_path = tmp_path / "reports.sqlite"
+    kwargs = {
+        "flow_snapshot_dir": flow_dir,
+        "report_dir": tmp_path / "reports",
+        "report_date": "2026-06-21",
+        "today": date(2026, 7, 28),
+        "calendar": calendar,
+        "push": True,
+        "db_path": db_path,
+    }
+    message = weekly_report(**kwargs)
+    weekly_report(**kwargs)
+
+    report_path = tmp_path / "reports" / "weekly_2026-06-18.md"
+    assert report_path.exists()
+    assert not (tmp_path / "reports" / "weekly_2026-06-21.md").exists()
+    text = report_path.read_text(encoding="utf-8")
+    assert "请求日期 2026-06-21，按最近交易日 2026-06-18 生成" in text
+    assert "未来污染" not in text
+    assert sends[0][0] == "Lurker 周报 (2026-06-18)"
+
+    engine = init_db(db_path)
+    with create_session(engine) as session:
+        rows = session.query(Report).filter_by(report_type="weekly").all()
+        assert [row.report_date.isoformat() for row in rows] == ["2026-06-18"]
+    assert "weekly_2026-06-18.md" in message
+
+
+def test_daily_job_skips_non_session_without_backfill(tmp_path):
+    message = daily_job(
+        seed_pool_path=tmp_path / "missing.json",
+        price_snapshot_dir=tmp_path / "prices",
+        report_dir=tmp_path / "reports",
+        markets=["cn"],
+        windows=[20],
+        period="6mo",
+        limit_per_market=1,
+        report_date="2026-06-19",
+        today=date(2026, 7, 28),
+        calendar=FakeCalendar([date(2026, 6, 18)]),
+    )
+    assert message == "Skipped daily job: cn market closed on 2026-06-19."
+    assert not (tmp_path / "prices").exists()
+    assert not (tmp_path / "reports").exists()
+
+
+def test_future_daily_and_weekly_dates_have_zero_side_effects(tmp_path):
+    calendar = FakeCalendar([date(2026, 7, 28)])
+    with pytest.raises(FutureReportDateError):
+        daily_job(
+            seed_pool_path=tmp_path / "missing.json",
+            price_snapshot_dir=tmp_path / "prices",
+            report_dir=tmp_path / "daily",
+            markets=["cn"],
+            windows=[20],
+            period="6mo",
+            limit_per_market=1,
+            report_date="2026-07-29",
+            today=date(2026, 7, 28),
+            calendar=calendar,
+        )
+    with pytest.raises(FutureReportDateError):
+        weekly_report(
+            flow_snapshot_dir=tmp_path / "flows",
+            report_dir=tmp_path / "weekly",
+            report_date="2026-07-29",
+            today=date(2026, 7, 28),
+            calendar=calendar,
+        )
+    assert not (tmp_path / "prices").exists()
+    assert not (tmp_path / "daily").exists()
+    assert not (tmp_path / "weekly").exists()
+
+
+def test_build_run_daily_rejects_future_date_before_database_write(tmp_path):
+    snapshot_dir = tmp_path / "snapshots"
+    snapshot_dir.mkdir()
+    (snapshot_dir / "2026-07-28.json").write_text(
+        json.dumps(
+            {
+                "generated_at": "2026-07-28T08:00:00+00:00",
+                "markets": ["cn"],
+                "windows": [20],
+                "snapshots": [],
+                "failures": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    db_path = tmp_path / "reports.sqlite"
+
+    with pytest.raises(FutureReportDateError):
+        build_run_daily(
+            price_snapshot_dir=snapshot_dir,
+            report_date="2026-07-29",
+            today=date(2026, 7, 28),
+            calendar=FakeCalendar([date(2026, 7, 28)]),
+            db_path=db_path,
+        )
+
+    assert not db_path.exists()
+
+
+def test_main_reports_calendar_error_without_traceback(monkeypatch, capsys):
+    monkeypatch.setattr(
+        "sys.argv",
+        ["lurker", "weekly-report", "--date", "2026-07-29"],
+    )
+    monkeypatch.setattr(
+        "lurker.cli.weekly_report",
+        lambda **kwargs: (_ for _ in ()).throw(
+            FutureReportDateError("future report date")
+        ),
+    )
+    with pytest.raises(SystemExit) as exc:
+        main()
+    assert exc.value.code == 2
+    assert "future report date" in capsys.readouterr().err
 
 
 def _write_approved_temperature_artifact(tmp_path):
