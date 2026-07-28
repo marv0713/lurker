@@ -203,9 +203,11 @@ def build_weekly_flow_report(
             main_candidates_count=0,
             content_md=(
                 "# 职业资金雷达周报\n\n"
+                "没有可用资金快照。\n\n"
+                "## 数据质量\n\n"
                 "没有可用资金快照。\n"
                 + (
-                    f"\n请求日期 {requested_date}，按最近交易日 "
+                    f"请求日期 {requested_date}，按最近交易日 "
                     f"{report_date} 生成。\n"
                     if requested_date is not None
                     and requested_date != report_date

@@ -49,6 +49,15 @@ def test_exchange_calendar_provider_contract():
     assert sessions == (date(2026, 6, 18), date(2026, 6, 22))
 
 
+def test_exchange_calendar_provider_wraps_version_failure(monkeypatch):
+    def fail_version(distribution):
+        raise RuntimeError("metadata unavailable")
+
+    monkeypatch.setattr("lurker.trading_calendar.version", fail_version)
+    with pytest.raises(TradingCalendarUnavailable, match="metadata unavailable"):
+        ExchangeCalendarsCnProvider().provider_version
+
+
 class FakeProvider:
     def __init__(self, sessions, *, provider_version="4.13.2", error=None):
         self._sessions = tuple(sessions)

@@ -96,3 +96,13 @@ def test_file_flow_snapshot_store_loads_on_or_before_cutoff(tmp_path):
 
     assert store.load_on_or_before("2026-06-19") == older
     assert store.load_on_or_before("2026-06-17") is None
+
+
+def test_file_flow_snapshot_store_ignores_non_date_json_names(tmp_path):
+    store = FileFlowSnapshotStore(tmp_path)
+    (tmp_path / "2026-06-10-copy.json").write_text(
+        '{"market": "wrong"}',
+        encoding="utf-8",
+    )
+
+    assert store.load_on_or_before("2026-06-19") is None

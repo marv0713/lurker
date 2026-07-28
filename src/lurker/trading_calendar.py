@@ -44,7 +44,12 @@ class ExchangeCalendarsCnProvider:
 
     @property
     def provider_version(self) -> str:
-        return version("exchange-calendars")
+        try:
+            return version("exchange-calendars")
+        except Exception as exc:
+            raise TradingCalendarUnavailable(
+                f"XSHG calendar unavailable: {exc}"
+            ) from exc
 
     def sessions_in_range(
         self,

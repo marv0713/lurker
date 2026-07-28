@@ -219,6 +219,21 @@ def test_build_weekly_flow_report_handles_empty_snapshot_dir(tmp_path):
     assert report.main_candidates_count == 0
 
 
+def test_empty_weekly_report_discloses_adjusted_date_in_data_quality(tmp_path):
+    flow_dir = tmp_path / "flow_snapshots"
+    flow_dir.mkdir()
+
+    report = build_weekly_flow_report(
+        flow_snapshot_dir=flow_dir,
+        report_date="2026-06-18",
+        requested_date="2026-06-21",
+        is_trading_day=lambda day: True,
+    )
+
+    assert "## 数据质量" in report.content_md
+    assert "请求日期 2026-06-21，按最近交易日 2026-06-18 生成" in report.content_md
+
+
 def test_weekly_sector_labels_keep_algorithm_and_add_time_scope(tmp_path):
     flow_dir = tmp_path / "flow_snapshots"
     flow_dir.mkdir()

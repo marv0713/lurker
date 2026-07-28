@@ -254,12 +254,21 @@ class FilePriceSnapshotStore:
     ) -> PriceSnapshotBatch | None:
         if not self.directory.exists():
             return None
-        candidates = sorted(
-            path
-            for path in self.directory.glob("*.json")
-            if path.name != "latest.json"
-            and path.stem <= snapshot_date
-        )
+        cutoff = datetime.strptime(snapshot_date, "%Y-%m-%d").date()
+        candidates = []
+        for path in self.directory.glob("*.json"):
+            if path.name == "latest.json":
+                continue
+            try:
+                candidate_date = datetime.strptime(
+                    path.stem,
+                    "%Y-%m-%d",
+                ).date()
+            except ValueError:
+                continue
+            if candidate_date <= cutoff:
+                candidates.append((candidate_date, path))
         if not candidates:
             return None
-        return load_price_snapshot_file(candidates[-1])
+        candidates.sort(key=lambda item: item[0])
+        return load_price_snapshot_file(candidates[-1][1])
