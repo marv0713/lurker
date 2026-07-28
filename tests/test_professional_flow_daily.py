@@ -482,8 +482,8 @@ def test_two_percent_requires_top_tier_trend():
     assert report.main_candidates_count == 0
 
 
-def test_professional_report_promotes_two_percent_candidate():
-    """足够强的趋势分位（5只股票池，300308排最高）可以进入 2%候选。"""
+def test_professional_report_promotes_candidate_only_after_rollout_approval():
+    """满足条件的标的只有在温度规则通过 rollout 后才能进入 2%候选。"""
     price_snapshot = {
         "windows": [20, 60, 120, 180],
         "snapshots": [
@@ -559,6 +559,18 @@ def test_professional_report_promotes_two_percent_candidate():
     assert "附：职业资金雷达打分规则说明" not in report.content_md
     assert "综合得分 = 温度调整量" not in report.content_md
     assert report.main_candidates_count >= 1
+
+    degraded_report = run_professional_flow_daily(
+        price_snapshot=price_snapshot,
+        flow_snapshot=flow_snapshot,
+        theme_mapping={"300308.SZ": ["ai_infra"]},
+        symbol_names={"300308.SZ": "中际旭创"},
+        report_date="2026-06-04",
+        temperature_rollout_approved=False,
+    )
+
+    assert degraded_report.main_candidates_count == 0
+    assert "市场温度规则尚未完成上线验收" in degraded_report.content_md
 
 
 # ---------------------------------------------------------------------------

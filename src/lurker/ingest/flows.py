@@ -14,8 +14,12 @@ import json
 import requests as _requests
 import sys
 
-_AKSHARE_PROXY = os.environ.get("AKSHARE_PROXY", "http://127.0.0.1:7897")
-_AKSHARE_PROXIES = {"http": _AKSHARE_PROXY, "https": _AKSHARE_PROXY}
+_AKSHARE_PROXY = os.environ.get("AKSHARE_PROXY", "").strip()
+_AKSHARE_PROXIES = (
+    {"http": _AKSHARE_PROXY, "https": _AKSHARE_PROXY}
+    if _AKSHARE_PROXY
+    else {}
+)
 
 
 def _make_proxy_func(method: str):  # type: ignore[no-untyped-def]

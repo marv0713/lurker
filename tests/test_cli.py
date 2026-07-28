@@ -7,6 +7,8 @@ import pytest
 
 from lurker.reports.models import DailyReport
 from lurker.cli import (
+    DailyJobFailed,
+    _flow_degradation_reasons,
     build_temperature_replay,
     build_data_snapshot,
     build_demo_report,
@@ -24,6 +26,7 @@ from lurker.cli import (
     refresh_flows,
     refresh_prices,
     resolve_seed_pool,
+    run_daily_job_with_failure_notification,
     weekly_report,
     watchlist_checkup,
     main,
@@ -991,6 +994,111 @@ def test_build_notifier_from_env_can_build_composite(monkeypatch):
     assert type(notifier).__name__ == "CompositeNotifier"
 
 
+def test_daily_job_wrapper_sends_failure_notification_and_preserves_exception():
+    sends = []
+
+    class FakeNotifier:
+        def send(self, title, markdown_content):
+            sends.append((title, markdown_content))
+
+    def fail():
+        raise RuntimeError("collector exploded")
+
+    with pytest.raises(RuntimeError, match="collector exploded"):
+        run_daily_job_with_failure_notification(
+            action=fail,
+            report_date="2026-07-28",
+            push=True,
+            notifier=FakeNotifier(),
+        )
+
+    assert sends[0][0] == "[故障] 职业资金雷达日报 2026-07-28"
+    assert "阶段：daily_job" in sends[0][1]
+    assert "RuntimeError: collector exploded" in sends[0][1]
+
+
+def test_daily_job_wrapper_does_not_replace_original_error_when_notification_fails():
+    class FailingNotifier:
+        def send(self, title, markdown_content):
+            raise ConnectionError("notification unavailable")
+
+    def fail():
+        raise RuntimeError("collector exploded")
+
+    with pytest.raises(RuntimeError, match="collector exploded"):
+        run_daily_job_with_failure_notification(
+            action=fail,
+            report_date="2026-07-28",
+            push=True,
+            notifier=FailingNotifier(),
+        )
+
+
+def test_flow_degradation_reasons_include_nested_etf_and_stale_margin():
+    reasons = _flow_degradation_reasons(
+        {
+            "failures": [],
+            "core_etfs": {
+                "failures": [{"symbol": "510300.SH", "reason": "timeout"}],
+            },
+            "margin": {"availability": "stale_cache"},
+        }
+    )
+
+    assert "核心 ETF 采集不完整" in reasons
+    assert "两融数据非当日" in reasons
+
+
+def test_daily_job_validation_failure_sends_fault_instead_of_normal_report(
+    monkeypatch,
+    tmp_path,
+):
+    seed_pool_path = tmp_path / "resolved_seed_pool.json"
+    seed_pool_path.write_text(
+        """
+{
+  "generated_at": "2026-07-28T00:00:00+00:00",
+  "markets": {"cn": {"symbols": ["300308.SZ"], "sources": {}}}
+}
+""",
+        encoding="utf-8",
+    )
+    sends = []
+
+    class FakeNotifier:
+        def send(self, title, markdown_content):
+            sends.append((title, markdown_content))
+
+    monkeypatch.setattr(
+        "lurker.cli.collect_price_snapshot_batch",
+        lambda **kwargs: {
+            "generated_at": "2026-07-28T00:00:00+00:00",
+            "markets": ["cn"],
+            "windows": [20],
+            "snapshots": [],
+            "failures": [],
+        },
+    )
+    monkeypatch.setattr("lurker.cli.build_notifier_from_env", lambda: FakeNotifier())
+
+    with pytest.raises(DailyJobFailed, match="DAILY_JOB_STATUS=FAILED"):
+        daily_job(
+            seed_pool_path=seed_pool_path,
+            price_snapshot_dir=tmp_path / "price_snapshots",
+            report_dir=tmp_path / "reports",
+            markets=["cn"],
+            windows=[20],
+            period="6mo",
+            limit_per_market=1,
+            report_date="2026-07-28",
+            push=True,
+        )
+
+    assert sends[0][0] == "[故障] 职业资金雷达日报 2026-07-28"
+    assert "价格数据快照为空" in sends[0][1]
+    assert all("Lurker 雷达" not in title for title, _ in sends)
+
+
 def test_watchlist_notifier_does_not_use_daily_recipient_environment(monkeypatch):
     monkeypatch.setenv("PUSHPLUS_TOKEN", "daily-token")
     monkeypatch.setenv("EMAIL_TO", "daily@example.com")
@@ -1078,7 +1186,7 @@ def test_watchlist_checkup_passes_no_push_and_returns_counts(monkeypatch, tmp_pa
     assert "checked=2, alerts=1, failures=1, pushed=False" in message
 
 
-def test_daily_job_blocks_professional_push_when_rollout_artifact_is_missing(
+def test_daily_job_pushes_degraded_report_when_rollout_artifact_is_missing(
     monkeypatch,
     tmp_path,
 ):
@@ -1157,10 +1265,63 @@ strategies:
         temperature_replay_path=tmp_path / "missing-replay.json",
     )
 
-    assert sends == []
-    assert "temperature gate blocked (缺少 rollout artifact)" in message
+    assert len(sends) == 1
+    assert sends[0][0].startswith("[降级]")
+    assert "市场温度上线闸门：缺少 rollout artifact" in sends[0][1]
+    assert "Pushed degraded report successfully." in message
+    assert "DAILY_JOB_STATUS=DEGRADED" in message
     report_text = (tmp_path / "reports" / "2026-06-08.md").read_text(encoding="utf-8")
     assert "市场温度上线闸门：缺少 rollout artifact" in report_text
+
+    sends.clear()
+    no_push_message = daily_job(
+        seed_pool_path=seed_pool_path,
+        price_snapshot_dir=tmp_path / "price_snapshots",
+        flow_snapshot_dir=tmp_path / "flow_snapshots",
+        report_dir=tmp_path / "reports",
+        markets=["cn"],
+        windows=[20],
+        period="6mo",
+        limit_per_market=1,
+        report_date="2026-06-08",
+        strategy_config_path=strategy_config,
+        strategy_cadence="daily",
+        temperature_artifact_path=tmp_path / "missing-artifact.json",
+        temperature_replay_path=tmp_path / "missing-replay.json",
+        push=False,
+    )
+
+    assert sends == []
+    assert "Skipped pushing report (--no-push)." in no_push_message
+    assert "DAILY_JOB_STATUS=DEGRADED" in no_push_message
+
+    class FailingNotifier:
+        def send(self, title, markdown_content):
+            raise ConnectionError("push channel unavailable")
+
+    monkeypatch.setattr(
+        "lurker.cli.build_notifier_from_env",
+        lambda: FailingNotifier(),
+    )
+    with pytest.raises(
+        DailyJobFailed,
+        match='DAILY_JOB_STATUS=FAILED stage="notification"',
+    ):
+        daily_job(
+            seed_pool_path=seed_pool_path,
+            price_snapshot_dir=tmp_path / "price_snapshots",
+            flow_snapshot_dir=tmp_path / "flow_snapshots",
+            report_dir=tmp_path / "reports",
+            markets=["cn"],
+            windows=[20],
+            period="6mo",
+            limit_per_market=1,
+            report_date="2026-06-08",
+            strategy_config_path=strategy_config,
+            strategy_cadence="daily",
+            temperature_artifact_path=tmp_path / "missing-artifact.json",
+            temperature_replay_path=tmp_path / "missing-replay.json",
+        )
 
 
 def test_daily_job_pushes_professional_report_when_only_stock_flows_fail(monkeypatch, tmp_path):
@@ -1241,9 +1402,11 @@ strategies:
     )
 
     assert sends
+    assert sends[0][0].startswith("[降级]")
     assert "个股资金流不可用" in sends[0][1]
     assert "空列表不代表确认没有机会" in sends[0][1]
-    assert "Pushed report successfully" in message
+    assert "Pushed degraded report successfully" in message
+    assert "DAILY_JOB_STATUS=DEGRADED" in message
 
 
 def test_weekly_report_falls_back_and_uses_effective_date_everywhere(

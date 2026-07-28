@@ -418,6 +418,7 @@ def run_professional_flow_daily(
     report_date: str,
     now: datetime | None = None,
     is_trading_day: Callable[[date], bool] | None = None,
+    temperature_rollout_approved: bool = True,
 ) -> DailyReport:
     flow_snapshot = flow_snapshot or {}
     market_flow = flow_snapshot.get("market_flow", {})
@@ -495,7 +496,8 @@ def run_professional_flow_daily(
         has_5d_inflow = _as_float(flow.get("main_net_inflow_5d")) > 0
         is_leader = _is_sector_leader(symbol, theme, stock_flows, theme_mapping)
         can_be_two_pct = (
-            s_score >= sector_min
+            temperature_rollout_approved
+            and s_score >= sector_min
             and flow_score >= flow_min
             and trend_score >= trend_min
             and is_leader
@@ -550,6 +552,10 @@ def run_professional_flow_daily(
     # 数据质量
     data_quality: list[str] = []
     data_quality.extend(prepared.quality_notes)
+    if not temperature_rollout_approved:
+        data_quality.append(
+            "⚠️ 市场温度规则尚未完成上线验收，已禁用温度驱动的 2%候选。"
+        )
     if stock_flow_coverage == "degraded":
         data_quality.append(
             "⚠️ 个股资金流不可用，2%候选、资金确认和核心股票资金流向"

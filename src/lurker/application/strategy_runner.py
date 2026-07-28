@@ -264,6 +264,12 @@ class ProfessionalFlowDailyStrategy:
             theme_mapping=context.theme_mapping,
             symbol_names=context.symbol_names,
             report_date=context.report_date or "",
+            temperature_rollout_approved=bool(
+                context.runtime_params.get(
+                    "temperature_rollout_approved",
+                    True,
+                )
+            ),
         )
         return StrategyResult(
             name=self.name,

@@ -2,6 +2,7 @@ import argparse
 import hashlib
 import json
 import math
+import sys
 from datetime import date
 from pathlib import Path
 
@@ -56,6 +57,78 @@ from lurker.universe.resolved_seed_pool import (
 
 
 ROOT = Path(__file__).resolve().parents[2]
+NON_BLOCKING_FLOW_SOURCES = frozenset({"stock_flows", "margin", "core_etfs"})
+
+
+class DailyJobFailed(RuntimeError):
+    """Daily job failed after emitting an operator-visible status."""
+
+
+def _send_daily_failure_notification(
+    *,
+    report_date: str,
+    stage: str,
+    reason: str,
+    notifier: Any,
+) -> None:
+    notifier.send(
+        title=f"[故障] 职业资金雷达日报 {report_date}",
+        markdown_content=(
+            "# 日报任务故障\n\n"
+            f"- 日期：{report_date}\n"
+            f"- 阶段：{stage}\n"
+            f"- 原因：{reason}\n"
+        ),
+    )
+
+
+def run_daily_job_with_failure_notification(
+    *,
+    action: Any,
+    report_date: str,
+    push: bool,
+    notifier: Any,
+) -> str:
+    try:
+        return action()
+    except DailyJobFailed:
+        raise
+    except Exception as exc:
+        if push:
+            try:
+                _send_daily_failure_notification(
+                    report_date=report_date,
+                    stage="daily_job",
+                    reason=f"{type(exc).__name__}: {exc}",
+                    notifier=notifier,
+                )
+            except Exception:
+                pass
+        raise
+
+
+def _flow_degradation_reasons(flow_snapshot: dict | None) -> list[str]:
+    snapshot = flow_snapshot or {}
+    reasons: list[str] = []
+    failures = snapshot.get("failures", [])
+    if any(
+        isinstance(failure, dict)
+        and str(failure.get("source", "")) in NON_BLOCKING_FLOW_SOURCES
+        for failure in failures
+    ):
+        reasons.append("部分非关键资金源不可用")
+
+    core_etfs = snapshot.get("core_etfs")
+    if isinstance(core_etfs, dict) and core_etfs.get("failures"):
+        reasons.append("核心 ETF 采集不完整")
+
+    margin = snapshot.get("margin")
+    if (
+        isinstance(margin, dict)
+        and margin.get("availability") not in {None, "fresh"}
+    ):
+        reasons.append("两融数据非当日")
+    return reasons
 
 
 def _check_temperature_gate(
@@ -602,6 +675,7 @@ def build_strategy_report(
     flow_snapshot: dict | None = None,
     scoring_config: dict | None = None,
     db_session: Any = None,
+    temperature_rollout_approved: bool = True,
 ) -> DailyReport:
     configs = load_strategy_configs(strategy_config_path)
     if not configs and strategy_names:
@@ -624,6 +698,7 @@ def build_strategy_report(
             "main_limit": main_limit,
             "low_score_watch_limit": low_score_watch_limit,
             "scoring_config": scoring_config,
+            "temperature_rollout_approved": temperature_rollout_approved,
         },
         db_session=db_session,
     )
@@ -867,40 +942,6 @@ def daily_job(
     if scoring_config_path and scoring_config_path.exists():
         scoring = load_scoring(scoring_config_path)
 
-    symbol_names = seed_pool.get("symbol_names", {})
-    if strategy_config_path is None and strategy_names is None:
-        report = run_daily(
-            snapshot_batch=snapshot_batch,
-            theme_mapping=seed_pool.get("theme_mapping", {}),
-            symbol_names=symbol_names,
-            attributor=attributor,
-            report_date=job_date,
-            signal_threshold=signal_threshold,
-            main_limit=main_limit,
-            low_score_watch_limit=low_score_watch_limit,
-            suppressed_symbols=suppressed_symbols,
-            scoring_config=scoring,
-            db_session=session,
-        )
-    else:
-        report = build_strategy_report(
-            snapshot_batch=snapshot_batch,
-            flow_snapshot=flow_snapshot,
-            theme_mapping=seed_pool.get("theme_mapping", {}),
-            symbol_names=symbol_names,
-            attributor=attributor,
-            report_date=job_date,
-            signal_threshold=signal_threshold,
-            main_limit=main_limit,
-            low_score_watch_limit=low_score_watch_limit,
-            suppressed_symbols=suppressed_symbols,
-            strategy_config_path=strategy_config_path,
-            strategy_names=strategy_names,
-            strategy_cadence=strategy_cadence,
-            scoring_config=scoring,
-            db_session=session,
-        )
-
     if strategy_names:
         selected_strategies = strategy_names
     elif strategy_config_path is not None:
@@ -934,6 +975,43 @@ def daily_job(
             replay_path=resolved_replay_path,
             current_rules_fingerprint=current_rules_fingerprint(),
         )
+
+    symbol_names = seed_pool.get("symbol_names", {})
+    if strategy_config_path is None and strategy_names is None:
+        report = run_daily(
+            snapshot_batch=snapshot_batch,
+            theme_mapping=seed_pool.get("theme_mapping", {}),
+            symbol_names=symbol_names,
+            attributor=attributor,
+            report_date=job_date,
+            signal_threshold=signal_threshold,
+            main_limit=main_limit,
+            low_score_watch_limit=low_score_watch_limit,
+            suppressed_symbols=suppressed_symbols,
+            scoring_config=scoring,
+            db_session=session,
+        )
+    else:
+        report = build_strategy_report(
+            snapshot_batch=snapshot_batch,
+            flow_snapshot=flow_snapshot,
+            theme_mapping=seed_pool.get("theme_mapping", {}),
+            symbol_names=symbol_names,
+            attributor=attributor,
+            report_date=job_date,
+            signal_threshold=signal_threshold,
+            main_limit=main_limit,
+            low_score_watch_limit=low_score_watch_limit,
+            suppressed_symbols=suppressed_symbols,
+            strategy_config_path=strategy_config_path,
+            strategy_names=strategy_names,
+            strategy_cadence=strategy_cadence,
+            scoring_config=scoring,
+            db_session=session,
+            temperature_rollout_approved=temperature_gate_allowed,
+        )
+
+    if temperature_gate_applies:
         if not temperature_gate_allowed or temperature_gate_reason:
             report.content_md = _annotate_temperature_gate(
                 report.content_md,
@@ -1009,12 +1087,11 @@ def daily_job(
     # 检查是否有严重的资金流抓取报错（排除频率超限等非致命错误）
     has_critical_flow_failure = False
     critical_reasons = []
-    non_blocking_flow_sources = {"stock_flows", "margin", "core_etfs"}
     for f in flow_failures:
         reason = f.get("reason", "")
         source = str(f.get("source", ""))
         if (
-            source not in non_blocking_flow_sources
+            source not in NON_BLOCKING_FLOW_SOURCES
             and "频率超限" not in reason
             and "limit" not in reason.lower()
         ):
@@ -1033,22 +1110,46 @@ def daily_job(
         is_valid = False
         validation_error = f"资金流抓取存在致命错误 ({', '.join(critical_reasons)})"
 
+    degradation_reasons = _flow_degradation_reasons(flow_snapshot)
+    if temperature_gate_applies and temperature_gate_reason:
+        degradation_reasons.append(temperature_gate_reason)
+    delivery_status = "DEGRADED" if degradation_reasons else "SUCCESS"
     push_msg = ""
 
-    if is_valid and push and temperature_gate_allowed:
+    if is_valid and push:
         notifier = build_notifier_from_env()
         try:
-            notifier.send(title=report.push_title, markdown_content=report.content_md)
+            push_title = report.push_title
+            if delivery_status == "DEGRADED":
+                push_title = f"[降级] {push_title}"
+            notifier.send(title=push_title, markdown_content=report.content_md)
             if type(notifier).__name__ != "StubNotifier":
-                push_msg = "\nPushed report successfully."
-        except Exception as e:
-            push_msg = f"\nFailed to push report: {e}"
+                push_msg = (
+                    "\nPushed degraded report successfully."
+                    if delivery_status == "DEGRADED"
+                    else "\nPushed report successfully."
+                )
+        except Exception as exc:
+            raise DailyJobFailed(
+                "DAILY_JOB_STATUS=FAILED "
+                'stage="notification" '
+                f'reason="{type(exc).__name__}: {exc}"'
+            ) from exc
     elif not is_valid:
-        push_msg = f"\nSkipped pushing report: validation failed ({validation_error})."
-    elif push and temperature_gate_applies and not temperature_gate_allowed:
-        push_msg = (
-            "\nSkipped pushing report: temperature gate blocked "
-            f"({temperature_gate_reason})."
+        if push:
+            notifier = build_notifier_from_env()
+            try:
+                _send_daily_failure_notification(
+                    report_date=job_date,
+                    stage="validation",
+                    reason=validation_error,
+                    notifier=notifier,
+                )
+            except Exception:
+                pass
+        raise DailyJobFailed(
+            "DAILY_JOB_STATUS=FAILED "
+            f'stage="validation" reason="{validation_error}"'
         )
     else:
         push_msg = "\nSkipped pushing report (--no-push)."
@@ -1071,6 +1172,7 @@ def daily_job(
         f"Wrote candidate history to {candidates_path}\n"
         f"Updated report archive index at {index_path}"
         + push_msg
+        + f"\nDAILY_JOB_STATUS={delivery_status}"
     )
 
 
@@ -1659,6 +1761,9 @@ def _print_with_calendar_errors(parser: argparse.ArgumentParser, action: Any) ->
         print(action())
     except (FutureReportDateError, TradingCalendarUnavailable) as exc:
         parser.error(str(exc))
+    except DailyJobFailed as exc:
+        print(str(exc), file=sys.stderr)
+        raise SystemExit(1) from exc
 
 
 def main() -> None:
@@ -1789,32 +1894,37 @@ def main() -> None:
         api_key = args.api_key or read_api_key_file(args.api_key_file)
         _print_with_calendar_errors(
             parser,
-            lambda: daily_job(
-                seed_pool_path=args.seed_pool,
-                price_snapshot_dir=args.price_snapshots,
-                flow_snapshot_dir=args.flow_snapshots,
-                report_dir=args.report_dir,
-                markets=parse_markets(args.markets),
-                windows=[int(window) for window in parse_markets(args.windows)],
-                period=args.period,
-                limit_per_market=args.limit,
-                report_date=args.date,
-                signal_threshold=args.signal_threshold,
-                main_limit=args.main_limit,
-                low_score_watch_limit=args.low_score_watch_limit,
-                suppressed_symbols_path=args.suppressed_symbols,
-                strategy_config_path=args.strategy_config,
-                strategy_names=parse_strategy_names(args.strategies),
-                strategy_cadence=None if args.cadence == "all" else args.cadence,
-                api_key=api_key,
-                model=args.model,
-                base_url=args.base_url,
-                scoring_config_path=args.scoring_config,
-                markets_path=args.markets_path,
-                db_path=args.db_path,
+            lambda: run_daily_job_with_failure_notification(
+                action=lambda: daily_job(
+                    seed_pool_path=args.seed_pool,
+                    price_snapshot_dir=args.price_snapshots,
+                    flow_snapshot_dir=args.flow_snapshots,
+                    report_dir=args.report_dir,
+                    markets=parse_markets(args.markets),
+                    windows=[int(window) for window in parse_markets(args.windows)],
+                    period=args.period,
+                    limit_per_market=args.limit,
+                    report_date=args.date,
+                    signal_threshold=args.signal_threshold,
+                    main_limit=args.main_limit,
+                    low_score_watch_limit=args.low_score_watch_limit,
+                    suppressed_symbols_path=args.suppressed_symbols,
+                    strategy_config_path=args.strategy_config,
+                    strategy_names=parse_strategy_names(args.strategies),
+                    strategy_cadence=None if args.cadence == "all" else args.cadence,
+                    api_key=api_key,
+                    model=args.model,
+                    base_url=args.base_url,
+                    scoring_config_path=args.scoring_config,
+                    markets_path=args.markets_path,
+                    db_path=args.db_path,
+                    push=not args.no_push,
+                    temperature_artifact_path=args.temperature_artifact,
+                    temperature_replay_path=args.temperature_replay,
+                ),
+                report_date=args.date or shanghai_today().isoformat(),
                 push=not args.no_push,
-                temperature_artifact_path=args.temperature_artifact,
-                temperature_replay_path=args.temperature_replay,
+                notifier=build_notifier_from_env(),
             ),
         )
         return

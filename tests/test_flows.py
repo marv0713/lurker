@@ -1,4 +1,7 @@
+import importlib
+
 import pandas as pd
+import lurker.ingest.flows as flows_module
 
 from lurker.ingest.flows import (
     fetch_margin,
@@ -8,6 +11,25 @@ from lurker.ingest.flows import (
     normalize_sector_flow_frame,
     normalize_stock_flow_frame,
 )
+
+
+def test_akshare_requests_default_to_direct_connection(monkeypatch):
+    monkeypatch.delenv("AKSHARE_PROXY", raising=False)
+
+    reloaded = importlib.reload(flows_module)
+
+    assert reloaded._AKSHARE_PROXIES == {}
+
+
+def test_akshare_requests_honor_explicit_proxy(monkeypatch):
+    monkeypatch.setenv("AKSHARE_PROXY", "http://127.0.0.1:7897")
+
+    reloaded = importlib.reload(flows_module)
+
+    assert reloaded._AKSHARE_PROXIES == {
+        "http": "http://127.0.0.1:7897",
+        "https": "http://127.0.0.1:7897",
+    }
 
 
 def test_normalize_stock_flow_frame_maps_eastmoney_columns():
