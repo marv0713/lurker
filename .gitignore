@@ -16,3 +16,5 @@ tests/key
 check_themes.py
 print_scores.py
 test_gemini.py
+.venv
+data/cache/trading_calendars/

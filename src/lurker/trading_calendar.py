@@ -1,25 +1,18 @@
 from __future__ import annotations
 
+import json
+import os
+import tempfile
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import date, datetime
 from importlib.metadata import version
+from pathlib import Path
 from typing import Protocol
+from zoneinfo import ZoneInfo
 
 
-CN_MARKET_CLOSED_RANGES_2026: tuple[tuple[date, date], ...] = (
-    (date(2026, 1, 1), date(2026, 1, 3)),
-    (date(2026, 1, 4), date(2026, 1, 4)),
-    (date(2026, 2, 14), date(2026, 2, 14)),
-    (date(2026, 2, 15), date(2026, 2, 23)),
-    (date(2026, 2, 28), date(2026, 2, 28)),
-    (date(2026, 4, 4), date(2026, 4, 6)),
-    (date(2026, 5, 1), date(2026, 5, 5)),
-    (date(2026, 5, 9), date(2026, 5, 9)),
-    (date(2026, 6, 19), date(2026, 6, 21)),
-    (date(2026, 9, 20), date(2026, 9, 20)),
-    (date(2026, 9, 25), date(2026, 9, 27)),
-    (date(2026, 10, 1), date(2026, 10, 7)),
-    (date(2026, 10, 10), date(2026, 10, 10)),
-)
+SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
 
 
 class TradingCalendarUnavailable(RuntimeError):
@@ -79,14 +72,189 @@ def parse_iso_date(value: str) -> date:
     return datetime.strptime(value, "%Y-%m-%d").date()
 
 
-def is_cn_trading_day(day: date | str) -> bool:
-    resolved = parse_iso_date(day) if isinstance(day, str) else day
-    if resolved.weekday() >= 5:
-        return False
-    for start, end in CN_MARKET_CLOSED_RANGES_2026:
-        if start <= resolved <= end:
-            return False
-    return True
+@dataclass(frozen=True)
+class CalendarCache:
+    provider: str
+    provider_version: str
+    generated_at: str
+    coverage_start: date
+    coverage_end: date
+    sessions: tuple[date, ...]
+
+    @classmethod
+    def from_dict(cls, raw: object) -> CalendarCache:
+        if not isinstance(raw, dict):
+            raise ValueError("calendar cache must be a mapping")
+        if raw.get("schema_version") != 1:
+            raise ValueError("unsupported calendar cache schema")
+        if raw.get("calendar") != "XSHG":
+            raise ValueError("calendar cache must use XSHG")
+        if raw.get("timezone") != "Asia/Shanghai":
+            raise ValueError("calendar cache timezone mismatch")
+        start = parse_iso_date(str(raw["coverage_start"]))
+        end = parse_iso_date(str(raw["coverage_end"]))
+        raw_sessions = raw["sessions"]
+        if not isinstance(raw_sessions, list):
+            raise ValueError("calendar cache sessions must be a list")
+        sessions = tuple(parse_iso_date(str(item)) for item in raw_sessions)
+        if start > end:
+            raise ValueError("calendar cache coverage is reversed")
+        if tuple(sorted(set(sessions))) != sessions:
+            raise ValueError("calendar cache sessions must be sorted and unique")
+        if any(item < start or item > end for item in sessions):
+            raise ValueError("calendar cache session outside coverage")
+        return cls(
+            provider=str(raw["provider"]),
+            provider_version=str(raw["provider_version"]),
+            generated_at=str(raw["generated_at"]),
+            coverage_start=start,
+            coverage_end=end,
+            sessions=sessions,
+        )
+
+    def covers(self, start: date, end: date) -> bool:
+        return self.coverage_start <= start and self.coverage_end >= end
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "schema_version": 1,
+            "calendar": "XSHG",
+            "timezone": "Asia/Shanghai",
+            "provider": self.provider,
+            "provider_version": self.provider_version,
+            "generated_at": self.generated_at,
+            "coverage_start": self.coverage_start.isoformat(),
+            "coverage_end": self.coverage_end.isoformat(),
+            "sessions": [item.isoformat() for item in self.sessions],
+        }
+
+
+def _read_cache(path: Path) -> CalendarCache | None:
+    if not path.exists():
+        return None
+    try:
+        return CalendarCache.from_dict(
+            json.loads(path.read_text(encoding="utf-8"))
+        )
+    except (OSError, KeyError, TypeError, ValueError):
+        return None
+
+
+def _write_cache(path: Path, cache: CalendarCache) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        delete=False,
+    )
+    temporary = Path(handle.name)
+    try:
+        with handle:
+            json.dump(cache.to_dict(), handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
+ProviderFactory = Callable[[], CnTradingCalendarProvider]
+
+
+class CnTradingCalendar:
+    def __init__(
+        self,
+        cache_path: Path,
+        *,
+        provider_factory: ProviderFactory = ExchangeCalendarsCnProvider,
+    ) -> None:
+        self.cache_path = Path(cache_path)
+        self.provider_factory = provider_factory
+
+    def _ensure(self, start: date, end: date) -> CalendarCache:
+        requested_start = date(start.year, 1, 1)
+        requested_end = date(end.year, 12, 31)
+        cache = _read_cache(self.cache_path)
+        if cache is not None and cache.covers(requested_start, requested_end):
+            return cache
+        if cache is None:
+            query_start, query_end = requested_start, requested_end
+        else:
+            query_start = min(cache.coverage_start, requested_start)
+            query_end = max(cache.coverage_end, requested_end)
+        provider = self.provider_factory()
+        sessions = provider.sessions_in_range(query_start, query_end)
+        rebuilt = CalendarCache(
+            provider=provider.provider_name,
+            provider_version=provider.provider_version,
+            generated_at=datetime.now(SHANGHAI_TZ).isoformat(),
+            coverage_start=query_start,
+            coverage_end=query_end,
+            sessions=sessions,
+        )
+        _write_cache(self.cache_path, rebuilt)
+        return rebuilt
+
+    def sessions_in_range(
+        self,
+        start: date,
+        end: date,
+    ) -> tuple[date, ...]:
+        if start > end:
+            raise ValueError("calendar range start must not exceed end")
+        cache = self._ensure(start, end)
+        return tuple(
+            item for item in cache.sessions if start <= item <= end
+        )
+
+    def is_trading_day(self, day: date | str) -> bool:
+        resolved = parse_iso_date(day) if isinstance(day, str) else day
+        cache = self._ensure(resolved, resolved)
+        return resolved in set(cache.sessions)
+
+    def previous_or_same_session(self, day: date | str) -> date:
+        resolved = parse_iso_date(day) if isinstance(day, str) else day
+        cursor_year = resolved.year
+        while True:
+            start = date(cursor_year, 1, 1)
+            end = (
+                resolved
+                if cursor_year == resolved.year
+                else date(cursor_year, 12, 31)
+            )
+            sessions = self.sessions_in_range(start, end)
+            if sessions:
+                return sessions[-1]
+            cursor_year -= 1
+
+
+DEFAULT_CALENDAR_CACHE = (
+    Path(__file__).resolve().parents[2]
+    / "data"
+    / "cache"
+    / "trading_calendars"
+    / "xshg_sessions.json"
+)
+
+
+def build_default_cn_calendar(
+    cache_path: Path | None = None,
+) -> CnTradingCalendar:
+    return CnTradingCalendar(cache_path or DEFAULT_CALENDAR_CACHE)
+
+
+def is_cn_trading_day(
+    day: date | str,
+    *,
+    calendar: CnTradingCalendar | None = None,
+) -> bool:
+    resolved_calendar = calendar or build_default_cn_calendar()
+    return resolved_calendar.is_trading_day(day)
 
 
 def all_markets_are_cn(markets: list[str]) -> bool:
