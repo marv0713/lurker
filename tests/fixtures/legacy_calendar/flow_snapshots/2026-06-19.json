@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "generated_at": "2026-06-19T08:00:00+00:00",
+  "market": "cn",
+  "market_flow": {
+    "main_net_inflow": 9999.0,
+    "super_large_net_inflow": 9999.0
+  },
+  "sector_flows": [
+    {"name": "未来污染", "main_net_inflow": 9999.0, "rank": 1}
+  ],
+  "stock_flows": [],
+  "margin": {},
+  "core_etfs": [],
+  "failures": []
+}

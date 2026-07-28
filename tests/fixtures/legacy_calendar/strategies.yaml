@@ -1,0 +1,8 @@
+strategies:
+  professional_flow_daily:
+    enabled: true
+    lifecycle: active
+    cadence: daily
+    universe: resolved_seed_pool
+    title: 职业资金雷达日报
+    params: {}

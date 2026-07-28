@@ -1,0 +1,11 @@
+{
+  "generated_at": "2026-06-18T00:00:00+00:00",
+  "theme_mapping": {"300308.SZ": ["通信设备"]},
+  "symbol_names": {"300308.SZ": "中际旭创"},
+  "markets": {
+    "cn": {
+      "symbols": ["300308.SZ"],
+      "sources": {}
+    }
+  }
+}

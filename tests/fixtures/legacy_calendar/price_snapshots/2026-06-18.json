@@ -1,0 +1,16 @@
+{
+  "generated_at": "2026-06-18T08:00:00+00:00",
+  "markets": ["cn"],
+  "windows": [20, 60, 120, 180],
+  "snapshots": [
+    {
+      "symbol": "300308.SZ",
+      "market": "cn",
+      "return_20d": 0.10,
+      "return_60d": 0.20,
+      "return_120d": 0.30,
+      "return_180d": 0.40
+    }
+  ],
+  "failures": []
+}

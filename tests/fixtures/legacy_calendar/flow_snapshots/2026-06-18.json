@@ -1,0 +1,18 @@
+{
+  "schema_version": 2,
+  "generated_at": "2026-06-18T08:00:00+00:00",
+  "market": "cn",
+  "market_flow": {
+    "main_net_inflow": 1.0,
+    "super_large_net_inflow": 1.0
+  },
+  "sector_flows": [
+    {"name": "通信设备", "main_net_inflow": 100.0, "rank": 1}
+  ],
+  "stock_flows": [],
+  "margin": {},
+  "core_etfs": [],
+  "failures": [
+    {"source": "stock_flows", "reason": "fixture timeout"}
+  ]
+}
