@@ -130,6 +130,7 @@ def test_daily_job_with_db(monkeypatch, tmp_path):
         report_date="2026-05-18",
         signal_threshold=0,
         db_path=db_path,
+        push=False,
     )
 
     # Assert DB tables are populated
