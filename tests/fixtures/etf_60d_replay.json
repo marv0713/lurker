@@ -1,374 +1,13 @@
 [
   {
-    "date": "2026-04-24",
-    "market_flow": {
-      "trade_date": "2026-04-24",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
-    },
-    "core_etfs": {
-      "configured_symbols": [
-        "510300.SH",
-        "510500.SH",
-        "159915.SZ",
-        "159361.SZ"
-      ],
-      "items": [
-        {
-          "symbol": "510300.SH",
-          "name": "沪深300ETF",
-          "trade_date": "2026-04-24",
-          "current_turnover": 3432906825.0,
-          "avg_turnover_20d": 3026931893.8,
-          "turnover_expansion": 1.1341209334876512,
-          "shares": null,
-          "shares_date": null,
-          "status": "inactive",
-          "source": "akshare_fund_etf_hist_sina",
-          "availability": "turnover_only",
-          "error": null
-        },
-        {
-          "symbol": "510500.SH",
-          "name": "中证500ETF",
-          "trade_date": "2026-04-24",
-          "current_turnover": 3629323593.0,
-          "avg_turnover_20d": 4075162176.1,
-          "turnover_expansion": 0.890596112784234,
-          "shares": null,
-          "shares_date": null,
-          "status": "inactive",
-          "source": "akshare_fund_etf_hist_sina",
-          "availability": "turnover_only",
-          "error": null
-        },
-        {
-          "symbol": "159915.SZ",
-          "name": "创业板ETF",
-          "trade_date": "2026-04-24",
-          "current_turnover": 6285359225.0,
-          "avg_turnover_20d": 4163089543.5,
-          "turnover_expansion": 1.5097823766038339,
-          "shares": null,
-          "shares_date": null,
-          "status": "active",
-          "source": "akshare_fund_etf_hist_sina",
-          "availability": "turnover_only",
-          "error": null
-        },
-        {
-          "symbol": "159361.SZ",
-          "name": "A500ETF易方达",
-          "trade_date": "2026-04-24",
-          "current_turnover": 2237183904.0,
-          "avg_turnover_20d": 2191636650.05,
-          "turnover_expansion": 1.020782301641543,
-          "shares": null,
-          "shares_date": null,
-          "status": "inactive",
-          "source": "akshare_fund_etf_hist_sina",
-          "availability": "turnover_only",
-          "error": null
-        }
-      ],
-      "failures": [],
-      "generated_at": "2026-07-25T14:13:00.263706+00:00",
-      "schema_version": 1
-    },
-    "margin": {
-      "trade_date": "20260424",
-      "financing_balance": 2684530395510.0,
-      "securities_lending_balance": 19794689459.0,
-      "margin_balance": 2704325084969.0,
-      "availability": "fresh",
-      "source": "akshare_jin10_margin_sh_sz",
-      "margin_balance_change": -11487325786.0
-    }
-  },
-  {
-    "date": "2026-04-27",
-    "market_flow": {
-      "trade_date": "2026-04-27",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
-    },
-    "core_etfs": {
-      "configured_symbols": [
-        "510300.SH",
-        "510500.SH",
-        "159915.SZ",
-        "159361.SZ"
-      ],
-      "items": [
-        {
-          "symbol": "510300.SH",
-          "name": "沪深300ETF",
-          "trade_date": "2026-04-27",
-          "current_turnover": 4443760487.0,
-          "avg_turnover_20d": 3091621324.4,
-          "turnover_expansion": 1.437356008618686,
-          "shares": null,
-          "shares_date": null,
-          "status": "active",
-          "source": "akshare_fund_etf_hist_sina",
-          "availability": "turnover_only",
-          "error": null
-        },
-        {
-          "symbol": "510500.SH",
-          "name": "中证500ETF",
-          "trade_date": "2026-04-27",
-          "current_turnover": 5250763152.0,
-          "avg_turnover_20d": 4132618899.2,
-          "turnover_expansion": 1.2705655372714026,
-          "shares": null,
-          "shares_date": null,
-          "status": "active",
-          "source": "akshare_fund_etf_hist_sina",
-          "availability": "turnover_only",
-          "error": null
-        },
-        {
-          "symbol": "159915.SZ",
-          "name": "创业板ETF",
-          "trade_date": "2026-04-27",
-          "current_turnover": 3519636450.0,
-          "avg_turnover_20d": 4320502200.5,
-          "turnover_expansion": 0.8146359581977951,
-          "shares": null,
-          "shares_date": null,
-          "status": "inactive",
-          "source": "akshare_fund_etf_hist_sina",
-          "availability": "turnover_only",
-          "error": null
-        },
-        {
-          "symbol": "159361.SZ",
-          "name": "A500ETF易方达",
-          "trade_date": "2026-04-27",
-          "current_turnover": 2254510765.0,
-          "avg_turnover_20d": 2197065622.15,
-          "turnover_expansion": 1.0261463027188897,
-          "shares": null,
-          "shares_date": null,
-          "status": "inactive",
-          "source": "akshare_fund_etf_hist_sina",
-          "availability": "turnover_only",
-          "error": null
-        }
-      ],
-      "failures": [],
-      "generated_at": "2026-07-25T14:13:00.266384+00:00",
-      "schema_version": 1
-    },
-    "margin": {
-      "trade_date": "20260427",
-      "financing_balance": 2700072341557.0,
-      "securities_lending_balance": 19956918627.0,
-      "margin_balance": 2720029260184.0,
-      "availability": "fresh",
-      "source": "akshare_jin10_margin_sh_sz",
-      "margin_balance_change": 15704175215.0
-    }
-  },
-  {
-    "date": "2026-04-28",
-    "market_flow": {
-      "trade_date": "2026-04-28",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
-    },
-    "core_etfs": {
-      "configured_symbols": [
-        "510300.SH",
-        "510500.SH",
-        "159915.SZ",
-        "159361.SZ"
-      ],
-      "items": [
-        {
-          "symbol": "510300.SH",
-          "name": "沪深300ETF",
-          "trade_date": "2026-04-28",
-          "current_turnover": 4125806962.0,
-          "avg_turnover_20d": 3187327386.8,
-          "turnover_expansion": 1.2944409096745504,
-          "shares": null,
-          "shares_date": null,
-          "status": "active",
-          "source": "akshare_fund_etf_hist_sina",
-          "availability": "turnover_only",
-          "error": null
-        },
-        {
-          "symbol": "510500.SH",
-          "name": "中证500ETF",
-          "trade_date": "2026-04-28",
-          "current_turnover": 5287344953.0,
-          "avg_turnover_20d": 4241341005.85,
-          "turnover_expansion": 1.2466210440771603,
-          "shares": null,
-          "shares_date": null,
-          "status": "active",
-          "source": "akshare_fund_etf_hist_sina",
-          "availability": "turnover_only",
-          "error": null
-        },
-        {
-          "symbol": "159915.SZ",
-          "name": "创业板ETF",
-          "trade_date": "2026-04-28",
-          "current_turnover": 3998704631.0,
-          "avg_turnover_20d": 4342516423.8,
-          "turnover_expansion": 0.9208265993156242,
-          "shares": null,
-          "shares_date": null,
-          "status": "inactive",
-          "source": "akshare_fund_etf_hist_sina",
-          "availability": "turnover_only",
-          "error": null
-        },
-        {
-          "symbol": "159361.SZ",
-          "name": "A500ETF易方达",
-          "trade_date": "2026-04-28",
-          "current_turnover": 2271522953.0,
-          "avg_turnover_20d": 2208288437.7,
-          "turnover_expansion": 1.0286350796483184,
-          "shares": null,
-          "shares_date": null,
-          "status": "inactive",
-          "source": "akshare_fund_etf_hist_sina",
-          "availability": "turnover_only",
-          "error": null
-        }
-      ],
-      "failures": [],
-      "generated_at": "2026-07-25T14:13:00.268960+00:00",
-      "schema_version": 1
-    },
-    "margin": {
-      "trade_date": "20260428",
-      "financing_balance": 2700228761671.0,
-      "securities_lending_balance": 19742201535.0,
-      "margin_balance": 2719970963206.0,
-      "availability": "fresh",
-      "source": "akshare_jin10_margin_sh_sz",
-      "margin_balance_change": -58296978.0
-    }
-  },
-  {
-    "date": "2026-04-29",
-    "market_flow": {
-      "trade_date": "2026-04-29",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
-    },
-    "core_etfs": {
-      "configured_symbols": [
-        "510300.SH",
-        "510500.SH",
-        "159915.SZ",
-        "159361.SZ"
-      ],
-      "items": [
-        {
-          "symbol": "510300.SH",
-          "name": "沪深300ETF",
-          "trade_date": "2026-04-29",
-          "current_turnover": 6139314265.0,
-          "avg_turnover_20d": 3271882929.5,
-          "turnover_expansion": 1.8763856767754807,
-          "shares": null,
-          "shares_date": null,
-          "status": "active",
-          "source": "akshare_fund_etf_hist_sina",
-          "availability": "turnover_only",
-          "error": null
-        },
-        {
-          "symbol": "510500.SH",
-          "name": "中证500ETF",
-          "trade_date": "2026-04-29",
-          "current_turnover": 7349029886.0,
-          "avg_turnover_20d": 4320657142.1,
-          "turnover_expansion": 1.7009055901223622,
-          "shares": null,
-          "shares_date": null,
-          "status": "active",
-          "source": "akshare_fund_etf_hist_sina",
-          "availability": "turnover_only",
-          "error": null
-        },
-        {
-          "symbol": "159915.SZ",
-          "name": "创业板ETF",
-          "trade_date": "2026-04-29",
-          "current_turnover": 3886447435.0,
-          "avg_turnover_20d": 4381917677.95,
-          "turnover_expansion": 0.8869284456339225,
-          "shares": null,
-          "shares_date": null,
-          "status": "inactive",
-          "source": "akshare_fund_etf_hist_sina",
-          "availability": "turnover_only",
-          "error": null
-        },
-        {
-          "symbol": "159361.SZ",
-          "name": "A500ETF易方达",
-          "trade_date": "2026-04-29",
-          "current_turnover": 2405249421.0,
-          "avg_turnover_20d": 2205255171.2,
-          "turnover_expansion": 1.09068984506277,
-          "shares": null,
-          "shares_date": null,
-          "status": "inactive",
-          "source": "akshare_fund_etf_hist_sina",
-          "availability": "turnover_only",
-          "error": null
-        }
-      ],
-      "failures": [],
-      "generated_at": "2026-07-25T14:13:00.271549+00:00",
-      "schema_version": 1
-    },
-    "margin": {
-      "trade_date": "20260429",
-      "financing_balance": 2703892296907.0,
-      "securities_lending_balance": 19810427338.0,
-      "margin_balance": 2723702724245.0,
-      "availability": "fresh",
-      "source": "akshare_jin10_margin_sh_sz",
-      "margin_balance_change": 3731761039.0
-    }
-  },
-  {
     "date": "2026-04-30",
     "market_flow": {
       "trade_date": "2026-04-30",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -52028571648.0,
+      "super_large_net_inflow": -20970106880.0,
+      "large_net_inflow": -31058464768.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -436,7 +75,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.274372+00:00",
+      "generated_at": "2026-07-29T13:27:17.294809+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -453,12 +92,11 @@
     "date": "2026-05-06",
     "market_flow": {
       "trade_date": "2026-05-06",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": 20699881472.0,
+      "super_large_net_inflow": 29609119744.0,
+      "large_net_inflow": -8909238272.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -526,7 +164,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.277105+00:00",
+      "generated_at": "2026-07-29T13:27:17.297404+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -543,12 +181,11 @@
     "date": "2026-05-07",
     "market_flow": {
       "trade_date": "2026-05-07",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -31875440640.0,
+      "super_large_net_inflow": -8898424832.0,
+      "large_net_inflow": -22977015808.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -616,7 +253,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.279764+00:00",
+      "generated_at": "2026-07-29T13:27:17.300134+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -633,12 +270,11 @@
     "date": "2026-05-08",
     "market_flow": {
       "trade_date": "2026-05-08",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -55190130688.0,
+      "super_large_net_inflow": -27761926144.0,
+      "large_net_inflow": -27428204544.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -706,7 +342,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.282369+00:00",
+      "generated_at": "2026-07-29T13:27:17.302870+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -723,12 +359,11 @@
     "date": "2026-05-11",
     "market_flow": {
       "trade_date": "2026-05-11",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -27004993536.0,
+      "super_large_net_inflow": -8282591232.0,
+      "large_net_inflow": -18722402304.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -796,7 +431,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.284967+00:00",
+      "generated_at": "2026-07-29T13:27:17.305526+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -813,12 +448,11 @@
     "date": "2026-05-12",
     "market_flow": {
       "trade_date": "2026-05-12",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -122133704704.0,
+      "super_large_net_inflow": -68559626240.0,
+      "large_net_inflow": -53574078464.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -886,7 +520,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.287845+00:00",
+      "generated_at": "2026-07-29T13:27:17.308178+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -903,12 +537,11 @@
     "date": "2026-05-13",
     "market_flow": {
       "trade_date": "2026-05-13",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": 3847471104.0,
+      "super_large_net_inflow": 24097390592.0,
+      "large_net_inflow": -20249919488.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -976,7 +609,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.290608+00:00",
+      "generated_at": "2026-07-29T13:27:17.310674+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -993,12 +626,11 @@
     "date": "2026-05-14",
     "market_flow": {
       "trade_date": "2026-05-14",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -174040977408.0,
+      "super_large_net_inflow": -104430120960.0,
+      "large_net_inflow": -69610856448.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -1066,7 +698,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.293350+00:00",
+      "generated_at": "2026-07-29T13:27:17.313133+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -1083,12 +715,11 @@
     "date": "2026-05-15",
     "market_flow": {
       "trade_date": "2026-05-15",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -113439363072.0,
+      "super_large_net_inflow": -66442215424.0,
+      "large_net_inflow": -46997147648.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -1156,7 +787,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.296074+00:00",
+      "generated_at": "2026-07-29T13:27:17.316105+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -1173,12 +804,11 @@
     "date": "2026-05-18",
     "market_flow": {
       "trade_date": "2026-05-18",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -42102411264.0,
+      "super_large_net_inflow": -19388440576.0,
+      "large_net_inflow": -22713970688.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -1246,7 +876,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.298666+00:00",
+      "generated_at": "2026-07-29T13:27:17.318805+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -1263,12 +893,11 @@
     "date": "2026-05-19",
     "market_flow": {
       "trade_date": "2026-05-19",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -22547910656.0,
+      "super_large_net_inflow": -6826979328.0,
+      "large_net_inflow": -15720931328.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -1336,7 +965,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.301149+00:00",
+      "generated_at": "2026-07-29T13:27:17.321379+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -1353,12 +982,11 @@
     "date": "2026-05-20",
     "market_flow": {
       "trade_date": "2026-05-20",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -54402158592.0,
+      "super_large_net_inflow": -28275359744.0,
+      "large_net_inflow": -26126798848.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -1426,7 +1054,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.303684+00:00",
+      "generated_at": "2026-07-29T13:27:17.324161+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -1443,12 +1071,11 @@
     "date": "2026-05-21",
     "market_flow": {
       "trade_date": "2026-05-21",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -145146544128.0,
+      "super_large_net_inflow": -85146796032.0,
+      "large_net_inflow": -59999748096.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -1516,7 +1143,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.306120+00:00",
+      "generated_at": "2026-07-29T13:27:17.326642+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -1533,12 +1160,11 @@
     "date": "2026-05-22",
     "market_flow": {
       "trade_date": "2026-05-22",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": 38840225792.0,
+      "super_large_net_inflow": 37362839552.0,
+      "large_net_inflow": 1477386240.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -1606,7 +1232,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.308665+00:00",
+      "generated_at": "2026-07-29T13:27:17.329117+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -1623,12 +1249,11 @@
     "date": "2026-05-25",
     "market_flow": {
       "trade_date": "2026-05-25",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -15635116032.0,
+      "super_large_net_inflow": 647852032.0,
+      "large_net_inflow": -16282968064.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -1696,7 +1321,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.312266+00:00",
+      "generated_at": "2026-07-29T13:27:17.331906+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -1713,12 +1338,11 @@
     "date": "2026-05-26",
     "market_flow": {
       "trade_date": "2026-05-26",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -110758707200.0,
+      "super_large_net_inflow": -70850641920.0,
+      "large_net_inflow": -39908065280.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -1786,7 +1410,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.315134+00:00",
+      "generated_at": "2026-07-29T13:27:17.334592+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -1803,12 +1427,11 @@
     "date": "2026-05-27",
     "market_flow": {
       "trade_date": "2026-05-27",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -100141031424.0,
+      "super_large_net_inflow": -55624011776.0,
+      "large_net_inflow": -44517019648.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -1876,7 +1499,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.317639+00:00",
+      "generated_at": "2026-07-29T13:27:17.337429+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -1893,12 +1516,11 @@
     "date": "2026-05-28",
     "market_flow": {
       "trade_date": "2026-05-28",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -15659479040.0,
+      "super_large_net_inflow": 7204052992.0,
+      "large_net_inflow": -22863532032.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -1966,7 +1588,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.320618+00:00",
+      "generated_at": "2026-07-29T13:27:17.340186+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -1983,12 +1605,11 @@
     "date": "2026-05-29",
     "market_flow": {
       "trade_date": "2026-05-29",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -123333111808.0,
+      "super_large_net_inflow": -75900375040.0,
+      "large_net_inflow": -47432736768.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -2056,7 +1677,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.323138+00:00",
+      "generated_at": "2026-07-29T13:27:17.342630+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -2073,12 +1694,11 @@
     "date": "2026-06-01",
     "market_flow": {
       "trade_date": "2026-06-01",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -60970070016.0,
+      "super_large_net_inflow": -37912121344.0,
+      "large_net_inflow": -23057948672.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -2146,7 +1766,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.325695+00:00",
+      "generated_at": "2026-07-29T13:27:17.345120+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -2163,12 +1783,11 @@
     "date": "2026-06-02",
     "market_flow": {
       "trade_date": "2026-06-02",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -5164855296.0,
+      "super_large_net_inflow": 15450222592.0,
+      "large_net_inflow": -20615077888.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -2236,7 +1855,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.330044+00:00",
+      "generated_at": "2026-07-29T13:27:17.347754+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -2253,12 +1872,11 @@
     "date": "2026-06-03",
     "market_flow": {
       "trade_date": "2026-06-03",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -24985595904.0,
+      "super_large_net_inflow": -542498816.0,
+      "large_net_inflow": -24443097088.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -2326,7 +1944,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.332988+00:00",
+      "generated_at": "2026-07-29T13:27:17.350284+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -2343,12 +1961,11 @@
     "date": "2026-06-04",
     "market_flow": {
       "trade_date": "2026-06-04",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -57875750912.0,
+      "super_large_net_inflow": -20385853440.0,
+      "large_net_inflow": -37489897472.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -2416,7 +2033,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.336583+00:00",
+      "generated_at": "2026-07-29T13:27:17.352708+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -2433,12 +2050,11 @@
     "date": "2026-06-05",
     "market_flow": {
       "trade_date": "2026-06-05",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -94891401216.0,
+      "super_large_net_inflow": -58687995904.0,
+      "large_net_inflow": -36203405312.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -2506,7 +2122,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.339541+00:00",
+      "generated_at": "2026-07-29T13:27:17.355178+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -2523,12 +2139,11 @@
     "date": "2026-06-08",
     "market_flow": {
       "trade_date": "2026-06-08",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -116361314304.0,
+      "super_large_net_inflow": -70307606528.0,
+      "large_net_inflow": -46053707776.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -2596,7 +2211,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.341971+00:00",
+      "generated_at": "2026-07-29T13:27:17.357937+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -2613,12 +2228,11 @@
     "date": "2026-06-09",
     "market_flow": {
       "trade_date": "2026-06-09",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": 44679221248.0,
+      "super_large_net_inflow": 42439532544.0,
+      "large_net_inflow": 2239688704.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -2686,7 +2300,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.345130+00:00",
+      "generated_at": "2026-07-29T13:27:17.360390+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -2703,12 +2317,11 @@
     "date": "2026-06-10",
     "market_flow": {
       "trade_date": "2026-06-10",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -105081425920.0,
+      "super_large_net_inflow": -61054590976.0,
+      "large_net_inflow": -44026834944.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -2776,7 +2389,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.347840+00:00",
+      "generated_at": "2026-07-29T13:27:17.362974+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -2793,12 +2406,11 @@
     "date": "2026-06-11",
     "market_flow": {
       "trade_date": "2026-06-11",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -43068190720.0,
+      "super_large_net_inflow": -19118149632.0,
+      "large_net_inflow": -23950041088.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -2866,7 +2478,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.350837+00:00",
+      "generated_at": "2026-07-29T13:27:17.365573+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -2883,12 +2495,11 @@
     "date": "2026-06-12",
     "market_flow": {
       "trade_date": "2026-06-12",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": 10664448000.0,
+      "super_large_net_inflow": 13632696320.0,
+      "large_net_inflow": -2968248320.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -2956,7 +2567,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.353503+00:00",
+      "generated_at": "2026-07-29T13:27:17.368078+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -2973,12 +2584,11 @@
     "date": "2026-06-15",
     "market_flow": {
       "trade_date": "2026-06-15",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": 68517621760.0,
+      "super_large_net_inflow": 67955965952.0,
+      "large_net_inflow": 561655808.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -3046,7 +2656,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.356049+00:00",
+      "generated_at": "2026-07-29T13:27:17.370603+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -3063,12 +2673,11 @@
     "date": "2026-06-16",
     "market_flow": {
       "trade_date": "2026-06-16",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -17036591104.0,
+      "super_large_net_inflow": -253005824.0,
+      "large_net_inflow": -16783585280.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -3136,7 +2745,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.358495+00:00",
+      "generated_at": "2026-07-29T13:27:17.373219+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -3153,12 +2762,11 @@
     "date": "2026-06-17",
     "market_flow": {
       "trade_date": "2026-06-17",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -21557907456.0,
+      "super_large_net_inflow": 2294206464.0,
+      "large_net_inflow": -23852113920.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -3226,7 +2834,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.361971+00:00",
+      "generated_at": "2026-07-29T13:27:17.375711+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -3243,12 +2851,11 @@
     "date": "2026-06-18",
     "market_flow": {
       "trade_date": "2026-06-18",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -44894674944.0,
+      "super_large_net_inflow": -13339779072.0,
+      "large_net_inflow": -31554895872.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -3316,7 +2923,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.364628+00:00",
+      "generated_at": "2026-07-29T13:27:17.378206+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -3333,12 +2940,11 @@
     "date": "2026-06-22",
     "market_flow": {
       "trade_date": "2026-06-22",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -17462800384.0,
+      "super_large_net_inflow": -6784880640.0,
+      "large_net_inflow": -10677919744.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -3406,7 +3012,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.367180+00:00",
+      "generated_at": "2026-07-29T13:27:17.380696+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -3423,12 +3029,11 @@
     "date": "2026-06-23",
     "market_flow": {
       "trade_date": "2026-06-23",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -157385863168.0,
+      "super_large_net_inflow": -104665960448.0,
+      "large_net_inflow": -52719902720.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -3496,7 +3101,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.370286+00:00",
+      "generated_at": "2026-07-29T13:27:17.383241+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -3513,12 +3118,11 @@
     "date": "2026-06-24",
     "market_flow": {
       "trade_date": "2026-06-24",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": 13393092608.0,
+      "super_large_net_inflow": 31434166272.0,
+      "large_net_inflow": -18041073664.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -3586,7 +3190,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.373113+00:00",
+      "generated_at": "2026-07-29T13:27:17.385791+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -3603,12 +3207,11 @@
     "date": "2026-06-25",
     "market_flow": {
       "trade_date": "2026-06-25",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -21444894720.0,
+      "super_large_net_inflow": 2163806208.0,
+      "large_net_inflow": -23608700928.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -3676,7 +3279,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.375640+00:00",
+      "generated_at": "2026-07-29T13:27:17.388359+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -3693,12 +3296,11 @@
     "date": "2026-06-26",
     "market_flow": {
       "trade_date": "2026-06-26",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -173838635008.0,
+      "super_large_net_inflow": -122476199936.0,
+      "large_net_inflow": -51362435072.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -3766,7 +3368,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.378615+00:00",
+      "generated_at": "2026-07-29T13:27:17.390910+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -3783,12 +3385,11 @@
     "date": "2026-06-29",
     "market_flow": {
       "trade_date": "2026-06-29",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -49534365696.0,
+      "super_large_net_inflow": -29354967040.0,
+      "large_net_inflow": -20179398656.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -3856,7 +3457,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.381221+00:00",
+      "generated_at": "2026-07-29T13:27:17.393340+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -3873,12 +3474,11 @@
     "date": "2026-06-30",
     "market_flow": {
       "trade_date": "2026-06-30",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": 41048055808.0,
+      "super_large_net_inflow": 46272344064.0,
+      "large_net_inflow": -5224288256.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -3946,7 +3546,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.384053+00:00",
+      "generated_at": "2026-07-29T13:27:17.395869+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -3963,12 +3563,11 @@
     "date": "2026-07-01",
     "market_flow": {
       "trade_date": "2026-07-01",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -59577946112.0,
+      "super_large_net_inflow": -46766772224.0,
+      "large_net_inflow": -12811173888.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -4036,7 +3635,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.387960+00:00",
+      "generated_at": "2026-07-29T13:27:17.398460+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -4053,12 +3652,11 @@
     "date": "2026-07-02",
     "market_flow": {
       "trade_date": "2026-07-02",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -121796407296.0,
+      "super_large_net_inflow": -83088596992.0,
+      "large_net_inflow": -38707810304.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -4126,7 +3724,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.390916+00:00",
+      "generated_at": "2026-07-29T13:27:17.400955+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -4143,12 +3741,11 @@
     "date": "2026-07-03",
     "market_flow": {
       "trade_date": "2026-07-03",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -17591480320.0,
+      "super_large_net_inflow": -5663084544.0,
+      "large_net_inflow": -11928395776.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -4216,7 +3813,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.393521+00:00",
+      "generated_at": "2026-07-29T13:27:17.403436+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -4233,12 +3830,11 @@
     "date": "2026-07-06",
     "market_flow": {
       "trade_date": "2026-07-06",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -87292760064.0,
+      "super_large_net_inflow": -55202635776.0,
+      "large_net_inflow": -32090124288.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -4306,7 +3902,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.396040+00:00",
+      "generated_at": "2026-07-29T13:27:17.406041+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -4323,12 +3919,11 @@
     "date": "2026-07-07",
     "market_flow": {
       "trade_date": "2026-07-07",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -83400765440.0,
+      "super_large_net_inflow": -46344843264.0,
+      "large_net_inflow": -37055922176.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -4396,7 +3991,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.398550+00:00",
+      "generated_at": "2026-07-29T13:27:17.408548+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -4413,12 +4008,11 @@
     "date": "2026-07-08",
     "market_flow": {
       "trade_date": "2026-07-08",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -69823209472.0,
+      "super_large_net_inflow": -35576537088.0,
+      "large_net_inflow": -34246672384.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -4486,7 +4080,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.401096+00:00",
+      "generated_at": "2026-07-29T13:27:17.410998+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -4503,12 +4097,11 @@
     "date": "2026-07-09",
     "market_flow": {
       "trade_date": "2026-07-09",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": 22458605568.0,
+      "super_large_net_inflow": 33968738304.0,
+      "large_net_inflow": -11510132736.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -4576,7 +4169,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.404367+00:00",
+      "generated_at": "2026-07-29T13:27:17.413572+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -4593,12 +4186,11 @@
     "date": "2026-07-10",
     "market_flow": {
       "trade_date": "2026-07-10",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -39791411200.0,
+      "super_large_net_inflow": -29097578496.0,
+      "large_net_inflow": -10693832704.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -4666,7 +4258,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.407218+00:00",
+      "generated_at": "2026-07-29T13:27:17.416154+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -4683,12 +4275,11 @@
     "date": "2026-07-13",
     "market_flow": {
       "trade_date": "2026-07-13",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -169893306368.0,
+      "super_large_net_inflow": -106502647808.0,
+      "large_net_inflow": -63390658560.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -4756,7 +4347,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.409991+00:00",
+      "generated_at": "2026-07-29T13:27:17.418556+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -4773,12 +4364,11 @@
     "date": "2026-07-14",
     "market_flow": {
       "trade_date": "2026-07-14",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": 10895224832.0,
+      "super_large_net_inflow": 16155447296.0,
+      "large_net_inflow": -5260222464.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -4846,7 +4436,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.413155+00:00",
+      "generated_at": "2026-07-29T13:27:17.420935+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -4863,12 +4453,11 @@
     "date": "2026-07-15",
     "market_flow": {
       "trade_date": "2026-07-15",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -49793695744.0,
+      "super_large_net_inflow": -37215404032.0,
+      "large_net_inflow": -12578291712.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -4936,7 +4525,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.415842+00:00",
+      "generated_at": "2026-07-29T13:27:17.423492+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -4953,12 +4542,11 @@
     "date": "2026-07-16",
     "market_flow": {
       "trade_date": "2026-07-16",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -83885834240.0,
+      "super_large_net_inflow": -42946482176.0,
+      "large_net_inflow": -40939352064.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -5026,7 +4614,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.418553+00:00",
+      "generated_at": "2026-07-29T13:27:17.426094+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -5043,12 +4631,11 @@
     "date": "2026-07-17",
     "market_flow": {
       "trade_date": "2026-07-17",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -156876767232.0,
+      "super_large_net_inflow": -100187557888.0,
+      "large_net_inflow": -56689209344.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -5116,7 +4703,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.421085+00:00",
+      "generated_at": "2026-07-29T13:27:17.428491+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -5133,12 +4720,11 @@
     "date": "2026-07-20",
     "market_flow": {
       "trade_date": "2026-07-20",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -60901023744.0,
+      "super_large_net_inflow": -34957189120.0,
+      "large_net_inflow": -25943834624.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -5206,7 +4792,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.424423+00:00",
+      "generated_at": "2026-07-29T13:27:17.431219+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -5223,12 +4809,11 @@
     "date": "2026-07-21",
     "market_flow": {
       "trade_date": "2026-07-21",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": 32606683136.0,
+      "super_large_net_inflow": 35685392384.0,
+      "large_net_inflow": -3078709248.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -5296,7 +4881,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.428054+00:00",
+      "generated_at": "2026-07-29T13:27:17.433621+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -5313,12 +4898,11 @@
     "date": "2026-07-22",
     "market_flow": {
       "trade_date": "2026-07-22",
-      "main_net_inflow": null,
-      "super_large_net_inflow": null,
-      "large_net_inflow": null,
-      "availability": "unknown",
-      "source": "unavailable",
-      "reason": "historical provider did not return replay date"
+      "main_net_inflow": -19554799616.0,
+      "super_large_net_inflow": -7200669696.0,
+      "large_net_inflow": -12354129920.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
     },
     "core_etfs": {
       "configured_symbols": [
@@ -5386,7 +4970,7 @@
         }
       ],
       "failures": [],
-      "generated_at": "2026-07-25T14:13:00.431118+00:00",
+      "generated_at": "2026-07-29T13:27:17.436115+00:00",
       "schema_version": 1
     },
     "margin": {
@@ -5397,6 +4981,362 @@
       "availability": "fresh",
       "source": "akshare_jin10_margin_sh_sz",
       "margin_balance_change": 1492316884.0
+    }
+  },
+  {
+    "date": "2026-07-23",
+    "market_flow": {
+      "trade_date": "2026-07-23",
+      "main_net_inflow": -22279716864.0,
+      "super_large_net_inflow": -16397029376.0,
+      "large_net_inflow": -5882687488.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-23",
+          "current_turnover": 2775499281.0,
+          "avg_turnover_20d": 7702728460.05,
+          "turnover_expansion": 0.36032677192180074,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-23",
+          "current_turnover": 1934738436.0,
+          "avg_turnover_20d": 4418191716.85,
+          "turnover_expansion": 0.43790278013996947,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-23",
+          "current_turnover": 6389409937.0,
+          "avg_turnover_20d": 8238368325.2,
+          "turnover_expansion": 0.7755674042219867,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-23",
+          "current_turnover": 1537431872.0,
+          "avg_turnover_20d": 1755449466.2,
+          "turnover_expansion": 0.8758052576290105,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-29T13:27:17.438661+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260723",
+      "financing_balance": 2680447084597.0,
+      "securities_lending_balance": 21451095691.0,
+      "margin_balance": 2701898180288.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -9518661359.0
+    }
+  },
+  {
+    "date": "2026-07-24",
+    "market_flow": {
+      "trade_date": "2026-07-24",
+      "main_net_inflow": -77460652032.0,
+      "super_large_net_inflow": -42576269312.0,
+      "large_net_inflow": -34884382720.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-24",
+          "current_turnover": 4844479626.0,
+          "avg_turnover_20d": 7178859106.05,
+          "turnover_expansion": 0.6748258399328806,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-24",
+          "current_turnover": 2593796767.0,
+          "avg_turnover_20d": 4421907155.55,
+          "turnover_expansion": 0.5865787488876802,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-24",
+          "current_turnover": 6442931155.0,
+          "avg_turnover_20d": 8260280460.05,
+          "turnover_expansion": 0.7799893945684503,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-24",
+          "current_turnover": 1446951395.0,
+          "avg_turnover_20d": 1764803570.8,
+          "turnover_expansion": 0.8198937371506366,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-29T13:27:17.441226+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260724",
+      "financing_balance": 2658251429621.0,
+      "securities_lending_balance": 21333069520.0,
+      "margin_balance": 2679584499141.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -22313681147.0
+    }
+  },
+  {
+    "date": "2026-07-27",
+    "market_flow": {
+      "trade_date": "2026-07-27",
+      "main_net_inflow": 90830307328.0,
+      "super_large_net_inflow": 79009112064.0,
+      "large_net_inflow": 11821195264.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-27",
+          "current_turnover": 4584814670.0,
+          "avg_turnover_20d": 7184544883.35,
+          "turnover_expansion": 0.6381496315271398,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-27",
+          "current_turnover": 4519820155.0,
+          "avg_turnover_20d": 4402106700.75,
+          "turnover_expansion": 1.026740254667145,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-27",
+          "current_turnover": 6740596949.0,
+          "avg_turnover_20d": 8255290776.95,
+          "turnover_expansion": 0.8165184160224556,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-27",
+          "current_turnover": 1236617298.0,
+          "avg_turnover_20d": 1760389599.1,
+          "turnover_expansion": 0.7024679642689443,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-29T13:27:17.443717+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260727",
+      "financing_balance": 2668277615316.0,
+      "securities_lending_balance": 21891208525.0,
+      "margin_balance": 2690168823841.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": 10584324700.0
+    }
+  },
+  {
+    "date": "2026-07-28",
+    "market_flow": {
+      "trade_date": "2026-07-28",
+      "main_net_inflow": -108693266432.0,
+      "super_large_net_inflow": -80549388288.0,
+      "large_net_inflow": -28143878144.0,
+      "availability": "fresh",
+      "source": "eastmoney_market_flow_history"
+    },
+    "core_etfs": {
+      "configured_symbols": [
+        "510300.SH",
+        "510500.SH",
+        "159915.SZ",
+        "159361.SZ"
+      ],
+      "items": [
+        {
+          "symbol": "510300.SH",
+          "name": "沪深300ETF",
+          "trade_date": "2026-07-28",
+          "current_turnover": 7832309396.0,
+          "avg_turnover_20d": 7049054526.65,
+          "turnover_expansion": 1.111114883051165,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "510500.SH",
+          "name": "中证500ETF",
+          "trade_date": "2026-07-28",
+          "current_turnover": 6044394242.0,
+          "avg_turnover_20d": 4501647657.5,
+          "turnover_expansion": 1.3427070934638115,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159915.SZ",
+          "name": "创业板ETF",
+          "trade_date": "2026-07-28",
+          "current_turnover": 12793024818.0,
+          "avg_turnover_20d": 8266519353.65,
+          "turnover_expansion": 1.5475709026618762,
+          "shares": null,
+          "shares_date": null,
+          "status": "active",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        },
+        {
+          "symbol": "159361.SZ",
+          "name": "A500ETF易方达",
+          "trade_date": "2026-07-28",
+          "current_turnover": 1756183728.0,
+          "avg_turnover_20d": 1744722501.95,
+          "turnover_expansion": 1.0065690824971825,
+          "shares": null,
+          "shares_date": null,
+          "status": "inactive",
+          "source": "akshare_fund_etf_hist_sina",
+          "availability": "turnover_only",
+          "error": null
+        }
+      ],
+      "failures": [],
+      "generated_at": "2026-07-29T13:27:17.446166+00:00",
+      "schema_version": 1
+    },
+    "margin": {
+      "trade_date": "20260728",
+      "financing_balance": 2638518256626.0,
+      "securities_lending_balance": 22206655880.0,
+      "margin_balance": 2660724912506.0,
+      "availability": "fresh",
+      "source": "akshare_jin10_margin_sh_sz",
+      "margin_balance_change": -29443911335.0
     }
   }
 ]

@@ -114,13 +114,13 @@ def test_real_60d_replay_has_auditable_source_provenance():
     summary = summarize_replay(replay_temperature_records(records))
 
     assert len(records) == 60
-    assert records[0]["date"] == "2026-04-24"
-    assert records[-1]["date"] == "2026-07-22"
+    assert records[0]["date"] == "2026-04-30"
+    assert records[-1]["date"] == "2026-07-28"
     assert summary == {
         "trading_days": 60,
-        "distribution": {"进攻": 0, "观察": 60, "防守": 0},
-        "max_ratio": 1.0,
-        "unknown_degradation_days": 60,
+        "distribution": {"进攻": 11, "观察": 17, "防守": 32},
+        "max_ratio": pytest.approx(32 / 60),
+        "unknown_degradation_days": 0,
     }
     assert {
         item["source"]
@@ -131,7 +131,7 @@ def test_real_60d_replay_has_auditable_source_provenance():
         "akshare_jin10_margin_sh_sz"
     }
     assert {record["market_flow"]["source"] for record in records} == {
-        "unavailable"
+        "eastmoney_market_flow_history"
     }
 
 
