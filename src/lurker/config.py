@@ -275,6 +275,11 @@ def _validate_weight_mapping(
 
 def load_scoring(path: str | Path) -> dict[str, Any]:
     data = load_yaml(path)
+    _reject_unknown_fields(
+        data,
+        {"stock_signal", "sector_signal", "candidate_weights"},
+        "scoring top-level",
+    )
     stock = _mapping(data.get("stock_signal"), "stock_signal")
     sector = _mapping(data.get("sector_signal"), "sector_signal")
     _validate_weight_mapping(

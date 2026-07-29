@@ -189,6 +189,30 @@ sector_signal:
         load_scoring(old)
 
 
+def test_load_scoring_rejects_unknown_top_level_fields(tmp_path):
+    path = tmp_path / "scoring.yaml"
+    path.write_text(
+        """
+stock_signal:
+  weights: {return_20d: 15}
+sector_signal:
+  weights: {sector_strength: 20}
+ai_attribution:
+  weights: {reason_clarity: 20}
+candidate_weights:
+  stock_first: {stock_score: 0.35, sector_score: 0.35, ai_score: 0.30}
+  sector_first: {stock_score: 0.25, sector_score: 0.45, ai_score: 0.30}
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="unknown scoring top-level field: ai_attribution",
+    ):
+        load_scoring(path)
+
+
 def test_load_scoring_rejects_unknown_and_invalid_weights(tmp_path):
     unknown = tmp_path / "unknown.yaml"
     unknown.write_text(

@@ -18,15 +18,6 @@ sector_signal:
     strong_stock_count: 20
     cross_market_mapping: 15
 
-ai_attribution:
-  weights:
-    reason_clarity: 20
-    industry_level: 20
-    news_consistency: 15
-    hard_evidence: 25
-    risk_identification: 10
-    counter_evidence: 10
-
 candidate_weights:
   stock_first:
     stock_score: 0.35
