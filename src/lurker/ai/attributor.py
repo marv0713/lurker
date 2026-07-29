@@ -21,7 +21,10 @@ import os
 from typing import Protocol
 
 from lurker.application.signal_scan import StockSignal
-from lurker.domain.attribution import AttributionResult
+from lurker.domain.attribution import (
+    AttributionResult,
+    attribution_result_from_mapping,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +32,6 @@ logger = logging.getLogger(__name__)
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 GEMINI_DEFAULT_MODEL = "gemini-2.5-flash"
 GEMINI_API_KEY_ENV = "GEMINI_API_KEY"
-
-_VALID_CLASSIFICATIONS = {"产业趋势型", "事件驱动型", "题材炒作型", "证据不足型"}
-_VALID_RECOMMENDATIONS = {"升级", "降级", "观察", "证据不足"}
-_VALID_EVIDENCE = {"新闻", "公告", "财报", "订单", "政策"}
-
 
 class Attributor(Protocol):
     """AI 归因接口。
@@ -85,25 +83,7 @@ def _parse_attribution_response(raw: str) -> dict:
 
 def _build_attribution_result(data: dict) -> AttributionResult:
     """将 LLM 返回的 dict 构造为 AttributionResult，做字段校验和容错。"""
-    classification = data.get("classification", "证据不足型")
-    if classification not in _VALID_CLASSIFICATIONS:
-        classification = "证据不足型"
-
-    recommendation = data.get("upgrade_recommendation", "证据不足")
-    if recommendation not in _VALID_RECOMMENDATIONS:
-        recommendation = "证据不足"
-
-    raw_evidence = data.get("evidence", [])
-    evidence = [e for e in raw_evidence if e in _VALID_EVIDENCE]
-
-    return AttributionResult(
-        classification=classification,  # type: ignore[arg-type]
-        reason_summary=str(data.get("reason_summary", ""))[:200],
-        evidence=evidence,  # type: ignore[arg-type]
-        risk_flags=[str(r) for r in data.get("risk_flags", [])],
-        upgrade_recommendation=recommendation,  # type: ignore[arg-type]
-        missing_evidence=[str(m) for m in data.get("missing_evidence", [])],
-    )
+    return attribution_result_from_mapping(data)
 
 
 def _score_from_result(result: AttributionResult) -> int:
