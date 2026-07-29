@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+import json
 
 import pandas as pd
 import pytest
@@ -9,6 +10,7 @@ import requests
 from lurker.ingest.temperature_history import collect_temperature_replay
 from lurker.ingest.temperature_history import (
     MarketFlowHistorySchemaError,
+    _fetch_market_history_payload_with_curl,
     fetch_market_flow_history,
     normalize_sina_etf_history,
 )
@@ -34,6 +36,14 @@ class _HistorySession:
 
     def get(self, url, **kwargs):
         self.calls.append((url, kwargs))
+        return _HistoryResponse(self.payload)
+
+
+class _FlakyHistorySession(_HistorySession):
+    def get(self, url, **kwargs):
+        self.calls.append((url, kwargs))
+        if len(self.calls) == 1:
+            raise requests.ConnectionError("temporary disconnect")
         return _HistoryResponse(self.payload)
 
 
@@ -67,6 +77,52 @@ def test_market_history_rejects_malformed_kline_rows():
 
     with pytest.raises(MarketFlowHistorySchemaError, match="15 fields"):
         fetch_market_flow_history(session=session)
+
+
+def test_market_history_retries_recoverable_disconnect():
+    session = _FlakyHistorySession(
+        {
+            "data": {
+                "klines": [
+                    "2026-07-28,-10,-1,-2,-3,-4,0,0,0,0,0,3500,-1,11000,-2",
+                ]
+            }
+        }
+    )
+
+    result = fetch_market_flow_history(session=session)
+
+    assert len(session.calls) == 2
+    assert len(result) == 1
+
+
+def test_curl_market_history_fallback_disables_proxy_and_parses_json():
+    calls = []
+
+    class Result:
+        stdout = json.dumps(
+            {
+                "data": {
+                    "klines": [
+                        "2026-07-28,-10,-1,-2,-3,-4,0,0,0,0,0,3500,-1,11000,-2",
+                    ]
+                }
+            }
+        ).encode()
+
+    def runner(command, **kwargs):
+        calls.append((command, kwargs))
+        return Result()
+
+    payload = _fetch_market_history_payload_with_curl(
+        "https://push2his.eastmoney.com/path?x=1",
+        runner=runner,
+    )
+
+    command, kwargs = calls[0]
+    assert command[:3] == ["curl", "--noproxy", "*"]
+    assert kwargs["check"] is True
+    assert len(payload["data"]["klines"]) == 1
 
 
 def test_collect_temperature_replay_aligns_sources_and_uses_etf_warmup():

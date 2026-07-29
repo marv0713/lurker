@@ -4,8 +4,16 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta, timezone
+import http.client
+import json
 import os
+import ssl
+import subprocess
+import time
 from typing import Any
+from urllib import error as urllib_error
+from urllib import parse as urllib_parse
+from urllib import request as urllib_request
 
 import pandas as pd
 import requests
@@ -39,13 +47,47 @@ class MarketFlowHistorySchemaError(ValueError):
     """Raised when Eastmoney market-flow history violates its schema."""
 
 
+def _fetch_market_history_payload_with_curl(
+    request_url: str,
+    *,
+    runner: Callable[..., Any] = subprocess.run,
+) -> dict[str, Any]:
+    result = runner(
+        [
+            "curl",
+            "--noproxy",
+            "*",
+            "--fail",
+            "--silent",
+            "--show-error",
+            "--max-time",
+            "30",
+            "--user-agent",
+            "Mozilla/5.0",
+            request_url,
+        ],
+        check=True,
+        capture_output=True,
+        timeout=40,
+    )
+    try:
+        payload = json.loads(result.stdout)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise MarketFlowHistorySchemaError(
+            "curl market-flow history response is not valid JSON"
+        ) from exc
+    if not isinstance(payload, dict):
+        raise MarketFlowHistorySchemaError(
+            "curl market-flow history response is not an object"
+        )
+    return payload
+
+
 def fetch_market_flow_history(
     *,
     session: requests.Session | None = None,
 ) -> pd.DataFrame:
     """Fetch market-flow history without inheriting process proxy settings."""
-    client = session or requests.Session()
-    client.trust_env = False
     url = (
         "https://push2his.eastmoney.com/"
         "api/qt/stock/fflow/daykline/get"
@@ -62,19 +104,80 @@ def fetch_market_flow_history(
         ),
         "ut": "b2884a393a59ad64002292a3e90d46a5",
     }
-    response = client.get(
-        url,
-        params=params,
-        headers={"User-Agent": "Mozilla/5.0"},
-        timeout=30,
-    )
-    response.raise_for_status()
-    try:
-        payload = response.json()
-    except ValueError as exc:
-        raise MarketFlowHistorySchemaError(
-            "market-flow history response is not valid JSON"
-        ) from exc
+    headers = {
+        "Referer": "https://data.eastmoney.com/",
+        "User-Agent": "Mozilla/5.0",
+    }
+    if session is not None:
+        session.trust_env = False
+        response = None
+        for attempt in range(3):
+            request_params = dict(params)
+            request_params["_"] = int(time.time() * 1000)
+            try:
+                response = session.get(
+                    url,
+                    params=request_params,
+                    headers=headers,
+                    timeout=30,
+                )
+                break
+            except requests.RequestException:
+                if attempt == 2:
+                    raise
+                time.sleep(0.25 * (attempt + 1))
+        if response is None:
+            raise RuntimeError("market-flow history request did not run")
+        response.raise_for_status()
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise MarketFlowHistorySchemaError(
+                "market-flow history response is not valid JSON"
+            ) from exc
+    else:
+        request_params = dict(params)
+        request_params["_"] = int(time.time() * 1000)
+        request_url = f"{url}?{urllib_parse.urlencode(request_params)}"
+        ssl_context = ssl.create_default_context(
+            cafile=requests.certs.where()
+        )
+        opener = urllib_request.build_opener(
+            urllib_request.ProxyHandler({}),
+            urllib_request.HTTPSHandler(context=ssl_context),
+        )
+        payload = None
+        last_network_error: Exception | None = None
+        for attempt in range(3):
+            try:
+                request = urllib_request.Request(
+                    request_url,
+                    headers=headers,
+                )
+                with opener.open(request, timeout=30) as response:
+                    payload = json.loads(response.read())
+                break
+            except (
+                urllib_error.URLError,
+                TimeoutError,
+                ConnectionError,
+                http.client.RemoteDisconnected,
+            ) as exc:
+                last_network_error = exc
+                if attempt == 2:
+                    break
+                time.sleep(0.25 * (attempt + 1))
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                raise MarketFlowHistorySchemaError(
+                    "market-flow history response is not valid JSON"
+                ) from exc
+        if payload is None:
+            try:
+                payload = _fetch_market_history_payload_with_curl(request_url)
+            except (OSError, subprocess.SubprocessError):
+                if last_network_error is not None:
+                    raise last_network_error
+                raise
     data = payload.get("data") if isinstance(payload, dict) else None
     rows = data.get("klines") if isinstance(data, dict) else None
     if not isinstance(rows, list) or not rows:
