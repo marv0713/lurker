@@ -777,3 +777,92 @@ def test_prepare_temperature_inputs_exposes_source_freshness_notes():
         "两融：截止 2026-07-22，状态 stale_cache",
         "⚠️ 部分数据非当日或采集不完整",
     )
+
+
+def _complete_fresh_batch(trade_date: str) -> CoreEtfBatch:
+    return CoreEtfBatch(
+        configured_symbols=["510300.SH"],
+        items=[
+            CoreEtfItem(
+                symbol="510300.SH",
+                name="沪深300ETF",
+                trade_date=trade_date,
+                current_turnover=100.0,
+                avg_turnover_20d=100.0,
+                turnover_expansion=1.0,
+                shares=None,
+                shares_date=None,
+                status="inactive",
+                source="fixture",
+                availability="turnover_only",
+                error=None,
+            )
+        ],
+        failures=[],
+        generated_at=f"{trade_date}T08:00:00+00:00",
+    )
+
+
+def test_previous_session_margin_is_published_lag_and_actionable():
+    from lurker.application.market_temperature import prepare_temperature_inputs
+
+    prepared = prepare_temperature_inputs(
+        market_flow={
+            "trade_date": "2026-07-28",
+            "main_net_inflow": 1.0,
+            "super_large_net_inflow": 1.0,
+        },
+        core_etfs_batch=_complete_fresh_batch("2026-07-28"),
+        margin={
+            "trade_date": "20260727",
+            "margin_balance_change": 10.0,
+            "availability": "fresh",
+        },
+        report_date="2026-07-28",
+        is_trading_day=lambda day: day.weekday() < 5,
+        now=datetime(
+            2026,
+            7,
+            28,
+            16,
+            0,
+            tzinfo=timezone(timedelta(hours=8)),
+        ),
+    )
+
+    assert prepared.margin_signal == "supportive"
+    assert prepared.quality_notes[2] == (
+        "两融：截止 2026-07-27，状态 published_lag"
+    )
+    assert "⚠️ 部分数据非当日或采集不完整" not in prepared.quality_notes
+
+
+def test_margin_older_than_previous_session_is_unknown():
+    from lurker.application.market_temperature import prepare_temperature_inputs
+
+    prepared = prepare_temperature_inputs(
+        market_flow={
+            "trade_date": "2026-07-28",
+            "main_net_inflow": 1.0,
+            "super_large_net_inflow": 1.0,
+        },
+        core_etfs_batch=_complete_fresh_batch("2026-07-28"),
+        margin={
+            "trade_date": "20260724",
+            "margin_balance_change": 10.0,
+            "availability": "fresh",
+        },
+        report_date="2026-07-28",
+        is_trading_day=lambda day: day.weekday() < 5,
+        now=datetime(
+            2026,
+            7,
+            28,
+            16,
+            0,
+            tzinfo=timezone(timedelta(hours=8)),
+        ),
+    )
+
+    assert prepared.margin_signal == "unknown"
+    assert prepared.quality_notes[2] == "两融：截止 2026-07-24，状态 stale"

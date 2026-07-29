@@ -366,6 +366,16 @@ def prepare_temperature_inputs(
     # --- Margin freshness ---
     margin_trade_date = _normalize_trade_date(margin.get("trade_date", ""))
     margin_availability = margin.get("availability", "")
+    previous_session_date = ""
+    if margin_trade_date:
+        previous_session = (
+            date.fromisoformat(expected_trade_date) - timedelta(days=1)
+        )
+        for _ in range(31):
+            if is_trading_day(previous_session):
+                previous_session_date = previous_session.isoformat()
+                break
+            previous_session -= timedelta(days=1)
     if margin_trade_date > expected_trade_date:
         raise ValueError(
             f"Margin trade_date {margin_trade_date} is after "
@@ -374,7 +384,7 @@ def prepare_temperature_inputs(
     if (
         margin_availability == "stale_cache"
         or not margin_trade_date
-        or margin_trade_date < expected_trade_date
+        or margin_trade_date not in {expected_trade_date, previous_session_date}
     ):
         margin_signal = "unknown"
     else:
@@ -404,6 +414,8 @@ def prepare_temperature_inputs(
         margin_status = "stale_cache"
     elif margin_trade_date == expected_trade_date:
         margin_status = str(margin_availability or "fresh")
+    elif margin_trade_date == previous_session_date:
+        margin_status = "published_lag"
     elif margin_trade_date:
         margin_status = "stale"
     else:
@@ -415,10 +427,12 @@ def prepare_temperature_inputs(
         f"核心 ETF：截止 {etf_cutoff}，状态 {etf_freshness}",
         f"两融：截止 {margin_cutoff}，状态 {margin_status}",
     ]
-    if any(
-        status != "fresh"
-        for status in (market_status, etf_freshness, margin_status)
-    ):
+    healthy_statuses = (
+        market_status == "fresh"
+        and etf_freshness == "fresh"
+        and margin_status in {"fresh", "published_lag"}
+    )
+    if not healthy_statuses:
         quality_notes.append("⚠️ 部分数据非当日或采集不完整")
 
     return PreparedTemperatureInputs(
