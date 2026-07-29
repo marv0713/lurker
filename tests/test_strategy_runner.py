@@ -4,6 +4,7 @@ from textwrap import indent
 import pytest
 
 from lurker.application.strategy_runner import (
+    DEFAULT_STRATEGIES,
     StrategyConfig,
     StrategyContext,
     StrategyResult,
@@ -12,6 +13,28 @@ from lurker.application.strategy_runner import (
     select_strategy_configs,
 )
 from lurker.reports.models import DailyReport
+
+
+def test_monthly_macro_flow_strategy_is_registered():
+    assert "monthly_macro_flow" in DEFAULT_STRATEGIES
+
+
+def test_monthly_macro_flow_strategy_requires_its_own_snapshot():
+    context = StrategyContext(
+        snapshot_batch={"snapshots": []},
+        theme_mapping={},
+        report_date="2025-01",
+        attributor=None,
+        suppressed_symbols=set(),
+    )
+    with pytest.raises(ValueError, match="monthly_macro_snapshot"):
+        DEFAULT_STRATEGIES["monthly_macro_flow"].run(
+            context,
+            StrategyConfig(
+                name="monthly_macro_flow",
+                cadence="monthly",
+            ),
+        )
 
 
 def _strategy_yaml(tmp_path: Path, body: str) -> Path:

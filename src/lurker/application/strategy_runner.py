@@ -35,6 +35,8 @@ class StrategyContext:
     symbol_names: dict[str, str] = field(default_factory=dict)
     runtime_params: dict[str, Any] = field(default_factory=dict)
     db_session: Any = None
+    monthly_macro_snapshot: dict[str, Any] | None = None
+
 
 @dataclass
 class StrategyResult:
@@ -279,9 +281,47 @@ class ProfessionalFlowDailyStrategy:
         )
 
 
+class MonthlyMacroFlowStrategy:
+    name = "monthly_macro_flow"
+
+    def run(
+        self,
+        context: StrategyContext,
+        config: StrategyConfig,
+    ) -> StrategyResult:
+        from lurker.application.monthly_macro_flow import (
+            analyze_monthly_macro_flow,
+        )
+        from lurker.reports.monthly_macro_flow_report import (
+            render_monthly_macro_flow_report,
+        )
+
+        if context.monthly_macro_snapshot is None:
+            raise ValueError(
+                "monthly_macro_flow requires monthly_macro_snapshot"
+            )
+        analysis = analyze_monthly_macro_flow(
+            context.monthly_macro_snapshot
+        )
+        report = render_monthly_macro_flow_report(
+            context.monthly_macro_snapshot,
+            analysis,
+        )
+        return StrategyResult(
+            name=self.name,
+            title=config.title or "宏观流动性月报",
+            report=report,
+            metadata={
+                **_strategy_metadata(config),
+                "analysis": analysis,
+            },
+        )
+
+
 DEFAULT_STRATEGIES: dict[str, Strategy] = {
     ProfessionalFlowDailyStrategy.name: ProfessionalFlowDailyStrategy(),
     LongTermTrendStrategy.name: LongTermTrendStrategy(),
+    MonthlyMacroFlowStrategy.name: MonthlyMacroFlowStrategy(),
 }
 
 

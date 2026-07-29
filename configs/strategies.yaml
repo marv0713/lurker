@@ -46,3 +46,11 @@ strategies:
     universe: main_candidates
     title: 深度复核
     params: {}
+
+  monthly_macro_flow:
+    enabled: true
+    lifecycle: active
+    cadence: monthly
+    universe: macro
+    title: 宏观流动性月报
+    params: {}
