@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -14,7 +14,10 @@ from lurker.application.temperature_replay import (
     replay_temperature_records,
     summarize_replay,
 )
-from lurker.cli import _check_temperature_gate
+from lurker.cli import (
+    _check_temperature_gate,
+    approve_temperature_rollout,
+)
 from lurker.trading_calendar import is_cn_trading_day
 
 
@@ -454,6 +457,95 @@ def test_temperature_gate_hashes_and_executes_same_replay_bytes(
 
     assert allowed is True
     assert reason == ""
+
+
+def test_approve_rollout_stamps_only_valid_auditable_replay(tmp_path):
+    replay_path, artifact_path, artifact = _approved_artifact(tmp_path)
+    records = json.loads(replay_path.read_text(encoding="utf-8"))
+    for record in records:
+        record["market_flow"]["source"] = "eastmoney_market_flow_history"
+        for item in record["core_etfs"]["items"]:
+            item["source"] = "akshare_fund_etf_hist_sina"
+        record["margin"]["source"] = "akshare_jin10_margin_sh_sz"
+    replay_path.write_text(json.dumps(records), encoding="utf-8")
+    artifact.update(
+        {
+            "approved": False,
+            "approved_by": None,
+            "approved_at": None,
+            "replay_sha256": (
+                "sha256:" + hashlib.sha256(replay_path.read_bytes()).hexdigest()
+            ),
+        }
+    )
+    artifact_path.write_text(json.dumps(artifact), encoding="utf-8")
+
+    approved = approve_temperature_rollout(
+        artifact_path=artifact_path,
+        replay_path=replay_path,
+        approved_by="codex-goal-2026-07-28",
+        now=datetime(
+            2026,
+            7,
+            28,
+            23,
+            0,
+            tzinfo=timezone(timedelta(hours=8)),
+        ),
+    )
+
+    assert approved["approved"] is True
+    assert approved["approved_by"] == "codex-goal-2026-07-28"
+    assert approved["approved_at"] == "2026-07-28T23:00:00+08:00"
+    assert _check_temperature_gate(
+        artifact_path,
+        replay_path=replay_path,
+        current_rules_fingerprint=current_rules_fingerprint(),
+    ) == (True, "")
+
+
+def test_approve_rollout_rejects_unavailable_market_history(tmp_path):
+    replay_path, artifact_path, artifact = _approved_artifact(tmp_path)
+    artifact.update(
+        {"approved": False, "approved_by": None, "approved_at": None}
+    )
+    artifact_path.write_text(json.dumps(artifact), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="大盘历史资金来源不可审计"):
+        approve_temperature_rollout(
+            artifact_path=artifact_path,
+            replay_path=replay_path,
+            approved_by="codex-goal-2026-07-28",
+        )
+
+
+def test_approve_rollout_rejects_distribution_over_80_percent(tmp_path):
+    replay_path, artifact_path, artifact = _approved_artifact(
+        tmp_path,
+        distribution={"进攻": 49, "观察": 10, "防守": 1},
+    )
+    records = json.loads(replay_path.read_text(encoding="utf-8"))
+    for record in records:
+        record["market_flow"]["source"] = "eastmoney_market_flow_history"
+    replay_path.write_text(json.dumps(records), encoding="utf-8")
+    artifact.update(
+        {
+            "approved": False,
+            "approved_by": None,
+            "approved_at": None,
+            "replay_sha256": (
+                "sha256:" + hashlib.sha256(replay_path.read_bytes()).hexdigest()
+            ),
+        }
+    )
+    artifact_path.write_text(json.dumps(artifact), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="超过80%"):
+        approve_temperature_rollout(
+            artifact_path=artifact_path,
+            replay_path=replay_path,
+            approved_by="codex-goal-2026-07-28",
+        )
 
 
 def _complete_batch(trade_date: str, *, expansion: float) -> dict:

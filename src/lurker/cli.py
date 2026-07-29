@@ -2,9 +2,12 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import sys
-from datetime import date
+import tempfile
+from datetime import date, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from typing import Any
 import yaml
@@ -137,6 +140,7 @@ def _check_temperature_gate(
     replay_path: Path,
     current_rules_fingerprint: str,
     max_ratio: float = 0.80,
+    require_approval: bool = True,
 ) -> tuple[bool, str]:
     """Validate the approved 60-day replay artifact before report push."""
     if not artifact_path.exists():
@@ -170,10 +174,11 @@ def _check_temperature_gate(
     if artifact.get("replay_sha256") != replay_digest:
         return False, "回放文件已变化"
 
-    if artifact.get("approved") is not True:
-        return False, "回放尚未通过人工审查"
-    if not artifact.get("approved_by") or not artifact.get("approved_at"):
-        return False, "审批信息不完整"
+    if require_approval:
+        if artifact.get("approved") is not True:
+            return False, "回放尚未通过人工审查"
+        if not artifact.get("approved_by") or not artifact.get("approved_at"):
+            return False, "审批信息不完整"
 
     trading_days = artifact.get("trading_days")
     if isinstance(trading_days, bool) or not isinstance(trading_days, int):
@@ -262,6 +267,98 @@ def _check_temperature_gate(
     return True, ""
 
 
+def _validate_rollout_provenance(replay_path: Path) -> None:
+    try:
+        records = json.loads(replay_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"回放文件无法读取: {exc}") from exc
+    if not isinstance(records, list) or not records:
+        raise ValueError("回放文件格式错误")
+    for record in records:
+        market_flow = (
+            record.get("market_flow")
+            if isinstance(record, dict)
+            else None
+        )
+        if (
+            not isinstance(market_flow, dict)
+            or market_flow.get("source")
+            != "eastmoney_market_flow_history"
+        ):
+            raise ValueError("大盘历史资金来源不可审计")
+
+
+def approve_temperature_rollout(
+    *,
+    artifact_path: Path,
+    replay_path: Path,
+    approved_by: str,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Validate, atomically approve, and revalidate a rollout artifact."""
+    approver = approved_by.strip()
+    if not approver:
+        raise ValueError("approved_by 不能为空")
+    from lurker.application.temperature_replay import (
+        current_rules_fingerprint,
+    )
+
+    allowed, reason = _check_temperature_gate(
+        artifact_path,
+        replay_path=replay_path,
+        current_rules_fingerprint=current_rules_fingerprint(),
+        require_approval=False,
+    )
+    if not allowed:
+        raise ValueError(reason)
+    _validate_rollout_provenance(replay_path)
+
+    try:
+        artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"rollout artifact 无法读取: {exc}") from exc
+    if not isinstance(artifact, dict):
+        raise ValueError("rollout artifact 格式错误")
+    approval_time = now or datetime.now(ZoneInfo("Asia/Shanghai"))
+    artifact.update(
+        {
+            "approved": True,
+            "approved_by": approver,
+            "approved_at": approval_time.isoformat(),
+            "notes": "通过完整回放、来源、哈希与状态集中度校验",
+        }
+    )
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_name = ""
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=artifact_path.parent,
+            prefix=f".{artifact_path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temporary:
+            json.dump(artifact, temporary, ensure_ascii=False, indent=2)
+            temporary.write("\n")
+            temporary.flush()
+            os.fsync(temporary.fileno())
+            temporary_name = temporary.name
+        os.replace(temporary_name, artifact_path)
+    finally:
+        if temporary_name and Path(temporary_name).exists():
+            Path(temporary_name).unlink()
+
+    allowed, reason = _check_temperature_gate(
+        artifact_path,
+        replay_path=replay_path,
+        current_rules_fingerprint=current_rules_fingerprint(),
+    )
+    if not allowed:
+        raise ValueError(f"审批写入后复核失败: {reason}")
+    return artifact
+
+
 def build_temperature_replay(
     *,
     etf_start: str,
@@ -304,6 +401,10 @@ def build_temperature_replay(
         replay_start=output_start,
         replay_end=output_end,
     )
+    try:
+        artifact["replay_path"] = str(output_path.relative_to(ROOT))
+    except ValueError:
+        pass
     artifact_path.parent.mkdir(parents=True, exist_ok=True)
     artifact_path.write_text(
         json.dumps(artifact, ensure_ascii=False, indent=2) + "\n",
@@ -1614,6 +1715,22 @@ def build_parser() -> argparse.ArgumentParser:
         default=ROOT / "data" / "processed" / "temperature_rollout.json",
     )
 
+    approve_rollout = subparsers.add_parser(
+        "approve-temperature-rollout",
+        help="完整校验并审批市场温度 rollout artifact",
+    )
+    approve_rollout.add_argument(
+        "--replay",
+        type=Path,
+        default=ROOT / "tests" / "fixtures" / "etf_60d_replay.json",
+    )
+    approve_rollout.add_argument(
+        "--artifact",
+        type=Path,
+        default=ROOT / "data" / "processed" / "temperature_rollout.json",
+    )
+    approve_rollout.add_argument("--approved-by", required=True)
+
     daily = subparsers.add_parser(
         "daily-job",
         help="刷新本地行情快照，生成并落盘每日 Markdown 日报",
@@ -1887,6 +2004,20 @@ def main() -> None:
                 output_path=args.output,
                 artifact_path=args.artifact,
             )
+        )
+        return
+
+    if args.command == "approve-temperature-rollout":
+        artifact = approve_temperature_rollout(
+            artifact_path=args.artifact,
+            replay_path=args.replay,
+            approved_by=args.approved_by,
+        )
+        print(
+            "Approved temperature rollout "
+            f"(trading_days={artifact['trading_days']}, "
+            f"distribution={artifact['distribution']}, "
+            f"approved_by={artifact['approved_by']})"
         )
         return
 

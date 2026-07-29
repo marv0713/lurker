@@ -1714,6 +1714,21 @@ def test_parser_has_build_temperature_replay_command():
     assert args.artifact.name == "temperature_rollout.json"
 
 
+def test_parser_has_approve_temperature_rollout_command():
+    args = build_parser().parse_args(
+        [
+            "approve-temperature-rollout",
+            "--approved-by",
+            "codex-goal-2026-07-28",
+        ]
+    )
+
+    assert args.command == "approve-temperature-rollout"
+    assert args.approved_by == "codex-goal-2026-07-28"
+    assert args.replay.name == "etf_60d_replay.json"
+    assert args.artifact.name == "temperature_rollout.json"
+
+
 def test_build_temperature_replay_writes_fixture_and_unapproved_artifact(
     tmp_path,
     monkeypatch,
