@@ -35,6 +35,101 @@ _RECOVERABLE_PROVIDER_ERRORS = (
 )
 
 
+class MarketFlowHistorySchemaError(ValueError):
+    """Raised when Eastmoney market-flow history violates its schema."""
+
+
+def fetch_market_flow_history(
+    *,
+    session: requests.Session | None = None,
+) -> pd.DataFrame:
+    """Fetch market-flow history without inheriting process proxy settings."""
+    client = session or requests.Session()
+    client.trust_env = False
+    url = (
+        "https://push2his.eastmoney.com/"
+        "api/qt/stock/fflow/daykline/get"
+    )
+    params = {
+        "lmt": "0",
+        "klt": "101",
+        "secid": "1.000001",
+        "secid2": "0.399001",
+        "fields1": "f1,f2,f3,f7",
+        "fields2": (
+            "f51,f52,f53,f54,f55,f56,f57,f58,"
+            "f59,f60,f61,f62,f63,f64,f65"
+        ),
+        "ut": "b2884a393a59ad64002292a3e90d46a5",
+    }
+    response = client.get(
+        url,
+        params=params,
+        headers={"User-Agent": "Mozilla/5.0"},
+        timeout=30,
+    )
+    response.raise_for_status()
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise MarketFlowHistorySchemaError(
+            "market-flow history response is not valid JSON"
+        ) from exc
+    data = payload.get("data") if isinstance(payload, dict) else None
+    rows = data.get("klines") if isinstance(data, dict) else None
+    if not isinstance(rows, list) or not rows:
+        raise MarketFlowHistorySchemaError(
+            "market-flow history response has no data.klines"
+        )
+
+    parsed_rows: list[list[str]] = []
+    for row in rows:
+        values = str(row).split(",")
+        if len(values) != 15:
+            raise MarketFlowHistorySchemaError(
+                "market-flow history kline must contain 15 fields"
+            )
+        parsed_rows.append(values)
+
+    columns = [
+        "日期",
+        "主力净流入-净额",
+        "小单净流入-净额",
+        "中单净流入-净额",
+        "大单净流入-净额",
+        "超大单净流入-净额",
+        "主力净流入-净占比",
+        "小单净流入-净占比",
+        "中单净流入-净占比",
+        "大单净流入-净占比",
+        "超大单净流入-净占比",
+        "上证-收盘价",
+        "上证-涨跌幅",
+        "深证-收盘价",
+        "深证-涨跌幅",
+    ]
+    frame = pd.DataFrame(parsed_rows, columns=columns)
+    parsed_dates = pd.to_datetime(frame["日期"], errors="coerce")
+    if parsed_dates.isna().any():
+        raise MarketFlowHistorySchemaError(
+            "market-flow history contains invalid dates"
+        )
+    frame["日期"] = parsed_dates.dt.date
+    for column in columns[1:]:
+        frame[column] = pd.to_numeric(frame[column], errors="coerce")
+    required_values = [
+        "主力净流入-净额",
+        "超大单净流入-净额",
+        "大单净流入-净额",
+    ]
+    if frame[required_values].isna().any(axis=None):
+        raise MarketFlowHistorySchemaError(
+            "market-flow history contains invalid flow values"
+        )
+    frame.attrs["source"] = "eastmoney_market_flow_history"
+    return frame
+
+
 def collect_temperature_replay(
     *,
     etf_configs: list[dict[str, str]],
@@ -376,15 +471,7 @@ def normalize_sina_etf_history(raw: pd.DataFrame) -> pd.DataFrame:
 
 
 def _fetch_market_flow_history() -> pd.DataFrame:
-    import akshare as ak
-
-    with _akshare_request_scope():
-        raw = ak.stock_market_fund_flow()
-    if len(raw) >= 60:
-        raw.attrs["source"] = "akshare_stock_market_fund_flow"
-        return raw
-    raw.attrs["source"] = "akshare_stock_market_fund_flow_insufficient_history"
-    return raw
+    return fetch_market_flow_history()
 
 
 def _is_recoverable_tushare_error(exc: Exception) -> bool:

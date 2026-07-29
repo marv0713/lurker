@@ -8,9 +8,65 @@ import requests
 
 from lurker.ingest.temperature_history import collect_temperature_replay
 from lurker.ingest.temperature_history import (
+    MarketFlowHistorySchemaError,
+    fetch_market_flow_history,
     normalize_sina_etf_history,
 )
 from lurker.ingest.flows import normalize_akshare_margin_histories
+
+
+class _HistoryResponse:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self.payload
+
+
+class _HistorySession:
+    def __init__(self, payload):
+        self.payload = payload
+        self.trust_env = True
+        self.calls = []
+
+    def get(self, url, **kwargs):
+        self.calls.append((url, kwargs))
+        return _HistoryResponse(self.payload)
+
+
+def test_market_history_uses_original_endpoint_without_environment_proxy():
+    session = _HistorySession(
+        {
+            "data": {
+                "klines": [
+                    "2026-07-27,10,1,2,3,4,0,0,0,0,0,3600,1,12000,2",
+                    "2026-07-28,-10,-1,-2,-3,-4,0,0,0,0,0,3500,-1,11000,-2",
+                ]
+            }
+        }
+    )
+
+    result = fetch_market_flow_history(session=session)
+
+    assert session.trust_env is False
+    requested_url, kwargs = session.calls[0]
+    assert requested_url.startswith("https://push2his.eastmoney.com/")
+    assert "push2delay" not in requested_url
+    assert kwargs["timeout"] == 30
+    assert result.attrs["source"] == "eastmoney_market_flow_history"
+    assert result.iloc[-1]["主力净流入-净额"] == -10.0
+
+
+def test_market_history_rejects_malformed_kline_rows():
+    session = _HistorySession(
+        {"data": {"klines": ["2026-07-28,1,2"]}}
+    )
+
+    with pytest.raises(MarketFlowHistorySchemaError, match="15 fields"):
+        fetch_market_flow_history(session=session)
 
 
 def test_collect_temperature_replay_aligns_sources_and_uses_etf_warmup():
