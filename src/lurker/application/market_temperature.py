@@ -13,6 +13,20 @@ from typing import Any, Callable
 from lurker.ingest.etf_flows import CoreEtfBatch
 
 
+_CUSTOMER_QUALITY_LABELS = {
+    "fresh": "当日数据",
+    "published_lag": "正常滞后一日",
+    "partial": "部分数据缺失",
+    "stale": "数据已过期",
+    "stale_cache": "使用历史缓存",
+    "unknown": "暂不可用",
+}
+
+
+def _customer_quality_label(status: str) -> str:
+    return _CUSTOMER_QUALITY_LABELS.get(status, "状态异常")
+
+
 # ---------------------------------------------------------------------------
 # Flow direction
 # ---------------------------------------------------------------------------
@@ -423,9 +437,12 @@ def prepare_temperature_inputs(
     margin_cutoff = margin_trade_date or "-"
 
     quality_notes = [
-        f"大盘资金：截止 {market_cutoff}，状态 {market_status}",
-        f"核心 ETF：截止 {etf_cutoff}，状态 {etf_freshness}",
-        f"两融：截止 {margin_cutoff}，状态 {margin_status}",
+        f"大盘资金：截止 {market_cutoff}，"
+        f"{_customer_quality_label(market_status)}",
+        f"核心 ETF：截止 {etf_cutoff}，"
+        f"{_customer_quality_label(etf_freshness)}",
+        f"两融：截止 {margin_cutoff}，"
+        f"{_customer_quality_label(margin_status)}",
     ]
     healthy_statuses = (
         market_status == "fresh"

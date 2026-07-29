@@ -144,7 +144,7 @@ def test_report_data_quality_lists_partial_etf_failure_and_freshness():
 
     assert "ETF 状态：active（沪深300ETF 放量 1.35x）" in report.content_md
     assert "两融信号：supportive" in report.content_md
-    assert "核心 ETF：截止 2026-07-23，状态 partial" in report.content_md
+    assert "核心 ETF：截止 2026-07-23，部分数据缺失" in report.content_md
     assert "核心 ETF 510500.SH：provider timeout" in report.content_md
     assert "⚠️ 部分数据非当日或采集不完整" in report.content_md
 

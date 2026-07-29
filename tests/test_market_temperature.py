@@ -772,9 +772,9 @@ def test_prepare_temperature_inputs_exposes_source_freshness_notes():
     )
 
     assert prepared.quality_notes == (
-        "大盘资金：截止 2026-07-23，状态 fresh",
-        "核心 ETF：截止 2026-07-23，状态 partial",
-        "两融：截止 2026-07-22，状态 stale_cache",
+        "大盘资金：截止 2026-07-23，当日数据",
+        "核心 ETF：截止 2026-07-23，部分数据缺失",
+        "两融：截止 2026-07-22，使用历史缓存",
         "⚠️ 部分数据非当日或采集不完整",
     )
 
@@ -832,7 +832,7 @@ def test_previous_session_margin_is_published_lag_and_actionable():
 
     assert prepared.margin_signal == "supportive"
     assert prepared.quality_notes[2] == (
-        "两融：截止 2026-07-27，状态 published_lag"
+        "两融：截止 2026-07-27，正常滞后一日"
     )
     assert "⚠️ 部分数据非当日或采集不完整" not in prepared.quality_notes
 
@@ -865,4 +865,4 @@ def test_margin_older_than_previous_session_is_unknown():
     )
 
     assert prepared.margin_signal == "unknown"
-    assert prepared.quality_notes[2] == "两融：截止 2026-07-24，状态 stale"
+    assert prepared.quality_notes[2] == "两融：截止 2026-07-24，数据已过期"
