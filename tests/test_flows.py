@@ -1,4 +1,5 @@
 import importlib
+from datetime import date
 
 import pandas as pd
 import lurker.ingest.flows as flows_module
@@ -6,6 +7,7 @@ import lurker.ingest.flows as flows_module
 from lurker.ingest.flows import (
     fetch_margin,
     fetch_stock_flows,
+    normalize_akshare_margin_histories,
     normalize_margin_frame,
     normalize_market_flow_frame,
     normalize_sector_flow_frame,
@@ -240,6 +242,11 @@ def test_fetch_margin_cache_fallback(monkeypatch, tmp_path):
 
     # 2. Failure case with cache: falls back to cache
     mock_pro.margin.side_effect = RuntimeError("Rate limit exceeded")
+    monkeypatch.setattr(
+        "lurker.ingest.flows.fetch_akshare_margin_latest",
+        lambda: (_ for _ in ()).throw(RuntimeError("AkShare offline")),
+        raising=False,
+    )
     
     res_fallback = fetch_margin(token="dummy_token", cache_path=cache_path)
     assert res_fallback["trade_date"] == "20260604"
@@ -315,6 +322,11 @@ def test_margin_cache_fallback_marked_stale_cache(monkeypatch, tmp_path):
     mock_ts.pro_api.return_value = mock_pro
     # Simulate rate limit failure
     mock_pro.margin.side_effect = RuntimeError("Rate limit exceeded")
+    monkeypatch.setattr(
+        "lurker.ingest.flows.fetch_akshare_margin_latest",
+        lambda: (_ for _ in ()).throw(RuntimeError("AkShare offline")),
+        raising=False,
+    )
 
     # Create a cache file with prior data
     cache = {
@@ -335,6 +347,82 @@ def test_margin_cache_fallback_marked_stale_cache(monkeypatch, tmp_path):
     assert result.get("availability") == "stale_cache"
     # The data itself is still available for display purposes
     assert result["trade_date"] == "20260603"
+
+
+def _akshare_margin_frames():
+    sh = pd.DataFrame(
+        {
+            "日期": [date(2026, 7, 24), date(2026, 7, 27)],
+            "融资余额": [100.0, 110.0],
+            "融券余额": [10.0, 10.0],
+            "融资融券余额": [110.0, 120.0],
+        }
+    )
+    sz = pd.DataFrame(
+        {
+            "日期": [date(2026, 7, 24), date(2026, 7, 27)],
+            "融资余额": [200.0, 205.0],
+            "融券余额": [20.0, 20.0],
+            "融资融券余额": [220.0, 225.0],
+        }
+    )
+    return sh, sz
+
+
+def test_fetch_margin_uses_akshare_when_tushare_permission_is_denied(
+    monkeypatch,
+    tmp_path,
+):
+    import sys
+    from unittest.mock import MagicMock
+
+    mock_ts = MagicMock()
+    mock_pro = MagicMock()
+    mock_ts.pro_api.return_value = mock_pro
+    mock_pro.margin.side_effect = RuntimeError(
+        "抱歉，您没有接口(margin)访问权限"
+    )
+    monkeypatch.setitem(sys.modules, "tushare", mock_ts)
+    sh, sz = _akshare_margin_frames()
+    monkeypatch.setattr(
+        "lurker.ingest.flows._fetch_akshare_margin_frames",
+        lambda: (sh, sz),
+        raising=False,
+    )
+
+    result = fetch_margin(
+        token="no-margin-permission",
+        cache_path=tmp_path / "margin.json",
+    )
+
+    assert result["source"] == "akshare_jin10_margin_sh_sz"
+    assert result["trade_date"] == "20260727"
+    assert result["margin_balance"] == 345.0
+    assert result["margin_balance_change"] == 15.0
+    assert result["availability"] == "fresh"
+
+
+def test_fetch_margin_uses_akshare_without_tushare_token(monkeypatch, tmp_path):
+    sh, sz = _akshare_margin_frames()
+    monkeypatch.setattr(
+        "lurker.ingest.flows._fetch_akshare_margin_frames",
+        lambda: (sh, sz),
+        raising=False,
+    )
+
+    result = fetch_margin(token="", cache_path=tmp_path / "margin.json")
+
+    assert result["source"] == "akshare_jin10_margin_sh_sz"
+    assert result["availability"] == "fresh"
+
+
+def test_normalize_akshare_margin_requires_both_exchanges_for_date():
+    sh, sz = _akshare_margin_frames()
+    sz = sz.iloc[:1].copy()
+
+    result = normalize_akshare_margin_histories(sh, sz)
+
+    assert set(result) == {"2026-07-24"}
 
 
 def test_margin_normalizer_does_not_fabricate_change_from_all_null_values():

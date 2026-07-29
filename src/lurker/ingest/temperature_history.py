@@ -19,6 +19,7 @@ from lurker.ingest.etf_flows import (
 )
 from lurker.ingest.flows import (
     _akshare_request_scope,
+    fetch_akshare_margin_history,
     normalize_margin_frame,
     normalize_market_flow_frame,
 )
@@ -374,54 +375,6 @@ def normalize_sina_etf_history(raw: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
-def normalize_akshare_margin_histories(
-    sh_raw: pd.DataFrame,
-    sz_raw: pd.DataFrame,
-) -> dict[str, dict[str, Any]]:
-    """Combine Shanghai and Shenzhen historical margin totals by date."""
-    required = {"日期", "融资余额", "融券余额", "融资融券余额"}
-    for name, frame in (("SH", sh_raw), ("SZ", sz_raw)):
-        missing = required - set(frame.columns)
-        if missing:
-            raise ValueError(f"{name} margin history missing columns {sorted(missing)}")
-
-    frames = []
-    for raw in (sh_raw, sz_raw):
-        frame = raw.loc[:, list(required)].copy()
-        frame["日期"] = pd.to_datetime(frame["日期"], errors="coerce")
-        for column in required - {"日期"}:
-            frame[column] = pd.to_numeric(frame[column], errors="coerce")
-        frames.append(frame)
-    combined = (
-        pd.concat(frames, ignore_index=True)
-        .dropna(subset=["日期"])
-        .groupby("日期", as_index=False)[
-            ["融资余额", "融券余额", "融资融券余额"]
-        ]
-        .sum(min_count=1)
-        .sort_values("日期")
-    )
-
-    result: dict[str, dict[str, Any]] = {}
-    previous_balance: float | None = None
-    for _, row in combined.iterrows():
-        current_balance = float(row["融资融券余额"])
-        trade_day = row["日期"].date()
-        item = {
-            "trade_date": trade_day.strftime("%Y%m%d"),
-            "financing_balance": float(row["融资余额"]),
-            "securities_lending_balance": float(row["融券余额"]),
-            "margin_balance": current_balance,
-            "availability": "fresh",
-            "source": "akshare_jin10_margin_sh_sz",
-        }
-        if previous_balance is not None:
-            item["margin_balance_change"] = current_balance - previous_balance
-        result[trade_day.isoformat()] = item
-        previous_balance = current_balance
-    return result
-
-
 def _fetch_market_flow_history() -> pd.DataFrame:
     import akshare as ak
 
@@ -454,12 +407,7 @@ def _load_akshare_margin_history(
     start_date: date,
     end_date: date,
 ) -> dict[str, dict[str, Any]]:
-    import akshare as ak
-
-    with _akshare_request_scope():
-        sh_raw = ak.macro_china_market_margin_sh()
-        sz_raw = ak.macro_china_market_margin_sz()
-    combined = normalize_akshare_margin_histories(sh_raw, sz_raw)
+    combined = fetch_akshare_margin_history()
     return {
         trade_date: item
         for trade_date, item in combined.items()

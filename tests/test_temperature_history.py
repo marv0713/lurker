@@ -9,8 +9,8 @@ import requests
 from lurker.ingest.temperature_history import collect_temperature_replay
 from lurker.ingest.temperature_history import (
     normalize_sina_etf_history,
-    normalize_akshare_margin_histories,
 )
+from lurker.ingest.flows import normalize_akshare_margin_histories
 
 
 def test_collect_temperature_replay_aligns_sources_and_uses_etf_warmup():

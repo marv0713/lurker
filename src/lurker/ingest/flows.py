@@ -239,6 +239,107 @@ def normalize_margin_frame(
     return result
 
 
+def normalize_akshare_margin_histories(
+    sh_raw: pd.DataFrame,
+    sz_raw: pd.DataFrame,
+) -> dict[str, dict[str, Any]]:
+    """Combine complete Shanghai and Shenzhen margin totals by date."""
+    required = {"日期", "融资余额", "融券余额", "融资融券余额"}
+    frames: list[pd.DataFrame] = []
+    for exchange, raw in (("SH", sh_raw), ("SZ", sz_raw)):
+        missing = required - set(raw.columns)
+        if missing:
+            raise ValueError(
+                f"{exchange} margin history missing columns {sorted(missing)}"
+            )
+        frame = raw.loc[:, list(required)].copy()
+        frame["日期"] = pd.to_datetime(frame["日期"], errors="coerce")
+        for column in required - {"日期"}:
+            frame[column] = pd.to_numeric(frame[column], errors="coerce")
+        frame["_exchange"] = exchange
+        frames.append(frame.dropna(subset=["日期"]))
+
+    combined = pd.concat(frames, ignore_index=True)
+    complete_dates = (
+        combined.groupby("日期")["_exchange"].nunique().loc[lambda value: value == 2]
+    ).index
+    totals = (
+        combined.loc[combined["日期"].isin(complete_dates)]
+        .groupby("日期", as_index=False)[
+            ["融资余额", "融券余额", "融资融券余额"]
+        ]
+        .sum(min_count=1)
+        .sort_values("日期")
+    )
+
+    result: dict[str, dict[str, Any]] = {}
+    previous_balance: float | None = None
+    for _, row in totals.iterrows():
+        margin_balance = _to_optional_float(row["融资融券余额"])
+        if margin_balance is None:
+            continue
+        trade_day = row["日期"].date()
+        item: dict[str, Any] = {
+            "trade_date": trade_day.strftime("%Y%m%d"),
+            "financing_balance": _to_optional_float(row["融资余额"]),
+            "securities_lending_balance": _to_optional_float(row["融券余额"]),
+            "margin_balance": margin_balance,
+            "availability": "fresh",
+            "source": "akshare_jin10_margin_sh_sz",
+        }
+        if previous_balance is not None:
+            item["margin_balance_change"] = margin_balance - previous_balance
+        result[trade_day.isoformat()] = item
+        previous_balance = margin_balance
+    return result
+
+
+def _fetch_akshare_margin_frames() -> tuple[pd.DataFrame, pd.DataFrame]:
+    with _akshare_request_scope():
+        sh_raw = ak.macro_china_market_margin_sh()
+        sz_raw = ak.macro_china_market_margin_sz()
+    return sh_raw, sz_raw
+
+
+def fetch_akshare_margin_history() -> dict[str, dict[str, Any]]:
+    sh_raw, sz_raw = _fetch_akshare_margin_frames()
+    return normalize_akshare_margin_histories(sh_raw, sz_raw)
+
+
+def fetch_akshare_margin_latest() -> dict[str, Any]:
+    history = fetch_akshare_margin_history()
+    if not history:
+        raise ValueError("AkShare margin history has no complete SH+SZ dates")
+    return history[max(history)]
+
+
+def _is_recoverable_margin_error(exc: Exception) -> bool:
+    if isinstance(
+        exc,
+        (
+            _requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            OSError,
+        ),
+    ):
+        return True
+    message = str(exc).lower()
+    return any(
+        marker in message
+        for marker in (
+            "访问权限",
+            "无权限",
+            "permission",
+            "积分",
+            "token",
+            "rate limit",
+            "timeout",
+            "timed out",
+        )
+    )
+
+
 def fetch_market_flow() -> dict[str, Any]:
     with _akshare_request_scope():
         raw = ak.stock_market_fund_flow()
@@ -291,60 +392,78 @@ def fetch_stock_flows() -> list[dict[str, Any]]:
     return list(merged.values())
 
 
-def fetch_margin(*, token: str | None = None, cache_path: Path | None = None) -> dict[str, Any]:
-    resolved_token = token or os.environ.get("TUSHARE_TOKEN", "")
-    if not resolved_token:
-        return {}
-
+def fetch_margin(
+    *,
+    token: str | None = None,
+    cache_path: Path | None = None,
+) -> dict[str, Any]:
+    resolved_token = (
+        os.environ.get("TUSHARE_TOKEN", "")
+        if token is None
+        else token
+    )
     if cache_path is None:
         root_dir = Path(__file__).resolve().parents[3]
         cache_path = root_dir / "data" / "processed" / "margin_cache.json"
     else:
         cache_path = Path(cache_path)
 
-    import tushare as ts
-    try:
-        previous_margin_balance = None
-        previous_trade_date = None
-        previous_margin_balance_change = None
-        if cache_path.exists():
-            try:
-                previous = json.loads(cache_path.read_text(encoding="utf-8"))
-                previous_margin_balance = _to_optional_float(previous.get("margin_balance"))
-                previous_trade_date = str(previous.get("trade_date", "")) or None
-                previous_margin_balance_change = _to_optional_float(
+    previous: dict[str, Any] = {}
+    if cache_path.exists():
+        try:
+            loaded = json.loads(cache_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                previous = loaded
+        except (OSError, json.JSONDecodeError):
+            previous = {}
+
+    primary_error: Exception | None = None
+    data: dict[str, Any] = {}
+    if resolved_token:
+        import tushare as ts
+
+        try:
+            pro = ts.pro_api(resolved_token)
+            raw = pro.margin()
+            data = normalize_margin_frame(
+                raw,
+                previous_margin_balance=_to_optional_float(
+                    previous.get("margin_balance")
+                ),
+                previous_trade_date=str(previous.get("trade_date", "")) or None,
+                previous_margin_balance_change=_to_optional_float(
                     previous.get("margin_balance_change")
-                )
-            except Exception:
-                previous_margin_balance = None
-                previous_trade_date = None
-                previous_margin_balance_change = None
-        pro = ts.pro_api(resolved_token)
-        raw = pro.margin()
-        data = normalize_margin_frame(
-            raw,
-            previous_margin_balance=previous_margin_balance,
-            previous_trade_date=previous_trade_date,
-            previous_margin_balance_change=previous_margin_balance_change,
-        )
-        if data:
-            try:
-                cache_path.parent.mkdir(parents=True, exist_ok=True)
-                cache_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-            except Exception as e:
-                print(f"Warning: failed to write margin cache: {e}", file=sys.stderr)
-        return data
-    except Exception as exc:
-        if cache_path.exists():
-            try:
+                ),
+            )
+            if data:
+                data["source"] = "tushare_margin"
+        except Exception as exc:
+            if not _is_recoverable_margin_error(exc):
+                raise
+            primary_error = exc
+
+    if not data:
+        try:
+            data = fetch_akshare_margin_latest()
+        except Exception as exc:
+            failure = primary_error or exc
+            if previous:
                 print(
-                    f"Warning: fetch_margin failed ({exc}). Loading cached margin data from {cache_path}.",
-                    file=sys.stderr
+                    "Warning: online margin providers failed "
+                    f"({failure}; AkShare: {exc}). Loading cached margin data "
+                    f"from {cache_path}.",
+                    file=sys.stderr,
                 )
-                cached = json.loads(cache_path.read_text(encoding="utf-8"))
-                cached["availability"] = "stale_cache"
-                return cached
-            except Exception as cache_exc:
-                print(f"Warning: failed to read margin cache: {cache_exc}", file=sys.stderr)
-                raise exc
-        raise exc
+                previous["availability"] = "stale_cache"
+                return previous
+            raise failure
+
+    try:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except OSError as exc:
+        print(f"Warning: failed to write margin cache: {exc}", file=sys.stderr)
+    return data
