@@ -21,17 +21,13 @@ def test_classify_double_bagger():
     assert classify_double_bagger(2.1) == "multi_bagger"
 
 
-def test_score_stock_strength_rewards_multiple_signals():
+def test_score_stock_strength_rewards_all_wired_signals():
     metrics = {
         "return_20d_percentile": 0.95,
         "return_60d_percentile": 0.93,
         "return_180d": 1.05,
-        "near_52w_high": True,
-        "relative_market_strength": 0.12,
-        "relative_sector_strength": 0.08,
-        "turnover_expansion": 2.2,
     }
 
     score = score_stock_strength(metrics)
 
-    assert score >= 85
+    assert score == 60

@@ -23,7 +23,7 @@ def test_domain_exports_core_language():
 
     assert candidate.theme == "AI 算力基础设施"
     assert classify_double_bagger(1.2) == "double"
-    assert score_stock_strength({"return_180d": 1.05, "near_52w_high": True}) >= 25
+    assert score_stock_strength({"return_180d": 1.05}) == 30
     assert score_sector_breadth({"cross_market_count": 2}) == 15
     assert visibility_tier(total_score=82, ai_recommendation="升级") == "main"
 

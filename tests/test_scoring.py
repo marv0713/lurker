@@ -2,19 +2,16 @@ from lurker.scoring.candidate_score import combine_candidate_scores, visibility_
 from lurker.signals.sector_breadth import score_sector_breadth
 
 
-def test_score_sector_breadth_for_cross_market_diffusion():
+def test_score_sector_breadth_for_all_wired_signals():
     metrics = {
         "sector_outperformance": True,
         "strong_stock_count": 5,
-        "new_high_ratio": 0.22,
-        "chain_segments": 2,
         "cross_market_count": 2,
-        "turnover_persistent": True,
     }
 
     score = score_sector_breadth(metrics)
 
-    assert score >= 75
+    assert score == 55
 
 
 def test_combine_candidate_scores_stock_first():
