@@ -10,6 +10,7 @@ from lurker.application.strategy_runner import (
     StrategyResult,
     load_strategy_configs,
     render_strategy_results,
+    run_strategies,
     select_strategy_configs,
 )
 from lurker.reports.models import DailyReport
@@ -41,6 +42,16 @@ def _strategy_yaml(tmp_path: Path, body: str) -> Path:
     path = tmp_path / "strategies.yaml"
     path.write_text(body, encoding="utf-8")
     return path
+
+
+def _empty_context() -> StrategyContext:
+    return StrategyContext(
+        snapshot_batch={"snapshots": []},
+        theme_mapping={},
+        report_date="2026-07-29",
+        attributor=None,
+        suppressed_symbols=set(),
+    )
 
 
 def test_load_strategy_configs_from_yaml(tmp_path):
@@ -168,6 +179,25 @@ strategies:
     )
 
 
+def test_load_planned_strategy_with_limitations(tmp_path):
+    configs = load_strategy_configs(
+        _strategy_yaml(
+            tmp_path,
+            """
+strategies:
+  future:
+    enabled: false
+    lifecycle: planned
+    limitations: [尚未实现]
+""",
+        )
+    )
+
+    assert configs["future"].lifecycle == "planned"
+    assert configs["future"].enabled is False
+    assert configs["future"].limitations == ("尚未实现",)
+
+
 @pytest.mark.parametrize(
     ("body", "message"),
     [
@@ -184,6 +214,14 @@ strategies:
         (
             "enabled: true\nlifecycle: active\nlimitations: [不应存在]",
             "active strategy cannot declare limitations",
+        ),
+        (
+            "enabled: true\nlifecycle: planned\nlimitations: [尚未实现]",
+            "planned strategy must be disabled",
+        ),
+        (
+            "enabled: false\nlifecycle: planned\nlimitations: []",
+            "planned strategy requires limitations",
         ),
     ],
 )
@@ -220,6 +258,39 @@ def test_strategy_selection_matrix_excludes_deprecated_automatically():
             cadence=None,
         )
     ] == ["active_off", "legacy"]
+
+
+def test_explicit_planned_strategy_selection_is_rejected():
+    configs = {
+        "future": StrategyConfig(
+            "future",
+            enabled=False,
+            lifecycle="planned",
+            limitations=("尚未实现",),
+        )
+    }
+
+    with pytest.raises(
+        ValueError,
+        match="planned strategy cannot run: future.*尚未实现",
+    ):
+        select_strategy_configs(
+            configs,
+            names=["future"],
+            cadence=None,
+        )
+
+
+def test_unregistered_active_strategy_is_rejected():
+    with pytest.raises(
+        ValueError,
+        match="active strategy is not registered: missing",
+    ):
+        run_strategies(
+            context=_empty_context(),
+            configs=[StrategyConfig("missing", enabled=True)],
+            registry={},
+        )
 
 
 def test_deprecated_warning_is_rendered_for_single_and_multi_reports():

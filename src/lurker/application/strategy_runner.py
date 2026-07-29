@@ -9,7 +9,7 @@ import yaml
 from lurker.reports.models import DailyReport
 
 
-StrategyLifecycle = Literal["active", "deprecated"]
+StrategyLifecycle = Literal["active", "planned", "deprecated"]
 
 
 @dataclass
@@ -61,7 +61,7 @@ def _strategy_config(name: str, raw: Any) -> StrategyConfig:
     if not isinstance(enabled, bool):
         raise ValueError(f"strategy {name} enabled must be a boolean")
     lifecycle = raw.get("lifecycle", "active")
-    if lifecycle not in {"active", "deprecated"}:
+    if lifecycle not in {"active", "planned", "deprecated"}:
         raise ValueError(f"strategy {name} has invalid lifecycle: {lifecycle}")
     raw_limitations = raw.get("limitations", [])
     if not isinstance(raw_limitations, list) or any(
@@ -73,6 +73,10 @@ def _strategy_config(name: str, raw: Any) -> StrategyConfig:
         raise ValueError(f"deprecated strategy must be disabled: {name}")
     if lifecycle == "deprecated" and not limitations:
         raise ValueError(f"deprecated strategy requires limitations: {name}")
+    if lifecycle == "planned" and enabled:
+        raise ValueError(f"planned strategy must be disabled: {name}")
+    if lifecycle == "planned" and not limitations:
+        raise ValueError(f"planned strategy requires limitations: {name}")
     if lifecycle == "active" and limitations:
         raise ValueError(f"active strategy cannot declare limitations: {name}")
     return StrategyConfig(
@@ -120,6 +124,15 @@ def select_strategy_configs(
     names: list[str] | None,
     cadence: str | None,
 ) -> list[StrategyConfig]:
+    if names is not None:
+        for name in names:
+            config = configs.get(name)
+            if config is not None and config.lifecycle == "planned":
+                limitations = "；".join(config.limitations)
+                raise ValueError(
+                    f"planned strategy cannot run: {name}; "
+                    f"limitations: {limitations}"
+                )
     selected: list[StrategyConfig] = []
     name_set = set(names or [])
     for config in configs.values():
@@ -331,26 +344,16 @@ def run_strategies(
     configs: list[StrategyConfig],
     registry: dict[str, Strategy] | None = None,
 ) -> list[StrategyResult]:
-    strategy_registry = registry or DEFAULT_STRATEGIES
+    strategy_registry = (
+        DEFAULT_STRATEGIES if registry is None else registry
+    )
     results: list[StrategyResult] = []
     for config in configs:
         strategy = strategy_registry.get(config.name)
         if strategy is None:
-            results.append(
-                StrategyResult(
-                    name=config.name,
-                    title=config.title or config.name,
-                    report=DailyReport(
-                        report_date=context.report_date or "",
-                        main_candidates_count=0,
-                        content_md=f"策略 `{config.name}` 尚未实现。"
-                    ),
-                    metadata={
-                        **_strategy_metadata(config),
-                        "status": "missing",
-                    },
-                )
+            raise ValueError(
+                f"{config.lifecycle} strategy is not registered: "
+                f"{config.name}"
             )
-            continue
         results.append(strategy.run(context, config))
     return results
