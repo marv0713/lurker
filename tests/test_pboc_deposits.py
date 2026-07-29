@@ -150,6 +150,24 @@ def test_parse_pboc_credit_table_skips_unpublished_empty_month():
     assert result["nonbank"] == {"2025-01": 270772.45}
 
 
+def test_parse_pboc_credit_table_ignores_supplemental_note_table():
+    rows = _credit_rows()
+    rows.extend(
+        [
+            ["注：以下为历史口径修订", None, None],
+            ["项目 Item", "2022.01", "2022.02"],
+            ["流通中货币 Currency in Circulation", "18.5%", "5.8%"],
+        ]
+    )
+    result = parse_pboc_credit_table(
+        _html_payload(rows),
+        content_type="text/html",
+        source_url="https://www.pbc.gov.cn/table",
+    )
+    assert result["household"]["2025-01"] == 1567675.44
+    assert result["nonbank"]["2025-02"] == 299057.93
+
+
 def _config() -> MonthlyMacroConfig:
     return MonthlyMacroConfig(
         credit_table_urls={

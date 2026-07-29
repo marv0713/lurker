@@ -126,7 +126,8 @@ def parse_pboc_credit_table(
     household_row = _target_row(table, _HOUSEHOLD, "住户存款")
     nonbank_row = _target_row(table, _NONBANK, "非银行业金融机构存款")
     month_columns: dict[int, str] = {}
-    for row_index in range(len(table)):
+    first_target_row = min(household_row, nonbank_row)
+    for row_index in range(first_target_row):
         found: dict[int, str] = {}
         for column_index, value in enumerate(table.iloc[row_index].tolist()):
             match = _MONTH.fullmatch(_compact(value))
