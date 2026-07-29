@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import math
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import yaml
 
@@ -12,6 +13,19 @@ ALERT_TYPES = (
     "chronic_underperformance",
 )
 SUPPORTED_WATCHLIST_MARKETS = {"cn", "hk", "us"}
+
+
+@dataclass(frozen=True)
+class MonthlyMacroConfig:
+    credit_table_urls: dict[int, str]
+    allowed_hosts: tuple[str, ...]
+    timeout_seconds: int
+    max_response_bytes: int
+    household_deposit_yoy_pct: float
+    leverage_ratio_pct: float
+    financing_monthly_growth_pct: float
+    macro_max_lag_months: int
+    leverage_max_lag_trading_days: int
 
 
 @dataclass(frozen=True)
@@ -90,6 +104,24 @@ def _positive_float(value: Any, field: str) -> float:
     return result
 
 
+def _non_negative_float(value: Any, field: str) -> float:
+    if isinstance(value, bool):
+        raise ValueError(f"{field} must be finite and non-negative")
+    try:
+        result = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field} must be finite and non-negative") from exc
+    if not math.isfinite(result) or result < 0:
+        raise ValueError(f"{field} must be finite and non-negative")
+    return result
+
+
+def _integer(value: Any, field: str, *, minimum: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        raise ValueError(f"{field} must be an integer >= {minimum}")
+    return value
+
+
 def _mapping(value: Any, context: str) -> dict[str, Any]:
     if value is None:
         return {}
@@ -106,6 +138,102 @@ def _reject_unknown_fields(
     unknown = sorted(set(mapping) - allowed)
     if unknown:
         raise ValueError(f"unknown {context} field: {unknown[0]}")
+
+
+def load_monthly_macro_config(path: str | Path) -> MonthlyMacroConfig:
+    data = load_yaml(path)
+    _reject_unknown_fields(
+        data,
+        {"schema_version", "pboc", "thresholds", "freshness"},
+        "monthly macro top-level",
+    )
+    if data.get("schema_version") != 1:
+        raise ValueError("macro_monthly schema_version must equal 1")
+
+    pboc = _mapping(data.get("pboc"), "monthly macro pboc")
+    _reject_unknown_fields(
+        pboc,
+        {
+            "credit_table_urls",
+            "allowed_hosts",
+            "timeout_seconds",
+            "max_response_bytes",
+        },
+        "monthly macro pboc",
+    )
+    hosts = pboc.get("allowed_hosts")
+    if not isinstance(hosts, list) or not hosts:
+        raise ValueError("allowed_hosts must be a non-empty list")
+    allowed_hosts = tuple(str(host).strip().lower() for host in hosts)
+    if any(not host or "/" in host for host in allowed_hosts):
+        raise ValueError("allowed_hosts contains an invalid host")
+
+    raw_urls = _mapping(pboc.get("credit_table_urls"), "credit_table_urls")
+    if not raw_urls:
+        raise ValueError("credit_table_urls must be non-empty")
+    urls: dict[int, str] = {}
+    for raw_year, raw_url in raw_urls.items():
+        year_text = str(raw_year)
+        if len(year_text) != 4 or not year_text.isdigit():
+            raise ValueError("credit_table_urls key must be a four-digit year")
+        url = str(raw_url).strip()
+        parsed = urlparse(url)
+        if parsed.scheme != "https":
+            raise ValueError("credit table URL must use https")
+        if parsed.hostname not in allowed_hosts:
+            raise ValueError("credit table URL host is not in allowed_hosts")
+        urls[int(year_text)] = url
+
+    thresholds = _mapping(data.get("thresholds"), "monthly macro thresholds")
+    _reject_unknown_fields(
+        thresholds,
+        {
+            "household_deposit_yoy_pct",
+            "leverage_ratio_pct",
+            "financing_monthly_growth_pct",
+        },
+        "monthly macro threshold",
+    )
+    freshness = _mapping(data.get("freshness"), "monthly macro freshness")
+    _reject_unknown_fields(
+        freshness,
+        {"macro_max_lag_months", "leverage_max_lag_trading_days"},
+        "monthly macro freshness",
+    )
+    return MonthlyMacroConfig(
+        credit_table_urls=urls,
+        allowed_hosts=allowed_hosts,
+        timeout_seconds=_integer(
+            pboc.get("timeout_seconds"), "timeout_seconds", minimum=1
+        ),
+        max_response_bytes=_integer(
+            pboc.get("max_response_bytes"),
+            "max_response_bytes",
+            minimum=1,
+        ),
+        household_deposit_yoy_pct=_non_negative_float(
+            thresholds.get("household_deposit_yoy_pct"),
+            "household_deposit_yoy_pct",
+        ),
+        leverage_ratio_pct=_non_negative_float(
+            thresholds.get("leverage_ratio_pct"),
+            "leverage_ratio_pct",
+        ),
+        financing_monthly_growth_pct=_non_negative_float(
+            thresholds.get("financing_monthly_growth_pct"),
+            "financing_monthly_growth_pct",
+        ),
+        macro_max_lag_months=_integer(
+            freshness.get("macro_max_lag_months"),
+            "macro_max_lag_months",
+            minimum=0,
+        ),
+        leverage_max_lag_trading_days=_integer(
+            freshness.get("leverage_max_lag_trading_days"),
+            "leverage_max_lag_trading_days",
+            minimum=0,
+        ),
+    )
 
 
 _STOCK_WEIGHT_KEYS = {

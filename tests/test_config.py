@@ -3,8 +3,10 @@ from pathlib import Path
 import pytest
 
 from lurker.config import (
+    MonthlyMacroConfig,
     load_core_etfs,
     load_markets,
+    load_monthly_macro_config,
     load_scoring,
     load_themes,
     load_watchlist,
@@ -12,6 +14,126 @@ from lurker.config import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _monthly_yaml(tmp_path: Path, body: str) -> Path:
+    path = tmp_path / "macro_monthly.yaml"
+    path.write_text(body, encoding="utf-8")
+    return path
+
+
+def test_load_monthly_macro_config_is_strict_and_typed(tmp_path):
+    path = _monthly_yaml(
+        tmp_path,
+        """
+schema_version: 1
+pboc:
+  credit_table_urls:
+    "2025": "https://www.pbc.gov.cn/2025.htm"
+    "2026": "https://www.pbc.gov.cn/2026.htm"
+  allowed_hosts: [www.pbc.gov.cn]
+  timeout_seconds: 30
+  max_response_bytes: 10000000
+thresholds:
+  household_deposit_yoy_pct: 12
+  leverage_ratio_pct: 4
+  financing_monthly_growth_pct: 20
+freshness:
+  macro_max_lag_months: 2
+  leverage_max_lag_trading_days: 3
+""",
+    )
+
+    assert load_monthly_macro_config(path) == MonthlyMacroConfig(
+        credit_table_urls={
+            2025: "https://www.pbc.gov.cn/2025.htm",
+            2026: "https://www.pbc.gov.cn/2026.htm",
+        },
+        allowed_hosts=("www.pbc.gov.cn",),
+        timeout_seconds=30,
+        max_response_bytes=10_000_000,
+        household_deposit_yoy_pct=12.0,
+        leverage_ratio_pct=4.0,
+        financing_monthly_growth_pct=20.0,
+        macro_max_lag_months=2,
+        leverage_max_lag_trading_days=3,
+    )
+
+
+def test_monthly_macro_config_rejects_unknown_fields(tmp_path):
+    path = _monthly_yaml(
+        tmp_path,
+        """
+schema_version: 1
+unknown: true
+pboc:
+  credit_table_urls:
+    "2026": "https://www.pbc.gov.cn/2026.htm"
+  allowed_hosts: [www.pbc.gov.cn]
+  timeout_seconds: 30
+  max_response_bytes: 10000000
+thresholds:
+  household_deposit_yoy_pct: 12
+  leverage_ratio_pct: 4
+  financing_monthly_growth_pct: 20
+freshness:
+  macro_max_lag_months: 2
+  leverage_max_lag_trading_days: 3
+""",
+    )
+    with pytest.raises(ValueError, match="unknown monthly macro top-level field"):
+        load_monthly_macro_config(path)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("url", "http://www.pbc.gov.cn/2026.htm", "https"),
+        ("url", "https://evil.example/2026.htm", "allowed_hosts"),
+        ("year", '"26"', "four-digit year"),
+        ("timeout", "false", "timeout_seconds"),
+        ("lag", "-1", "macro_max_lag_months"),
+    ],
+)
+def test_monthly_macro_config_rejects_invalid_values(
+    tmp_path,
+    field,
+    value,
+    message,
+):
+    text = """
+schema_version: 1
+pboc:
+  credit_table_urls:
+    YEAR: "URL"
+  allowed_hosts: [www.pbc.gov.cn]
+  timeout_seconds: TIMEOUT
+  max_response_bytes: 10000000
+thresholds:
+  household_deposit_yoy_pct: 12
+  leverage_ratio_pct: 4
+  financing_monthly_growth_pct: 20
+freshness:
+  macro_max_lag_months: LAG
+  leverage_max_lag_trading_days: 3
+"""
+    replacements = {
+        "YEAR": '"2026"',
+        "URL": "https://www.pbc.gov.cn/2026.htm",
+        "TIMEOUT": "30",
+        "LAG": "2",
+    }
+    target = {
+        "url": "URL",
+        "year": "YEAR",
+        "timeout": "TIMEOUT",
+        "lag": "LAG",
+    }[field]
+    replacements[target] = value
+    for marker, replacement in replacements.items():
+        text = text.replace(marker, replacement)
+    with pytest.raises(ValueError, match=message):
+        load_monthly_macro_config(_monthly_yaml(tmp_path, text))
 
 
 def test_load_themes_contains_ai_infra():

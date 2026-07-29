@@ -1,0 +1,20 @@
+schema_version: 1
+
+pboc:
+  credit_table_urls:
+    "2024": "https://www.pbc.gov.cn/eportal/fileDir/diaochatongjisi/resource/cms/2025/01/2025011417071510290.htm"
+    "2025": "https://www.pbc.gov.cn/diaochatongjisi/attachDir/2026/01/2026011516053141218.htm"
+    "2026": "https://www.pbc.gov.cn/diaochatongjisi/attachDir/2026/07/2026071516014932391.htm"
+  allowed_hosts:
+    - www.pbc.gov.cn
+  timeout_seconds: 30
+  max_response_bytes: 10000000
+
+thresholds:
+  household_deposit_yoy_pct: 12.0
+  leverage_ratio_pct: 4.0
+  financing_monthly_growth_pct: 20.0
+
+freshness:
+  macro_max_lag_months: 2
+  leverage_max_lag_trading_days: 3
