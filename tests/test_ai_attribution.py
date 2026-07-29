@@ -35,6 +35,22 @@ def test_attribution_result_from_mapping_downgrades_unknown_enums():
     assert result.evidence == []
 
 
+def test_attribution_result_from_mapping_tolerates_malformed_json_types():
+    result = attribution_result_from_mapping(
+        {
+            "classification": ["产业趋势型"],
+            "upgrade_recommendation": {"value": "升级"},
+            "evidence": ["公告", ["财报"], {"value": "订单"}],
+            "reason_summary": "保留可用字段",
+        }
+    )
+
+    assert result.classification == "证据不足型"
+    assert result.upgrade_recommendation == "证据不足"
+    assert result.evidence == ["公告"]
+    assert result.reason_summary == "保留可用字段"
+
+
 def test_score_ai_attribution_rewards_hard_evidence():
     result = AttributionResult(
         classification="产业趋势型",

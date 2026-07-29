@@ -37,14 +37,20 @@ def attribution_result_from_mapping(
     data: Mapping[str, Any],
 ) -> AttributionResult:
     classification_value = data.get("classification", "证据不足型")
-    if classification_value not in VALID_CLASSIFICATIONS:
+    if (
+        not isinstance(classification_value, str)
+        or classification_value not in VALID_CLASSIFICATIONS
+    ):
         classification_value = "证据不足型"
 
     recommendation_value = data.get(
         "upgrade_recommendation",
         "证据不足",
     )
-    if recommendation_value not in VALID_RECOMMENDATIONS:
+    if (
+        not isinstance(recommendation_value, str)
+        or recommendation_value not in VALID_RECOMMENDATIONS
+    ):
         recommendation_value = "证据不足"
 
     raw_evidence = data.get("evidence", [])
@@ -52,7 +58,7 @@ def attribution_result_from_mapping(
         [
             cast(EvidenceType, item)
             for item in raw_evidence
-            if item in VALID_EVIDENCE
+            if isinstance(item, str) and item in VALID_EVIDENCE
         ]
         if isinstance(raw_evidence, list)
         else []
