@@ -21,6 +21,7 @@ from lurker.cli import (
     build_parser,
     list_reports,
     load_suppressed_symbols,
+    monthly_macro_flow_job,
     read_api_key_file,
     parse_markets,
     refresh_flows,
@@ -51,6 +52,15 @@ class FakeCalendar:
         if not candidates:
             raise TradingCalendarUnavailable("no confirmed prior session")
         return candidates[-1]
+
+
+class FakeMonthlyCalendar(FakeCalendar):
+    def sessions_in_range(self, start, end):
+        return tuple(
+            item
+            for item in self.sessions
+            if start <= item <= end
+        )
 
 
 def _write_flow_snapshot(path, *, snapshot_date, sector_name):
@@ -1137,6 +1147,86 @@ def test_watchlist_notifier_rejects_incomplete_email_configuration(monkeypatch):
 
     with pytest.raises(ValueError, match="incomplete WATCHLIST email configuration"):
         build_watchlist_notifier_from_env()
+
+
+def test_parser_has_monthly_macro_flow_defaults():
+    args = build_parser().parse_args(
+        ["monthly-macro-flow", "--month", "2025-01", "--no-push"]
+    )
+    assert args.command == "monthly-macro-flow"
+    assert args.month == "2025-01"
+    assert args.no_push is True
+    assert args.month_end_only is False
+
+
+def test_monthly_macro_month_end_gate_skips_before_collection(tmp_path):
+    calendar = FakeMonthlyCalendar(
+        [
+            date(2026, 7, 29),
+            date(2026, 7, 30),
+            date(2026, 7, 31),
+        ]
+    )
+
+    def fail_if_called(**kwargs):
+        raise AssertionError("collector must not run before month end")
+
+    message = monthly_macro_flow_job(
+        report_month="2026-07",
+        config_path=tmp_path / "missing.yaml",
+        snapshot_dir=tmp_path / "snapshots",
+        raw_dir=tmp_path / "raw",
+        report_dir=tmp_path / "reports",
+        strategy_config_path=tmp_path / "strategies.yaml",
+        push=True,
+        month_end_only=True,
+        snapshot_collector=fail_if_called,
+        today=date(2026, 7, 29),
+        calendar=calendar,
+    )
+    assert "2026-07-29 is not the last CN trading day" in message
+    assert not (tmp_path / "snapshots").exists()
+
+
+def test_monthly_macro_runs_on_dynamic_last_session(tmp_path):
+    from tests.test_monthly_macro_flow import complete_snapshot
+
+    calendar = FakeMonthlyCalendar(
+        [
+            date(2025, 1, 27),
+            date(2025, 1, 28),
+        ]
+    )
+    message = monthly_macro_flow_job(
+        report_month="2025-01",
+        config_path=Path("configs/macro_monthly.yaml"),
+        snapshot_dir=tmp_path / "snapshots",
+        raw_dir=tmp_path / "raw",
+        report_dir=tmp_path / "reports",
+        strategy_config_path=Path("configs/strategies.yaml"),
+        push=False,
+        month_end_only=True,
+        snapshot_collector=lambda **kwargs: complete_snapshot(),
+        today=date(2025, 1, 28),
+        calendar=calendar,
+    )
+    assert "state=牛市加速" in message
+    assert "push=skipped(--no-push)" in message
+    assert (tmp_path / "reports" / "2025-01.md").exists()
+
+
+def test_monthly_macro_rejects_future_month(tmp_path):
+    with pytest.raises(ValueError, match="future report month"):
+        monthly_macro_flow_job(
+            report_month="2026-08",
+            config_path=tmp_path / "config.yaml",
+            snapshot_dir=tmp_path / "snapshots",
+            raw_dir=tmp_path / "raw",
+            report_dir=tmp_path / "reports",
+            strategy_config_path=tmp_path / "strategies.yaml",
+            push=False,
+            today=date(2026, 7, 29),
+        )
 
 
 def test_parser_has_independent_watchlist_checkup_defaults():

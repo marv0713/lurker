@@ -5,6 +5,7 @@ import math
 import os
 import sys
 import tempfile
+from calendar import monthrange
 from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -33,7 +34,12 @@ from lurker.application.strategy_runner import (
     run_strategies,
     select_strategy_configs,
 )
+from lurker.config import load_monthly_macro_config
 from lurker.ingest.constituents import load_resolved_theme_seed_symbols
+from lurker.ingest.macro_monthly import (
+    MonthlyMacroSnapshotStore,
+    collect_monthly_macro_snapshot,
+)
 from lurker.pipeline import rank_candidates
 from lurker.reports.daily_report import render_daily_report
 from lurker.reports.models import DailyReport
@@ -1518,6 +1524,148 @@ def watchlist_checkup(
     )
 
 
+def _atomic_write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        dir=path.parent,
+    )
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    except BaseException:
+        Path(temporary).unlink(missing_ok=True)
+        raise
+
+
+def _validate_report_month(
+    value: str | None,
+    *,
+    today: date,
+) -> str:
+    resolved = value or today.strftime("%Y-%m")
+    try:
+        parsed = date.fromisoformat(f"{resolved}-01")
+    except ValueError as exc:
+        raise ValueError("report month must use YYYY-MM") from exc
+    if parsed.strftime("%Y-%m") != resolved:
+        raise ValueError("report month must use YYYY-MM")
+    if parsed > today.replace(day=1):
+        raise ValueError("future report month is not allowed")
+    return resolved
+
+
+def _last_cn_trading_day(
+    report_month: str,
+    calendar: CnTradingCalendar,
+) -> date:
+    year, month = map(int, report_month.split("-"))
+    start = date(year, month, 1)
+    end = date(year, month, monthrange(year, month)[1])
+    sessions = calendar.sessions_in_range(start, end)
+    if not sessions:
+        raise TradingCalendarUnavailable(
+            f"no confirmed CN trading session in {report_month}"
+        )
+    return sessions[-1]
+
+
+def monthly_macro_flow_job(
+    *,
+    report_month: str | None,
+    config_path: Path,
+    snapshot_dir: Path,
+    raw_dir: Path,
+    report_dir: Path,
+    strategy_config_path: Path,
+    push: bool,
+    month_end_only: bool = False,
+    snapshot_collector=collect_monthly_macro_snapshot,
+    today: date | None = None,
+    calendar: CnTradingCalendar | None = None,
+) -> str:
+    resolved_today = today or shanghai_today()
+    resolved = _validate_report_month(
+        report_month,
+        today=resolved_today,
+    )
+    if month_end_only:
+        resolved_calendar = calendar or build_default_cn_calendar()
+        last_session = _last_cn_trading_day(
+            resolved,
+            resolved_calendar,
+        )
+        if resolved_today != last_session:
+            return (
+                "Skipped monthly macro flow: "
+                f"{resolved_today.isoformat()} is not the last CN "
+                f"trading day of {resolved} "
+                f"({last_session.isoformat()})."
+            )
+
+    monthly_config = load_monthly_macro_config(config_path)
+    snapshot = snapshot_collector(
+        report_month=resolved,
+        config=monthly_config,
+        raw_dir=raw_dir,
+        today=resolved_today,
+    )
+    snapshot_path = MonthlyMacroSnapshotStore(snapshot_dir).save(
+        snapshot
+    )
+
+    configured = load_strategy_configs(strategy_config_path)
+    strategy = configured.get("monthly_macro_flow")
+    if (
+        strategy is None
+        or not strategy.enabled
+        or strategy.lifecycle != "active"
+        or strategy.cadence != "monthly"
+    ):
+        raise ValueError(
+            "monthly_macro_flow strategy is not enabled for monthly cadence"
+        )
+    context = StrategyContext(
+        snapshot_batch={"snapshots": []},
+        theme_mapping={},
+        report_date=resolved,
+        attributor=None,
+        suppressed_symbols=set(),
+        monthly_macro_snapshot=snapshot,
+    )
+    result = run_strategies(
+        context=context,
+        configs=[strategy],
+    )[0]
+    analysis = result.metadata["analysis"]
+    report_path = report_dir / f"{resolved}.md"
+    _atomic_write_text(
+        report_path,
+        result.report.content_md.rstrip() + "\n",
+    )
+
+    if not push:
+        push_status = "skipped(--no-push)"
+    elif analysis["market_state"] is None:
+        push_status = "skipped(data_observation)"
+    else:
+        build_notifier_from_env().send(
+            title=f"Lurker 宏观流动性月报 ({resolved})",
+            markdown_content=result.report.content_md,
+        )
+        push_status = "sent"
+    return (
+        f"Wrote monthly macro snapshot to {snapshot_path}\n"
+        f"Wrote monthly macro report to {report_path}\n"
+        f"state={analysis['market_state'] or 'unknown'}; "
+        f"push={push_status}"
+    )
+
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="lurker")
@@ -1847,6 +1995,48 @@ def build_parser() -> argparse.ArgumentParser:
         default=ROOT / "data" / "lurker.sqlite",
     )
 
+    monthly_macro = subparsers.add_parser(
+        "monthly-macro-flow",
+        help="生成独立宏观流动性月报",
+    )
+    monthly_macro.add_argument("--month", default=None)
+    monthly_macro.add_argument(
+        "--config",
+        type=Path,
+        default=ROOT / "configs" / "macro_monthly.yaml",
+    )
+    monthly_macro.add_argument(
+        "--snapshot-dir",
+        type=Path,
+        default=(
+            ROOT
+            / "data"
+            / "processed"
+            / "monthly_macro_flow_snapshots"
+        ),
+    )
+    monthly_macro.add_argument(
+        "--raw-dir",
+        type=Path,
+        default=ROOT / "data" / "raw" / "pboc_credit_tables",
+    )
+    monthly_macro.add_argument(
+        "--report-dir",
+        type=Path,
+        default=ROOT / "data" / "reports" / "monthly_macro_flow",
+    )
+    monthly_macro.add_argument(
+        "--strategy-config",
+        type=Path,
+        default=ROOT / "configs" / "strategies.yaml",
+    )
+    monthly_macro.add_argument(
+        "--month-end-only",
+        action="store_true",
+        help="仅在本月最后一个中国交易日运行（供定时任务使用）",
+    )
+    monthly_macro.add_argument("--no-push", action="store_true")
+
     watchlist_cmd = subparsers.add_parser(
         "watchlist-checkup",
         help="独立运行自选股异常体检并使用 WATCHLIST_* 接收人",
@@ -1903,6 +2093,22 @@ def main() -> None:
 
     parser = build_parser()
     args = parser.parse_args()
+
+    if args.command == "monthly-macro-flow":
+        _print_with_calendar_errors(
+            parser,
+            lambda: monthly_macro_flow_job(
+                report_month=args.month,
+                config_path=args.config,
+                snapshot_dir=args.snapshot_dir,
+                raw_dir=args.raw_dir,
+                report_dir=args.report_dir,
+                strategy_config_path=args.strategy_config,
+                push=not args.no_push,
+                month_end_only=args.month_end_only,
+            ),
+        )
+        return
 
     if args.command == "watchlist-checkup":
         print(
