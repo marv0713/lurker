@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from lurker.reports.models import DailyReport
+from lurker.application.weekly_flow_report import WeeklyFlowSummary
 from lurker.cli import (
     DailyJobFailed,
     _flow_degradation_reasons,
@@ -1157,6 +1158,10 @@ def test_parser_has_monthly_macro_flow_defaults():
     assert args.month == "2025-01"
     assert args.no_push is True
     assert args.month_end_only is False
+    assert args.flow_snapshot_dir.parts[-2:] == (
+        "processed",
+        "flow_snapshots",
+    )
 
 
 def test_monthly_macro_month_end_gate_skips_before_collection(tmp_path):
@@ -1213,6 +1218,49 @@ def test_monthly_macro_runs_on_dynamic_last_session(tmp_path):
     assert "state=牛市加速" in message
     assert "push=skipped(--no-push)" in message
     assert (tmp_path / "reports" / "2025-01.md").exists()
+
+
+def test_monthly_macro_uses_report_month_last_session_for_weekly_context(tmp_path):
+    from tests.test_monthly_macro_flow import complete_snapshot
+
+    captured = {}
+
+    def build_summary(**kwargs):
+        captured.update(kwargs)
+        return WeeklyFlowSummary(
+            availability="unavailable",
+            start_date=None,
+            end_date=None,
+            snapshot_count=0,
+            temperature_counts={"进攻": 0, "观察": 0, "防守": 0},
+            main_net_inflow_sum=0.0,
+            super_large_net_inflow_sum=0.0,
+            latest_etf_status="unknown",
+            latest_margin_signal="unknown",
+            continued_sectors=(),
+            new_sectors=(),
+            ebb_sectors=(),
+            failure_count=0,
+            quality_notes=(),
+        )
+
+    monthly_macro_flow_job(
+        report_month="2026-07",
+        config_path=Path("configs/macro_monthly.yaml"),
+        snapshot_dir=tmp_path / "snapshots",
+        raw_dir=tmp_path / "raw",
+        report_dir=tmp_path / "reports",
+        strategy_config_path=Path("configs/strategies.yaml"),
+        flow_snapshot_dir=tmp_path / "flow_snapshots",
+        push=False,
+        snapshot_collector=lambda **kwargs: complete_snapshot(),
+        weekly_summary_builder=build_summary,
+        today=date(2026, 8, 1),
+        calendar=FakeMonthlyCalendar([date(2026, 7, 30), date(2026, 7, 31)]),
+    )
+
+    assert captured["report_date"] == "2026-07-31"
+    assert captured["flow_snapshot_dir"] == tmp_path / "flow_snapshots"
 
 
 def test_monthly_macro_rejects_future_month(tmp_path):

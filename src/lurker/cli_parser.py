@@ -364,6 +364,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=ROOT / "data" / "reports" / "monthly_macro_flow",
     )
     monthly_macro.add_argument(
+        "--flow-snapshot-dir",
+        type=Path,
+        default=ROOT / "data" / "processed" / "flow_snapshots",
+    )
+    monthly_macro.add_argument(
         "--strategy-config",
         type=Path,
         default=ROOT / "configs" / "strategies.yaml",

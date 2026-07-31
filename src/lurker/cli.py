@@ -25,6 +25,7 @@ from lurker.application.flow_snapshot import (
     collect_flow_snapshot,
 )
 from lurker.application.run_daily import run_daily
+from lurker.application.weekly_flow_report import build_weekly_flow_summary
 from lurker.application.strategy_runner import (
     StrategyContext,
     build_default_strategy_configs,
@@ -1584,8 +1585,10 @@ def monthly_macro_flow_job(
     report_dir: Path,
     strategy_config_path: Path,
     push: bool,
+    flow_snapshot_dir: Path | None = None,
     month_end_only: bool = False,
     snapshot_collector=collect_monthly_macro_snapshot,
+    weekly_summary_builder=build_weekly_flow_summary,
     today: date | None = None,
     calendar: CnTradingCalendar | None = None,
 ) -> str:
@@ -1594,12 +1597,12 @@ def monthly_macro_flow_job(
         report_month,
         today=resolved_today,
     )
+    resolved_calendar = calendar or build_default_cn_calendar()
+    last_session = _last_cn_trading_day(
+        resolved,
+        resolved_calendar,
+    )
     if month_end_only:
-        resolved_calendar = calendar or build_default_cn_calendar()
-        last_session = _last_cn_trading_day(
-            resolved,
-            resolved_calendar,
-        )
         if resolved_today != last_session:
             return (
                 "Skipped monthly macro flow: "
@@ -1617,6 +1620,16 @@ def monthly_macro_flow_job(
     )
     snapshot_path = MonthlyMacroSnapshotStore(snapshot_dir).save(
         snapshot
+    )
+    weekly_summary = weekly_summary_builder(
+        flow_snapshot_dir=(
+            flow_snapshot_dir
+            if flow_snapshot_dir is not None
+            else ROOT / "data" / "processed" / "flow_snapshots"
+        ),
+        report_date=last_session.isoformat(),
+        lookback_days=5,
+        is_trading_day=resolved_calendar.is_trading_day,
     )
 
     configured = load_strategy_configs(strategy_config_path)
@@ -1637,6 +1650,7 @@ def monthly_macro_flow_job(
         attributor=None,
         suppressed_symbols=set(),
         monthly_macro_snapshot=snapshot,
+        weekly_flow_summary=weekly_summary,
     )
     result = run_strategies(
         context=context,

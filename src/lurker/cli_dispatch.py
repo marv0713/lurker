@@ -27,6 +27,7 @@ def _monthly_macro_flow(
             raw_dir=args.raw_dir,
             report_dir=args.report_dir,
             strategy_config_path=args.strategy_config,
+            flow_snapshot_dir=args.flow_snapshot_dir,
             push=not args.no_push,
             month_end_only=args.month_end_only,
         ),
