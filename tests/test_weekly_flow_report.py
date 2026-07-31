@@ -1,6 +1,11 @@
 import json
 
-from lurker.application.weekly_flow_report import build_weekly_flow_report
+import pytest
+
+from lurker.application.weekly_flow_report import (
+    build_weekly_flow_report,
+    build_weekly_flow_summary,
+)
 
 
 def _write_flow(path, date, *, temperature_flow, sectors, stocks, failures=None, margin=None):
@@ -27,6 +32,86 @@ def _write_flow(path, date, *, temperature_flow, sectors, stocks, failures=None,
         ),
         encoding="utf-8",
     )
+
+
+def test_build_weekly_flow_summary_exposes_structured_context(tmp_path):
+    flow_dir = tmp_path / "flow_snapshots"
+    flow_dir.mkdir()
+    for index, (day, main, super_large) in enumerate(
+        [
+            ("2026-07-27", 90_830_307_328.0, 79_009_112_064.0),
+            ("2026-07-28", -108_693_266_432.0, -80_549_388_288.0),
+            ("2026-07-29", -11_947_974_656.0, -2_129_911_808.0),
+            ("2026-07-30", -78_993_215_488.0, -51_637_407_744.0),
+            ("2026-07-31", 62_535_737_344.0, 69_993_807_872.0),
+        ],
+        start=1,
+    ):
+        _write_flow(
+            flow_dir / f"{day}.json",
+            day,
+            temperature_flow={
+                "main_net_inflow": main,
+                "super_large_net_inflow": super_large,
+            },
+            sectors=[
+                {
+                    "name": "通信设备" if index < 5 else "机器人",
+                    "main_net_inflow": 100.0,
+                    "rank": 1,
+                }
+            ],
+            stocks=[],
+        )
+
+    summary = build_weekly_flow_summary(
+        flow_snapshot_dir=flow_dir,
+        report_date="2026-07-31",
+        is_trading_day=lambda day: True,
+    )
+
+    assert summary.availability == "available"
+    assert summary.start_date == "2026-07-27"
+    assert summary.end_date == "2026-07-31"
+    assert summary.snapshot_count == 5
+    assert summary.main_net_inflow_sum == pytest.approx(-46_268_411_904.0)
+    assert summary.super_large_net_inflow_sum == pytest.approx(14_686_212_096.0)
+    assert summary.temperature_counts == {"进攻": 0, "观察": 5, "防守": 0}
+    assert summary.latest_etf_status == "unknown"
+    assert summary.latest_margin_signal == "unknown"
+    assert summary.continued_sectors == ("通信设备",)
+    assert summary.new_sectors == ("机器人",)
+
+
+@pytest.mark.parametrize(
+    ("snapshot_count", "expected"),
+    [(0, "unavailable"), (1, "partial"), (2, "partial"), (3, "available")],
+)
+def test_weekly_flow_summary_availability_requires_three_snapshots(
+    tmp_path,
+    snapshot_count,
+    expected,
+):
+    flow_dir = tmp_path / "flow_snapshots"
+    flow_dir.mkdir()
+    for day in range(1, snapshot_count + 1):
+        date_text = f"2026-07-{day:02d}"
+        _write_flow(
+            flow_dir / f"{date_text}.json",
+            date_text,
+            temperature_flow={"main_net_inflow": 1.0, "super_large_net_inflow": 1.0},
+            sectors=[],
+            stocks=[],
+        )
+
+    summary = build_weekly_flow_summary(
+        flow_snapshot_dir=flow_dir,
+        report_date="2026-07-31",
+        is_trading_day=lambda day: True,
+    )
+
+    assert summary.availability == expected
+    assert summary.snapshot_count == snapshot_count
 
 
 def test_build_weekly_flow_report_aggregates_available_snapshots(tmp_path):

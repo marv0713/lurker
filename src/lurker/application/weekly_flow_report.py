@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from lurker.application.market_temperature import (
     classify_market_temperature,
@@ -17,6 +18,24 @@ from lurker.trading_calendar import is_cn_trading_day
 
 
 TradingDayPredicate = Callable[[date], bool]
+
+
+@dataclass(frozen=True)
+class WeeklyFlowSummary:
+    availability: Literal["available", "partial", "unavailable"]
+    start_date: str | None
+    end_date: str | None
+    snapshot_count: int
+    temperature_counts: dict[str, int]
+    main_net_inflow_sum: float
+    super_large_net_inflow_sum: float
+    latest_etf_status: str
+    latest_margin_signal: str
+    continued_sectors: tuple[str, ...]
+    new_sectors: tuple[str, ...]
+    ebb_sectors: tuple[str, ...]
+    failure_count: int
+    quality_notes: tuple[str, ...]
 
 
 def _as_float(value: Any, default: float = 0.0) -> float:
@@ -180,6 +199,94 @@ def _sector_label(row: dict[str, Any]) -> str:
     return "新主线"
 
 
+def _latest_temperature_inputs(
+    file_dt: Any,
+    data: dict[str, Any],
+    is_trading_day: TradingDayPredicate,
+):
+    core_etfs_data = data.get("core_etfs")
+    etf_batch = (
+        CoreEtfBatch.from_dict(core_etfs_data)
+        if isinstance(core_etfs_data, dict)
+        else CoreEtfBatch(configured_symbols=[])
+    )
+    snapshot_date = file_dt.isoformat() if hasattr(file_dt, "isoformat") else str(file_dt)
+    return prepare_temperature_inputs(
+        market_flow=data.get("market_flow", {}),
+        core_etfs_batch=etf_batch,
+        margin=data.get("margin", {}),
+        report_date=snapshot_date,
+        is_trading_day=is_trading_day,
+        now=datetime.now(tz=timezone(timedelta(hours=8))),
+    )
+
+
+def build_weekly_flow_summary(
+    flow_snapshot_dir: Path | str,
+    report_date: str,
+    lookback_days: int = 5,
+    sector_limit: int = 10,
+    is_trading_day: TradingDayPredicate = is_cn_trading_day,
+) -> WeeklyFlowSummary:
+    """Return reusable structured context for weekly and monthly reports."""
+    loaded_snapshots, failures = _load_latest_snapshots(
+        flow_snapshot_dir=flow_snapshot_dir,
+        report_date=report_date,
+        lookback_days=lookback_days,
+        is_trading_day=is_trading_day,
+    )
+    snapshot_count = len(loaded_snapshots)
+    availability: Literal["available", "partial", "unavailable"] = (
+        "available" if snapshot_count >= 3 else "partial" if snapshot_count else "unavailable"
+    )
+    status = _status_counts(loaded_snapshots, is_trading_day)
+    sectors = _aggregate_named_flows(loaded_snapshots, "sector_flows")[:sector_limit]
+    continued = tuple(row["name"] for row in sectors if _sector_label(row) == "延续")
+    new = tuple(row["name"] for row in sectors if _sector_label(row) == "新主线")
+    ebb = tuple(row["name"] for row in sectors if _sector_label(row) == "退潮")
+    main_sum = sum(
+        _as_float(data.get("market_flow", {}).get("main_net_inflow"))
+        for _, data in loaded_snapshots
+    )
+    super_large_sum = sum(
+        _as_float(data.get("market_flow", {}).get("super_large_net_inflow"))
+        for _, data in loaded_snapshots
+    )
+    if loaded_snapshots:
+        latest = _latest_temperature_inputs(
+            loaded_snapshots[-1][0],
+            loaded_snapshots[-1][1],
+            is_trading_day,
+        )
+        latest_etf_status = latest.etf_status
+        latest_margin_signal = latest.margin_signal
+    else:
+        latest_etf_status = "unknown"
+        latest_margin_signal = "unknown"
+    quality_notes = tuple(
+        f"{item.get('source', 'unknown')}：{item.get('reason') or item.get('error') or 'unknown'}"
+        for item in failures
+    )
+    if snapshot_count < lookback_days:
+        quality_notes += (f"可用交易日少于目标 {lookback_days} 份。",)
+    return WeeklyFlowSummary(
+        availability=availability,
+        start_date=str(loaded_snapshots[0][0]) if loaded_snapshots else None,
+        end_date=str(loaded_snapshots[-1][0]) if loaded_snapshots else None,
+        snapshot_count=snapshot_count,
+        temperature_counts=status,
+        main_net_inflow_sum=main_sum,
+        super_large_net_inflow_sum=super_large_sum,
+        latest_etf_status=latest_etf_status,
+        latest_margin_signal=latest_margin_signal,
+        continued_sectors=continued,
+        new_sectors=new,
+        ebb_sectors=ebb,
+        failure_count=len(failures),
+        quality_notes=quality_notes,
+    )
+
+
 def build_weekly_flow_report(
     flow_snapshot_dir: Path | str,
     report_date: str,
@@ -194,6 +301,14 @@ def build_weekly_flow_report(
         flow_snapshot_dir=flow_snapshot_dir,
         report_date=report_date,
         lookback_days=lookback_days,
+        is_trading_day=is_trading_day,
+    )
+
+    summary = build_weekly_flow_summary(
+        flow_snapshot_dir=flow_snapshot_dir,
+        report_date=report_date,
+        lookback_days=lookback_days,
+        sector_limit=sector_limit,
         is_trading_day=is_trading_day,
     )
 
@@ -218,7 +333,7 @@ def build_weekly_flow_report(
 
     start_date_str = str(loaded_snapshots[0][0])
     end_date_str = str(loaded_snapshots[-1][0])
-    status = _status_counts(loaded_snapshots, is_trading_day)
+    status = summary.temperature_counts
     sectors = _aggregate_named_flows(loaded_snapshots, "sector_flows")[:sector_limit]
     stocks = _aggregate_named_flows(
         loaded_snapshots,
@@ -226,9 +341,9 @@ def build_weekly_flow_report(
         skip_stock_noise=True,
     )[:stock_limit]
 
-    continued = [row["name"] for row in sectors if _sector_label(row) == "延续"]
-    new = [row["name"] for row in sectors if _sector_label(row) == "新主线"]
-    ebb = [row["name"] for row in sectors if _sector_label(row) == "退潮"]
+    continued = list(summary.continued_sectors)
+    new = list(summary.new_sectors)
+    ebb = list(summary.ebb_sectors)
 
     lines = [
         "# 职业资金雷达周报",
