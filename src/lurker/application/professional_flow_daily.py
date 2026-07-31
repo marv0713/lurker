@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from datetime import date, datetime, timezone, timedelta
 from typing import Any, Callable
@@ -350,31 +351,52 @@ def _core_stock_flow_leaders(stock_flows: list[dict[str, Any]], *, limit: int = 
 # 市场温度备注
 # ---------------------------------------------------------------------------
 
-def _market_notes(
-    market_flow: dict[str, Any],
-    margin: dict[str, Any],
-    temperature: str,
+_MARGIN_SIGNAL_LABELS = {
+    "supportive": "杠杆资金增加",
+    "weakening": "杠杆资金回落",
+    "overheated": "杠杆资金过热",
+    "unknown": "暂不判断",
+}
+
+
+def _finite_float(value: Any) -> float | None:
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        return None
+    return result if math.isfinite(result) else None
+
+
+def _format_margin_note(margin: dict[str, Any]) -> str | None:
+    balance = _finite_float(margin.get("margin_balance"))
+    if balance is None:
+        return None
+
+    note = f"两融余额：{balance / 1_000_000_000_000:.2f}万亿元"
+    change = _finite_float(margin.get("margin_balance_change"))
+    if change is None:
+        return note
+
+    direction = "增加" if change >= 0 else "减少"
+    note += f"，较上一交易日{direction}{abs(change) / 100_000_000:.1f}亿元"
+    previous_balance = balance - change
+    if balance != 0 and previous_balance > 0:
+        note += f"（{change / previous_balance * 100:+.2f}%）"
+    return note
+
+
+def _format_etf_note(
     *,
-    etf_batch: CoreEtfBatch | None = None,
-    etf_status: str = "unknown",
-    margin_signal: str = "unknown",
-) -> list[str]:
-    notes = [f"市场温度：{temperature}"]
-    if market_flow:
-        notes.append(
-            "大盘主力净流入 "
-            f"{_as_float(market_flow.get('main_net_inflow')):.0f}，超大单 "
-            f"{_as_float(market_flow.get('super_large_net_inflow')):.0f}"
-        )
-    if margin:
-        note = f"两融余额 {_as_float(margin.get('margin_balance')):.0f}"
-        if margin.get("margin_balance_change") is not None:
-            note += f"，变化 {_as_float(margin.get('margin_balance_change')):.0f}"
-        notes.append(note)
-    if etf_status == "active" and etf_batch is not None:
+    etf_batch: CoreEtfBatch | None,
+    etf_status: str,
+    etf_freshness: str,
+    etf_cutoff: str,
+    expected_trade_date: str,
+) -> str:
+    if etf_status == "active":
         active_items = [
             item
-            for item in etf_batch.items
+            for item in (etf_batch.items if etf_batch is not None else [])
             if item.turnover_expansion is not None
             and item.turnover_expansion >= 1.2
             and item.availability == "turnover_only"
@@ -384,20 +406,66 @@ def _market_notes(
                 active_items,
                 key=lambda item: float(item.turnover_expansion or 0.0),
             )
-            notes.append(
-                f"ETF 状态：active（{leader.name or leader.symbol} "
+            return (
+                f"核心 ETF：放量活跃（{leader.name or leader.symbol} "
                 f"放量 {leader.turnover_expansion:.2f}x）"
             )
-        else:
-            notes.append("ETF 状态：active")
-    elif etf_status == "inactive":
-        notes.append("ETF 状态：inactive（未发现 ≥1.20x 放量）")
-    elif etf_batch is not None and etf_batch.failures:
-        detail = "全部采集失败" if not etf_batch.items else "部分采集失败"
-        notes.append(f"ETF 状态：unknown（{detail}）")
-    else:
-        notes.append("ETF 状态：unknown（未采集或数据不足）")
-    notes.append(f"两融信号：{margin_signal}")
+        return "核心 ETF：放量活跃"
+
+    if etf_status == "inactive":
+        return "核心 ETF：未见明显放量（均低于 1.20x）"
+
+    if etf_batch is not None and etf_batch.failures:
+        if not etf_batch.items:
+            return "核心 ETF：暂不判断（全部采集失败）"
+        if etf_cutoff != "-" and etf_cutoff != expected_trade_date:
+            return (
+                "核心 ETF：暂不判断（部分采集失败；"
+                f"成功数据截止 {etf_cutoff}，且非当日）"
+            )
+        return "核心 ETF：暂不判断（部分采集失败）"
+
+    if etf_freshness == "stale" and etf_cutoff != "-":
+        return (
+            f"核心 ETF：暂不判断（数据截止 {etf_cutoff}，"
+            "非当日；采集成功）"
+        )
+    return "核心 ETF：暂不判断（未采集或数据不足）"
+
+def _market_notes(
+    market_flow: dict[str, Any],
+    margin: dict[str, Any],
+    temperature: str,
+    *,
+    etf_batch: CoreEtfBatch | None = None,
+    etf_status: str = "unknown",
+    etf_freshness: str = "unknown",
+    etf_cutoff: str = "-",
+    expected_trade_date: str = "",
+    margin_signal: str = "unknown",
+) -> list[str]:
+    notes = [f"市场温度：{temperature}"]
+    if market_flow:
+        notes.append(
+            "大盘主力净流入 "
+            f"{_as_float(market_flow.get('main_net_inflow')):.0f}，超大单 "
+            f"{_as_float(market_flow.get('super_large_net_inflow')):.0f}"
+        )
+    margin_note = _format_margin_note(margin)
+    if margin_note is not None:
+        notes.append(margin_note)
+    notes.append(
+        _format_etf_note(
+            etf_batch=etf_batch,
+            etf_status=etf_status,
+            etf_freshness=etf_freshness,
+            etf_cutoff=etf_cutoff,
+            expected_trade_date=expected_trade_date,
+        )
+    )
+    notes.append(
+        f"两融方向：{_MARGIN_SIGNAL_LABELS.get(margin_signal, '暂不判断')}"
+    )
     if temperature == "防守":
         notes.append("⚠️ 防守模式：所有标的降级至观察，仅极少数超强确认标的保留候选资格。")
     elif temperature == "观察":

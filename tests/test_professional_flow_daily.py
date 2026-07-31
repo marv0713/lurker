@@ -40,22 +40,80 @@ def test_classify_market_temperature_defense_when_all_negative():
 def test_market_notes_show_margin_balance_and_skip_missing_change():
     notes = _market_notes(
         {"main_net_inflow": 1.0, "super_large_net_inflow": 2.0},
-        {"margin_balance": 770.0},
+        {"margin_balance": 2_598_316_556_644.0},
         "观察",
     )
 
-    assert "两融余额 770" in notes
-    assert not any("两融余额变化 0" in note for note in notes)
+    assert "两融余额：2.60万亿元" in notes
+    assert not any("较上一交易日" in note for note in notes)
 
 
 def test_market_notes_show_margin_balance_change_when_available():
     notes = _market_notes(
         {"main_net_inflow": 1.0, "super_large_net_inflow": 2.0},
-        {"margin_balance": 770.0, "margin_balance_change": 40.0},
+        {
+            "margin_balance": 2_598_316_556_644.0,
+            "margin_balance_change": -36_807_009_524.0,
+        },
         "观察",
     )
 
-    assert "两融余额 770，变化 40" in notes
+    assert (
+        "两融余额：2.60万亿元，较上一交易日减少368.1亿元（-1.40%）"
+        in notes
+    )
+
+
+@pytest.mark.parametrize("invalid", [None, "bad", float("nan"), float("inf")])
+def test_market_notes_skip_invalid_margin_balance(invalid):
+    notes = _market_notes(
+        {},
+        {"margin_balance": invalid, "margin_balance_change": 1.0},
+        "观察",
+    )
+
+    assert not any(note.startswith("两融余额：") for note in notes)
+
+
+def test_market_notes_do_not_calculate_percentage_for_zero_balance():
+    notes = _market_notes(
+        {},
+        {"margin_balance": 0.0, "margin_balance_change": 100_000_000.0},
+        "观察",
+    )
+
+    margin_note = next(note for note in notes if note.startswith("两融余额："))
+    assert margin_note == "两融余额：0.00万亿元，较上一交易日增加1.0亿元"
+    assert "%" not in margin_note
+
+
+def test_market_notes_round_margin_percentage_to_two_decimals():
+    notes = _market_notes(
+        {},
+        {
+            "margin_balance": 985_842_000_000.0,
+            "margin_balance_change": -14_158_000_000.0,
+        },
+        "观察",
+    )
+
+    margin_note = next(note for note in notes if note.startswith("两融余额："))
+    assert margin_note.endswith("（-1.42%）")
+
+
+@pytest.mark.parametrize(
+    ("signal", "label"),
+    [
+        ("supportive", "杠杆资金增加"),
+        ("weakening", "杠杆资金回落"),
+        ("overheated", "杠杆资金过热"),
+        ("unknown", "暂不判断"),
+    ],
+)
+def test_market_notes_translate_margin_signal(signal, label):
+    notes = _market_notes({}, {}, "观察", margin_signal=signal)
+
+    assert f"两融方向：{label}" in notes
 
 
 def test_market_notes_show_active_etf_and_margin_signal():
@@ -93,8 +151,115 @@ def test_market_notes_show_active_etf_and_margin_signal():
         margin_signal="supportive",
     )
 
-    assert "ETF 状态：active（沪深300ETF 放量 1.35x）" in notes
-    assert "两融信号：supportive" in notes
+    assert "核心 ETF：放量活跃（沪深300ETF 放量 1.35x）" in notes
+    assert "两融方向：杠杆资金增加" in notes
+
+
+def test_market_notes_explain_stale_successful_etf_collection():
+    batch = CoreEtfBatch.from_dict(
+        {
+            "configured_symbols": ["510300.SH"],
+            "items": [
+                {
+                    "symbol": "510300.SH",
+                    "name": "沪深300ETF",
+                    "trade_date": "2026-07-30",
+                    "current_turnover": 100.0,
+                    "avg_turnover_20d": 100.0,
+                    "turnover_expansion": 1.0,
+                    "shares": None,
+                    "shares_date": None,
+                    "status": "inactive",
+                    "source": "fixture",
+                    "availability": "turnover_only",
+                    "error": None,
+                }
+            ],
+            "failures": [],
+            "generated_at": "2026-07-31T08:00:00+00:00",
+            "schema_version": 1,
+        }
+    )
+
+    notes = _market_notes(
+        {},
+        {},
+        "观察",
+        etf_batch=batch,
+        etf_status="unknown",
+        etf_freshness="stale",
+        etf_cutoff="2026-07-30",
+        expected_trade_date="2026-07-31",
+    )
+
+    assert (
+        "核心 ETF：暂不判断（数据截止 2026-07-30，非当日；采集成功）"
+        in notes
+    )
+
+
+def test_market_notes_disclose_partial_failure_and_stale_successes():
+    batch = CoreEtfBatch.from_dict(
+        {
+            "configured_symbols": ["510300.SH", "510500.SH"],
+            "items": [
+                {
+                    "symbol": "510300.SH",
+                    "name": "沪深300ETF",
+                    "trade_date": "2026-07-30",
+                    "current_turnover": 100.0,
+                    "avg_turnover_20d": 100.0,
+                    "turnover_expansion": 1.0,
+                    "shares": None,
+                    "shares_date": None,
+                    "status": "inactive",
+                    "source": "fixture",
+                    "availability": "turnover_only",
+                    "error": None,
+                }
+            ],
+            "failures": [{"symbol": "510500.SH", "reason": "timeout"}],
+            "generated_at": "2026-07-31T08:00:00+00:00",
+            "schema_version": 1,
+        }
+    )
+
+    notes = _market_notes(
+        {},
+        {},
+        "观察",
+        etf_batch=batch,
+        etf_status="unknown",
+        etf_freshness="unknown",
+        etf_cutoff="2026-07-30",
+        expected_trade_date="2026-07-31",
+    )
+
+    assert (
+        "核心 ETF：暂不判断（部分采集失败；成功数据截止 2026-07-30，且非当日）"
+        in notes
+    )
+
+
+def test_market_notes_cover_remaining_etf_display_states():
+    failed_batch = CoreEtfBatch(
+        configured_symbols=["510300.SH"],
+        items=[],
+        failures=[{"symbol": "510300.SH", "reason": "timeout"}],
+    )
+
+    assert "核心 ETF：放量活跃" in _market_notes(
+        {}, {}, "观察", etf_status="active"
+    )
+    assert "核心 ETF：未见明显放量（均低于 1.20x）" in _market_notes(
+        {}, {}, "观察", etf_status="inactive"
+    )
+    assert "核心 ETF：暂不判断（全部采集失败）" in _market_notes(
+        {}, {}, "观察", etf_batch=failed_batch
+    )
+    assert "核心 ETF：暂不判断（未采集或数据不足）" in _market_notes(
+        {}, {}, "观察"
+    )
 
 
 def test_report_data_quality_lists_partial_etf_failure_and_freshness():
