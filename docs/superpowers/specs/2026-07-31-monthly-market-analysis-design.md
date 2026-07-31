@@ -33,7 +33,7 @@
 
 ### 市场输入
 
-从 `data/processed/flow_snapshots/` 读取不晚于报告日的最近五个中国交易日 JSON 快照。只使用结构化字段：
+从 `data/processed/flow_snapshots/` 读取不晚于报告基准日的最近五个中国交易日 JSON 快照。报告基准日固定为报告月最后一个中国交易日，复用 CLI 现有的 `_last_cn_trading_day()` 和同一份交易日历；即使在次月补跑或重跑，也不把次月快照混入上月报告。只使用结构化字段：
 
 - `market_flow.main_net_inflow`；
 - `market_flow.super_large_net_inflow`；
@@ -86,9 +86,19 @@ weekly_positive = 周度主力净流入 > 0 且周度超大单净流入 > 0
 weekly_negative = 周度主力净流入 < 0 且周度超大单净流入 < 0
 temperature_positive = 进攻天数 > 防守天数
 temperature_negative = 防守天数 > 进攻天数
-latest_supportive = ETF active 或 两融 supportive
-latest_weakening = ETF inactive 或 两融 weakening
+etf_direction = supportive（active）/ weakening（inactive）/ unknown
+margin_direction = supportive / weakening / unknown
+latest_direction = supportive / weakening / mixed / unknown
 ```
+
+`latest_direction` 按以下规则合成：
+
+- 至少一个来源为 `supportive`，且没有来源为 `weakening`：`supportive`；
+- 至少一个来源为 `weakening`，且没有来源为 `supportive`：`weakening`；
+- 同时出现 `supportive` 和 `weakening`：`mixed`；
+- 两个来源都没有有效方向：`unknown`。
+
+因此 ETF 与两融冲突时，最新层视为分化，不给任何方向确认，也不同时写入支持证据和制约证据。原始状态仍在日度视图中分别披露。真值表中的 `latest_supportive` 表示 `latest_direction == supportive`，`latest_weakening` 表示 `latest_direction == weakening`。
 
 按以下优先级分类：
 
@@ -101,6 +111,8 @@ latest_weakening = ETF inactive 或 两融 weakening
 | 5 | 其余数据完整场景 | 观察 | 存量结构 |
 
 只有月、周、日三层支持证据同时成立，才允许输出“增量确认”。方向冲突、相等、零值或未知状态一律落入“存量结构/观察”，不强行给方向。
+
+防守规则有意不增加 `macro_supportive` 的反向约束。月度宏观数据频率低且存在滞后；当周度累计、市场温度和最新有效信号同时转弱时，高频资金证据允许把战术立场切换为“防守/减量防守”。如果宏观背景仍为支持，报告必须明确写为“宏观支持仍在，但周、日资金已经转弱”，表示短期防守，不得写成月度宏观逻辑已经反转。
 
 ## 确定性分析文案
 
@@ -145,9 +157,10 @@ quality_notes
 - 杠杆 `healthy`：只表示未触发风险红线，属于中性背景；
 - 杠杆 `overheated`：明确风险证据；
 - 周度主力和超大单同为正/负：对应支持/制约；
-- ETF `active`、两融 `supportive`：最新支持证据；
-- ETF `inactive`、两融 `weakening`：最新制约证据；
-- `unknown` 不进入任何正负证据。
+- `latest_direction == supportive`：最新支持证据；
+- `latest_direction == weakening`：最新制约证据；
+- `latest_direction == mixed`：只说明 ETF 与两融分化，不进入支持或制约证据；
+- `latest_direction == unknown`：不进入任何正负证据。
 
 主矛盾由规则模板生成。例如月度出现存款搬家、但非银和 M1-M2 仍弱时：
 
@@ -203,6 +216,7 @@ quality_notes
 
 - 月度：居民存款出现搬家信号，非银存款减少，M1-M2 恶化，杠杆未过热；
 - 周度：进攻 0 天、观察 3 天、防守 2 天；
+- 周度累计：主力约 -462.7 亿元、超大单约 +146.9 亿元，一负一正，因此 `weekly_negative == False`；
 - 日度：大盘主力与超大单当日流入，但 ETF 非当日、两融回落；
 - 结构：存在持续资金主线，但三层信号没有形成增量共振。
 
@@ -216,6 +230,8 @@ quality_notes
 
 不得输出“牛市加速”“全面进攻”或确定性涨跌预测。
 
+对应回归测试必须同时固定“周度主力为负、超大单为正”这一前置条件，不能只用温度天数推导预期结果。
+
 ## CLI 与部署
 
 `monthly-macro-flow` 新增可选参数：
@@ -224,7 +240,7 @@ quality_notes
 --flow-snapshot-dir data/processed/flow_snapshots
 ```
 
-默认值与 VPS 现有目录一致，因此现有 cron 命令无需修改。`monthly_macro_flow_job()` 在采集完月度快照后构建最近五日汇总，再分析和渲染。
+默认值与 VPS 现有目录一致，因此现有 cron 命令无需修改。`monthly_macro_flow_job()` 先用 `_last_cn_trading_day(report_month, calendar)` 得到报告基准日，再以该日期构建最近五日汇总，然后分析和渲染。`--month-end-only` 与汇总窗口必须复用同一个交易日历口径。
 
 同月重跑继续原子覆盖：
 
@@ -233,13 +249,13 @@ data/processed/monthly_macro_flow_snapshots/YYYY-MM.json
 data/reports/monthly_macro_flow/YYYY-MM.md
 ```
 
-市场分析结果只进入报告，不写入现有月度快照，避免 schema 漂移。通知仍使用现有月报接收人；重跑成功后覆盖并重新推送同月报告。
+市场分析结果只进入报告，不写入现有月度快照，避免 schema 漂移。通知仍使用现有月报接收人；重跑成功后覆盖并重新推送同月报告。推送决策保持兼容，继续只由原月度宏观分析控制：`analysis["market_state"] is None`（即 `report_mode == "data_observation"`）时不推送。增强层的“观察”或“数据不足”不新增推送拦截；只要原宏观分析已经形成分类，报告仍可推送，并在正文披露市场上下文不足。
 
 ## 降级与错误处理
 
-- 月度必要数据不足：保留现有 `data_observation`，市场阶段为“数据不足”，不形成市场立场。
+- 月度必要数据不足：保留现有 `report_mode == "data_observation"` 的判定逻辑，市场阶段为“数据不足”，不形成方向性立场。
 - 资金快照不足：宏观报告照常生成；交叉验证章节说明可用快照数，不形成市场方向。
-- 最新 ETF 或两融过期：显示“暂不可判断”，不提供正负证据。
+- 最新 ETF 或两融过期：显示“暂不判断”，不提供正负证据。
 - 部分快照损坏：保留其他快照，列出失败文件和原因。
 - 结构性板块列表为空：显示“暂无确认”，不能解释为全面退潮。
 - 报告生成成功但通知失败：文件保留，CLI 明确返回通知失败信息，沿用现有通知行为。
@@ -261,14 +277,18 @@ data/reports/monthly_macro_flow/YYYY-MM.md
 - 数据不足强制观察；
 - 三层同向得到“进攻准备/增量确认”；
 - 三层负向得到“防守/减量防守”；
+- 宏观支持但三层高频负向仍得到“防守/减量防守”，且生成“宏观仍支持、高频已转弱”的说明；
 - 信号冲突得到“观察/存量结构”；
+- ETF 与两融相反得到 `mixed`，不触发最新层正负确认；
 - `unknown` 不产生正负证据。
 
 ### 报告与 CLI
 
 - 五个新增章节及升级后的一句话结论；
-- 2026-07 真实形态得到“观察/存量结构”；
+- 2026-07 在周度主力为负、超大单为正的前置条件下得到“观察/存量结构”；
 - 缺少周度快照仍生成宏观报告；
 - 新 CLI 参数默认值和显式路径；
+- 报告月末交易日作为五日窗口上界，次月补跑不混入次月快照；
 - `--month-end-only`、原子覆盖和通知行为保持不变；
+- 原宏观 `data_observation` 继续不推送；增强层“数据不足”不新增推送拦截；
 - 完整 pytest 与 Ruff。
