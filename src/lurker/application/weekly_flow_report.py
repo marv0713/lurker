@@ -200,7 +200,7 @@ def _sector_label(row: dict[str, Any]) -> str:
 
 
 def _latest_temperature_inputs(
-    file_dt: Any,
+    report_date: str,
     data: dict[str, Any],
     is_trading_day: TradingDayPredicate,
 ):
@@ -210,12 +210,11 @@ def _latest_temperature_inputs(
         if isinstance(core_etfs_data, dict)
         else CoreEtfBatch(configured_symbols=[])
     )
-    snapshot_date = file_dt.isoformat() if hasattr(file_dt, "isoformat") else str(file_dt)
     return prepare_temperature_inputs(
         market_flow=data.get("market_flow", {}),
         core_etfs_batch=etf_batch,
         margin=data.get("margin", {}),
-        report_date=snapshot_date,
+        report_date=report_date,
         is_trading_day=is_trading_day,
         now=datetime.now(tz=timezone(timedelta(hours=8))),
     )
@@ -254,7 +253,7 @@ def build_weekly_flow_summary(
     )
     if loaded_snapshots:
         latest = _latest_temperature_inputs(
-            loaded_snapshots[-1][0],
+            report_date,
             loaded_snapshots[-1][1],
             is_trading_day,
         )

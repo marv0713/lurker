@@ -114,6 +114,55 @@ def test_weekly_flow_summary_availability_requires_three_snapshots(
     assert summary.snapshot_count == snapshot_count
 
 
+def test_weekly_flow_summary_checks_latest_freshness_against_report_date(tmp_path):
+    flow_dir = tmp_path / "flow_snapshots"
+    flow_dir.mkdir()
+    path = flow_dir / "2026-07-30.json"
+    _write_flow(
+        path,
+        "2026-07-30",
+        temperature_flow={
+            "trade_date": "2026-07-30",
+            "main_net_inflow": 1.0,
+            "super_large_net_inflow": 1.0,
+        },
+        sectors=[],
+        stocks=[],
+    )
+    snapshot = json.loads(path.read_text(encoding="utf-8"))
+    snapshot["core_etfs"] = {
+        "configured_symbols": ["510300.SH"],
+        "items": [
+            {
+                "symbol": "510300.SH",
+                "name": "沪深300ETF",
+                "trade_date": "2026-07-30",
+                "current_turnover": 2.0,
+                "avg_turnover_20d": 1.0,
+                "turnover_expansion": 2.0,
+                "shares": None,
+                "shares_date": None,
+                "status": "active",
+                "source": "fixture",
+                "availability": "turnover_only",
+                "error": None,
+            }
+        ],
+        "failures": [],
+        "generated_at": "2026-07-30T16:00:00+08:00",
+        "schema_version": 1,
+    }
+    path.write_text(json.dumps(snapshot, ensure_ascii=False), encoding="utf-8")
+
+    summary = build_weekly_flow_summary(
+        flow_snapshot_dir=flow_dir,
+        report_date="2026-07-31",
+        is_trading_day=lambda day: True,
+    )
+
+    assert summary.latest_etf_status == "unknown"
+
+
 def test_build_weekly_flow_report_aggregates_available_snapshots(tmp_path):
     flow_dir = tmp_path / "flow_snapshots"
     flow_dir.mkdir()
