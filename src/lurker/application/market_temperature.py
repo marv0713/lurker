@@ -466,6 +466,11 @@ def prepare_temperature_inputs(
                         f"成功数据截止 {etf_cutoff}，且非当日；"
                         "今日 ETF 信号未参与判断。"
                     )
+                elif etf_status == "active":
+                    quality_notes.append(
+                        "⚠️ 核心 ETF 部分采集失败；"
+                        "放量判断仅基于成功采集项。"
+                    )
                 else:
                     quality_notes.append(
                         "⚠️ 核心 ETF 部分采集失败；"

@@ -86,9 +86,14 @@ if market_status != "fresh":
 if etf_freshness != "fresh":
     if core_etfs_batch.failures:
         detail = "全部采集失败" if not core_etfs_batch.items else "部分采集失败"
-        quality_notes.append(
-            f"⚠️ 核心 ETF {detail}；今日 ETF 信号未参与判断。"
-        )
+        if etf_status == "active" and core_etfs_batch.items:
+            quality_notes.append(
+                "⚠️ 核心 ETF 部分采集失败；放量判断仅基于成功采集项。"
+            )
+        else:
+            quality_notes.append(
+                f"⚠️ 核心 ETF {detail}；今日 ETF 信号未参与判断。"
+            )
     else:
         quality_notes.append(
             f"⚠️ 核心 ETF 数据截止 {etf_cutoff}，非当日；"

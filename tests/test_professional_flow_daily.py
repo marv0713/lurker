@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from lurker.application.market_temperature import classify_market_temperature
@@ -307,11 +309,88 @@ def test_report_data_quality_lists_partial_etf_failure_and_freshness():
         report_date="2026-07-23",
     )
 
-    assert "ETF 状态：active（沪深300ETF 放量 1.35x）" in report.content_md
-    assert "两融信号：supportive" in report.content_md
+    assert "核心 ETF：放量活跃（沪深300ETF 放量 1.35x）" in report.content_md
+    assert "两融方向：杠杆资金增加" in report.content_md
     assert "核心 ETF：截止 2026-07-23，部分数据缺失" in report.content_md
     assert "核心 ETF 510500.SH：provider timeout" in report.content_md
-    assert "⚠️ 部分数据非当日或采集不完整" in report.content_md
+    assert (
+        "⚠️ 核心 ETF 部分采集失败；放量判断仅基于成功采集项。"
+        in report.content_md
+    )
+    assert "⚠️ 部分数据非当日或采集不完整" not in report.content_md
+
+
+def test_daily_report_renders_readable_stale_etf_and_margin_details():
+    report = run_professional_flow_daily(
+        price_snapshot={"snapshots": []},
+        flow_snapshot={
+            "market_flow": {
+                "trade_date": "2026-07-31",
+                "main_net_inflow": 62_535_737_344.0,
+                "super_large_net_inflow": 69_993_807_872.0,
+                "availability": "fresh",
+            },
+            "sector_flows": [],
+            "stock_flows": [],
+            "margin": {
+                "trade_date": "20260730",
+                "margin_balance": 2_598_316_556_644.0,
+                "margin_balance_change": -36_807_009_524.0,
+                "availability": "fresh",
+            },
+            "core_etfs": {
+                "configured_symbols": ["510300.SH"],
+                "items": [
+                    {
+                        "symbol": "510300.SH",
+                        "name": "沪深300ETF",
+                        "trade_date": "2026-07-30",
+                        "current_turnover": 100.0,
+                        "avg_turnover_20d": 100.0,
+                        "turnover_expansion": 1.0,
+                        "shares": None,
+                        "shares_date": None,
+                        "status": "inactive",
+                        "source": "fixture",
+                        "availability": "turnover_only",
+                        "error": None,
+                    }
+                ],
+                "failures": [],
+                "generated_at": "2026-07-31T08:00:00+00:00",
+                "schema_version": 1,
+            },
+            "failures": [],
+        },
+        theme_mapping={},
+        report_date="2026-07-31",
+        now=datetime(
+            2026,
+            7,
+            31,
+            17,
+            30,
+            tzinfo=timezone(timedelta(hours=8)),
+        ),
+        is_trading_day=lambda day: day.weekday() < 5,
+    )
+
+    assert (
+        "两融余额：2.60万亿元，较上一交易日减少368.1亿元（-1.40%）"
+        in report.content_md
+    )
+    assert "两融方向：杠杆资金回落" in report.content_md
+    assert (
+        "核心 ETF：暂不判断（数据截止 2026-07-30，非当日；采集成功）"
+        in report.content_md
+    )
+    assert "核心 ETF：截止 2026-07-30，非当日数据" in report.content_md
+    assert (
+        "⚠️ 核心 ETF 数据截止 2026-07-30，非当日；"
+        "今日 ETF 信号未参与判断。"
+        in report.content_md
+    )
+    assert "⚠️ 部分数据非当日或采集不完整" not in report.content_md
 
 
 def test_market_temperature_defense_downgrades_candidates():
