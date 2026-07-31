@@ -17,7 +17,7 @@ _CUSTOMER_QUALITY_LABELS = {
     "fresh": "当日数据",
     "published_lag": "正常滞后一日",
     "partial": "部分数据缺失",
-    "stale": "数据已过期",
+    "stale": "非当日数据",
     "stale_cache": "使用历史缓存",
     "unknown": "暂不可用",
 }
@@ -301,6 +301,8 @@ class PreparedTemperatureInputs:
 
     market_flow: dict[str, Any]
     etf_status: str
+    etf_freshness: str
+    etf_cutoff: str
     margin_signal: str
     expected_trade_date: str
     quality_notes: tuple[str, ...]
@@ -444,17 +446,70 @@ def prepare_temperature_inputs(
         f"两融：截止 {margin_cutoff}，"
         f"{_customer_quality_label(margin_status)}",
     ]
-    healthy_statuses = (
-        market_status == "fresh"
-        and etf_freshness == "fresh"
-        and margin_status in {"fresh", "published_lag"}
-    )
-    if not healthy_statuses:
-        quality_notes.append("⚠️ 部分数据非当日或采集不完整")
+    if market_status != "fresh":
+        if market_cutoff == "-":
+            quality_notes.append(
+                "⚠️ 大盘资金暂不可用；今日大盘资金信号未参与判断。"
+            )
+        else:
+            quality_notes.append(
+                f"⚠️ 大盘资金数据截止 {market_cutoff}，非当日；"
+                "今日大盘资金信号未参与判断。"
+            )
+
+    if etf_freshness != "fresh":
+        if core_etfs_batch.failures:
+            if core_etfs_batch.items:
+                if etf_cutoff != expected_trade_date:
+                    quality_notes.append(
+                        "⚠️ 核心 ETF 部分采集失败；"
+                        f"成功数据截止 {etf_cutoff}，且非当日；"
+                        "今日 ETF 信号未参与判断。"
+                    )
+                else:
+                    quality_notes.append(
+                        "⚠️ 核心 ETF 部分采集失败；"
+                        "今日 ETF 信号未参与判断。"
+                    )
+            else:
+                quality_notes.append(
+                    "⚠️ 核心 ETF 全部采集失败；今日 ETF 信号未参与判断。"
+                )
+        elif etf_cutoff == "-":
+            quality_notes.append(
+                "⚠️ 核心 ETF 暂不可用；今日 ETF 信号未参与判断。"
+            )
+        else:
+            quality_notes.append(
+                f"⚠️ 核心 ETF 数据截止 {etf_cutoff}，非当日；"
+                "今日 ETF 信号未参与判断。"
+            )
+
+    if margin_status not in {"fresh", "published_lag"}:
+        if margin_status == "stale_cache":
+            quality_notes.append(
+                "⚠️ 两融使用历史缓存；今日两融信号未参与判断。"
+            )
+        elif margin_cutoff == "-":
+            quality_notes.append(
+                "⚠️ 两融暂不可用；今日两融信号未参与判断。"
+            )
+        elif margin_status == "stale":
+            quality_notes.append(
+                f"⚠️ 两融数据截止 {margin_cutoff}，超出正常发布滞后；"
+                "今日两融信号未参与判断。"
+            )
+        else:
+            quality_notes.append(
+                f"⚠️ 两融数据状态为 {_customer_quality_label(margin_status)}；"
+                "今日两融信号未参与判断。"
+            )
 
     return PreparedTemperatureInputs(
         market_flow=flow,
         etf_status=etf_status,
+        etf_freshness=etf_freshness,
+        etf_cutoff=etf_cutoff,
         margin_signal=margin_signal,
         expected_trade_date=expected_trade_date,
         quality_notes=tuple(quality_notes),

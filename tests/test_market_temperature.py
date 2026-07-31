@@ -691,6 +691,13 @@ def test_prepare_temperature_stale_etf_degrades_to_unknown():
     )
     # ETF was stale → etf_status should be unknown
     assert result.etf_status == "unknown"
+    assert result.etf_freshness == "stale"
+    assert result.etf_cutoff == "2026-07-22"
+    assert "核心 ETF：截止 2026-07-22，非当日数据" in result.quality_notes
+    assert (
+        "⚠️ 核心 ETF 数据截止 2026-07-22，非当日；"
+        "今日 ETF 信号未参与判断。"
+    ) in result.quality_notes
     # margin is weakening + etf unknown → not defense (no negative confirmation from ETF)
     # We don't test the temperature here, just the preparation output
 
@@ -775,7 +782,8 @@ def test_prepare_temperature_inputs_exposes_source_freshness_notes():
         "大盘资金：截止 2026-07-23，当日数据",
         "核心 ETF：截止 2026-07-23，部分数据缺失",
         "两融：截止 2026-07-22，使用历史缓存",
-        "⚠️ 部分数据非当日或采集不完整",
+        "⚠️ 核心 ETF 部分采集失败；今日 ETF 信号未参与判断。",
+        "⚠️ 两融使用历史缓存；今日两融信号未参与判断。",
     )
 
 
@@ -834,7 +842,7 @@ def test_previous_session_margin_is_published_lag_and_actionable():
     assert prepared.quality_notes[2] == (
         "两融：截止 2026-07-27，正常滞后一日"
     )
-    assert "⚠️ 部分数据非当日或采集不完整" not in prepared.quality_notes
+    assert len(prepared.quality_notes) == 3
 
 
 def test_margin_older_than_previous_session_is_unknown():
@@ -865,4 +873,8 @@ def test_margin_older_than_previous_session_is_unknown():
     )
 
     assert prepared.margin_signal == "unknown"
-    assert prepared.quality_notes[2] == "两融：截止 2026-07-24，数据已过期"
+    assert prepared.quality_notes[2] == "两融：截止 2026-07-24，非当日数据"
+    assert prepared.quality_notes[3] == (
+        "⚠️ 两融数据截止 2026-07-24，超出正常发布滞后；"
+        "今日两融信号未参与判断。"
+    )
