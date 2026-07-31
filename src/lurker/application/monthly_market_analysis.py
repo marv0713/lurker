@@ -8,6 +8,19 @@ from lurker.application.weekly_flow_report import WeeklyFlowSummary
 
 LatestDirection = Literal["supportive", "weakening", "mixed", "unknown"]
 
+_STATUS_LABELS = {
+    "relocation_signal": "存款搬家中",
+    "deposit_dominant": "存款仍占主导",
+    "rising": "增加",
+    "flat": "持平",
+    "falling": "减少",
+    "improving": "改善",
+    "worsening": "恶化",
+    "healthy": "正常",
+    "overheated": "过热",
+    "unknown": "暂不判断",
+}
+
 
 @dataclass(frozen=True)
 class MonthlyMarketAnalysis:
@@ -149,7 +162,10 @@ def analyze_monthly_market(
 
     monthly_view = (
         f"宏观状态为{market_state or '暂不形成结论'}；"
-        f"居民存款 {household}，非银 {nonbank}，M1-M2 {money}，杠杆 {leverage}。"
+        f"居民存款为{_STATUS_LABELS.get(household, '状态异常')}，"
+        f"非银存款{_STATUS_LABELS.get(nonbank, '状态异常')}，"
+        f"M1-M2 {_STATUS_LABELS.get(money, '状态异常')}，"
+        f"杠杆{_STATUS_LABELS.get(leverage, '状态异常')}。"
     )
     weekly_view = (
         f"{weekly.start_date or '暂无'} 至 {weekly.end_date or '暂无'} 共"

@@ -72,6 +72,11 @@ def test_july_real_shape_is_observe_inventory_structure():
     assert result.main_contradiction == "场外资金已经松动，但机构承接和资金活化尚未确认。"
     assert "居民存款出现搬家信号" in result.supporting_evidence
     assert "非银存款减少，机构承接尚未确认" in result.constraining_evidence
+    assert result.monthly_view == (
+        "宏观状态为震荡磨底；居民存款为存款搬家中，"
+        "非银存款减少，M1-M2 恶化，杠杆正常。"
+    )
+    assert "relocation_signal" not in result.monthly_view
 
 
 def test_three_layer_confirmation_is_attack_ready():
