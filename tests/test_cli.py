@@ -1263,6 +1263,47 @@ def test_monthly_macro_uses_report_month_last_session_for_weekly_context(tmp_pat
     assert captured["flow_snapshot_dir"] == tmp_path / "flow_snapshots"
 
 
+@pytest.mark.parametrize(
+    ("data_observation", "expected_push"),
+    [(False, "sent"), (True, "skipped(data_observation)")],
+)
+def test_monthly_macro_push_gate_remains_based_on_macro_classification(
+    monkeypatch,
+    tmp_path,
+    data_observation,
+    expected_push,
+):
+    from tests.test_monthly_macro_flow import complete_snapshot
+
+    sends = []
+
+    class FakeNotifier:
+        def send(self, title, markdown_content):
+            sends.append((title, markdown_content))
+
+    snapshot = complete_snapshot()
+    if data_observation:
+        snapshot["macro"]["household"] = None
+    monkeypatch.setattr("lurker.cli.build_notifier_from_env", lambda: FakeNotifier())
+
+    message = monthly_macro_flow_job(
+        report_month="2025-01",
+        config_path=Path("configs/macro_monthly.yaml"),
+        snapshot_dir=tmp_path / "snapshots",
+        raw_dir=tmp_path / "raw",
+        report_dir=tmp_path / "reports",
+        strategy_config_path=Path("configs/strategies.yaml"),
+        flow_snapshot_dir=tmp_path / "empty_flow_snapshots",
+        push=True,
+        snapshot_collector=lambda **kwargs: snapshot,
+        today=date(2025, 1, 28),
+        calendar=FakeMonthlyCalendar([date(2025, 1, 27), date(2025, 1, 28)]),
+    )
+
+    assert f"push={expected_push}" in message
+    assert bool(sends) is (not data_observation)
+
+
 def test_monthly_macro_rejects_future_month(tmp_path):
     with pytest.raises(ValueError, match="future report month"):
         monthly_macro_flow_job(
