@@ -36,6 +36,7 @@ class StrategyContext:
     runtime_params: dict[str, Any] = field(default_factory=dict)
     db_session: Any = None
     monthly_macro_snapshot: dict[str, Any] | None = None
+    weekly_flow_summary: Any = None
 
 
 @dataclass
@@ -305,6 +306,10 @@ class MonthlyMacroFlowStrategy:
         from lurker.application.monthly_macro_flow import (
             analyze_monthly_macro_flow,
         )
+        from lurker.application.monthly_market_analysis import (
+            analyze_monthly_market,
+        )
+        from lurker.application.weekly_flow_report import WeeklyFlowSummary
         from lurker.reports.monthly_macro_flow_report import (
             render_monthly_macro_flow_report,
         )
@@ -316,9 +321,30 @@ class MonthlyMacroFlowStrategy:
         analysis = analyze_monthly_macro_flow(
             context.monthly_macro_snapshot
         )
+        weekly_summary = context.weekly_flow_summary or WeeklyFlowSummary(
+            availability="unavailable",
+            start_date=None,
+            end_date=None,
+            snapshot_count=0,
+            temperature_counts={"进攻": 0, "观察": 0, "防守": 0},
+            main_net_inflow_sum=0.0,
+            super_large_net_inflow_sum=0.0,
+            latest_etf_status="unknown",
+            latest_margin_signal="unknown",
+            continued_sectors=(),
+            new_sectors=(),
+            ebb_sectors=(),
+            failure_count=0,
+            quality_notes=("没有可用资金快照。",),
+        )
+        market_analysis = analyze_monthly_market(
+            analysis,
+            weekly_summary,
+        )
         report = render_monthly_macro_flow_report(
             context.monthly_macro_snapshot,
             analysis,
+            market_analysis,
         )
         return StrategyResult(
             name=self.name,
@@ -327,6 +353,7 @@ class MonthlyMacroFlowStrategy:
             metadata={
                 **_strategy_metadata(config),
                 "analysis": analysis,
+                "market_analysis": market_analysis,
             },
         )
 

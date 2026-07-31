@@ -13,6 +13,7 @@ from lurker.application.strategy_runner import (
     run_strategies,
     select_strategy_configs,
 )
+from lurker.application.weekly_flow_report import WeeklyFlowSummary
 from lurker.reports.models import DailyReport
 
 
@@ -36,6 +37,43 @@ def test_monthly_macro_flow_strategy_requires_its_own_snapshot():
                 cadence="monthly",
             ),
         )
+
+
+def test_monthly_macro_flow_strategy_adds_market_analysis_metadata():
+    from tests.test_monthly_macro_flow import complete_snapshot
+
+    context = StrategyContext(
+        snapshot_batch={"snapshots": []},
+        theme_mapping={},
+        report_date="2025-01",
+        attributor=None,
+        suppressed_symbols=set(),
+        monthly_macro_snapshot=complete_snapshot(),
+        weekly_flow_summary=WeeklyFlowSummary(
+            availability="unavailable",
+            start_date=None,
+            end_date=None,
+            snapshot_count=0,
+            temperature_counts={"进攻": 0, "观察": 0, "防守": 0},
+            main_net_inflow_sum=0.0,
+            super_large_net_inflow_sum=0.0,
+            latest_etf_status="unknown",
+            latest_margin_signal="unknown",
+            continued_sectors=(),
+            new_sectors=(),
+            ebb_sectors=(),
+            failure_count=0,
+            quality_notes=("没有可用资金快照。",),
+        ),
+    )
+
+    result = DEFAULT_STRATEGIES["monthly_macro_flow"].run(
+        context,
+        StrategyConfig(name="monthly_macro_flow", cadence="monthly"),
+    )
+
+    assert result.metadata["market_analysis"].market_stage == "数据不足"
+    assert "## 本月市场判断" in result.report.content_md
 
 
 def _strategy_yaml(tmp_path: Path, body: str) -> Path:

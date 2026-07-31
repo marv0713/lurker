@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from lurker.application.monthly_market_analysis import MonthlyMarketAnalysis
 from lurker.reports.models import DailyReport
 
 
@@ -32,13 +33,21 @@ def _status(value: Any) -> str:
 def render_monthly_macro_flow_report(
     snapshot: dict[str, Any],
     analysis: dict[str, Any],
+    market_analysis: MonthlyMarketAnalysis | None = None,
 ) -> DailyReport:
     observation = analysis["report_mode"] == "data_observation"
-    conclusion = (
-        "数据不足，仅展示观察事实，不形成趋势结论。"
-        if observation
-        else f"本月状态：{analysis['market_state']}。"
-    )
+    if market_analysis is not None:
+        conclusion = (
+            f"本月立场：{market_analysis.stance}；"
+            f"市场处于{market_analysis.market_stage}。"
+            f"{market_analysis.main_contradiction}"
+        )
+    else:
+        conclusion = (
+            "数据不足，仅展示观察事实，不形成趋势结论。"
+            if observation
+            else f"本月状态：{analysis['market_state']}。"
+        )
     household = analysis["household"]
     nonbank = analysis["nonbank"]
     money = analysis["money_supply"]
@@ -62,6 +71,79 @@ def render_monthly_macro_flow_report(
     if not source_lines:
         source_lines = ["- 暂无可用来源元数据。"]
 
+    market_sections: list[str] = []
+    if market_analysis is not None:
+        reason_labels = ("理由一", "理由二", "理由三")
+        reason_lines = [
+            f"- {label}：{reason}"
+            for label, reason in zip(
+                reason_labels,
+                market_analysis.core_reasons,
+                strict=False,
+            )
+        ]
+        supporting_lines = [
+            f"- {item}" for item in market_analysis.supporting_evidence
+        ] or ["- 暂无确认"]
+        constraining_lines = [
+            f"- {item}" for item in market_analysis.constraining_evidence
+        ] or ["- 暂无确认"]
+        market_sections = [
+            "## 本月市场判断",
+            "",
+            f"- 市场立场：{market_analysis.stance}",
+            f"- 市场阶段：{market_analysis.market_stage}",
+            *reason_lines,
+            "",
+            "## 资金证据链",
+            "",
+            "### 支持证据",
+            "",
+            *supporting_lines,
+            "",
+            "### 制约证据",
+            "",
+            *constraining_lines,
+            "",
+            "### 当前主要矛盾",
+            "",
+            market_analysis.main_contradiction,
+            "",
+            "## 日周月交叉验证",
+            "",
+            f"- 月度：{market_analysis.monthly_view}",
+            f"- 周度：{market_analysis.weekly_view}",
+            f"- 日度：{market_analysis.daily_view}",
+            "",
+            "## 当前市场结构",
+            "",
+            "- 持续主线："
+            + ("、".join(market_analysis.continued_sectors) or "暂无确认"),
+            "- 新主线："
+            + ("、".join(market_analysis.new_sectors) or "暂无确认"),
+            "- 退潮方向："
+            + ("、".join(market_analysis.ebb_sectors) or "暂无确认"),
+            f"- 结构判断：{market_analysis.structure_judgment}",
+            "",
+            "## 下月观察条件",
+            "",
+            "### 转强条件",
+            "",
+            *[f"- {item}" for item in market_analysis.strengthening_conditions],
+            "",
+            "### 转弱条件",
+            "",
+            *[f"- {item}" for item in market_analysis.weakening_conditions],
+            "",
+            "### 当前结论失效条件",
+            "",
+            f"- {market_analysis.invalidation_condition}",
+            "",
+        ]
+        quality_lines.extend(
+            f"- 市场上下文：{item}" for item in market_analysis.quality_notes
+        )
+
     content = "\n".join(
         [
             "# 宏观流动性月报",
@@ -76,6 +158,7 @@ def render_monthly_macro_flow_report(
             "",
             conclusion,
             "",
+            *market_sections,
             "## 牛市进度条",
             "",
             f"- 市场状态：{analysis['market_state'] or '暂不形成结论'}",
