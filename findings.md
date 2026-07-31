@@ -65,6 +65,27 @@
 ## 视觉/浏览器发现
 - 本轮没有使用浏览器或图片分析。
 
+## 2026-07-29 代码审查核验
+- 正在逐项核验 `docs/code-review-2026-07-29.md`；结论将以实际测试、引用关系和运行时行为为准。
+- 本轮只诊断和提出修复方案，不修改业务代码。
+- P0“测试套件无法运行”在当前仓库不成立：`.venv/bin/python -m pytest -q` 得到 `468 passed`；`tests` 被解析为指向本仓库 `tests/` 的命名空间包。
+- 该跨测试模块导入仍有环境脆弱性：若环境里出现同名常规 `tests` 包，命名空间包可能被遮蔽；适合作为低优先级测试结构硬化，而不是当前 P0。
+- AI 权重问题成立：把已加载的 `ai_attribution.weights` 全部改成 0 后，同一归因结果仍从 85 分得到 85 分；`load_scoring()` 也只校验 stock/sector 权重。
+- AI schema 重复问题成立：同一无效 payload 被 attributor 容错成领域对象，而 Pydantic schema 同时报 4 个校验错误；生产链路只使用 attributor/领域 dataclass，Pydantic 模型仅被旧兼容模块和测试引用。
+- 占位策略问题成立且报告修复建议不可直接使用：三项配置均为 `enabled: false, lifecycle: active`，但显式按名称选择会全部入选；现有校验禁止 active 策略声明 limitations。
+- `pipeline.py` 是有意保留的兼容入口，仍被 CLI 和兼容测试引用，不是空壳故障；删除前需先迁移引用并明确公共 API 兼容策略。
+- legacy signal 扩展分支仍存在，但生产扫描不传这些指标、配置校验也禁止这些权重；属于可确认的不可达维护债务。
+- 报告测试结论部分过时/错误：`professional_flow_report` 与 `monthly_macro_flow_report` 已有直接测试；`daily_report` 和 `trend_card` 仍只有间接覆盖或无直接覆盖。
+- `cli.py` 文件确有 2,289 行，但 `main()` 实际为 214 行；更长的是 `build_parser()` 394 行、`daily_job()` 326 行。问题是模块职责和若干函数过长，不是 `main()` 有 2,289 行。
+
+## 2026-07-31 修复后状态
+- 上述 2026-07-29 条目是提交 `b51a93f` 的核验快照，不代表修复后的当前状态。
+- 审查报告已撤销“测试套件无法运行”的错误 P0；`tests/__init__.py` 仅作为命名空间遮蔽的防御性硬化。
+- 修复分支完整测试为 `496 passed`，Ruff 通过。
+- `daily_report`、`professional_flow_report`、`monthly_macro_flow_report` 和 `trend_card` 均已有直接测试。
+- `cli.py` 已拆分出 `cli_parser.py` 与 `cli_dispatch.py`，当前为 1,713 行；原始 2,289 行属于修复前快照。
+- AI 配置契约、重复 schema、占位策略误运行和不可达旧评分扩展点均已按兼容优先方案处理。
+
 ---
 *每执行2次查看/浏览器/搜索操作后更新此文件*
 *防止视觉信息丢失*
