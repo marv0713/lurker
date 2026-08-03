@@ -446,10 +446,14 @@ def _market_notes(
 ) -> list[str]:
     notes = [f"市场温度：{temperature}"]
     if market_flow:
+        main_inflow = _as_float(market_flow.get("main_net_inflow"))
+        super_large_inflow = _as_float(
+            market_flow.get("super_large_net_inflow")
+        )
         notes.append(
-            "大盘主力净流入 "
-            f"{_as_float(market_flow.get('main_net_inflow')):.0f}，超大单 "
-            f"{_as_float(market_flow.get('super_large_net_inflow')):.0f}"
+            "大盘资金："
+            f"主力净流入 {main_inflow / 100_000_000:+.1f}亿元；"
+            f"超大单净流入 {super_large_inflow / 100_000_000:+.1f}亿元"
         )
     margin_note = _format_margin_note(margin)
     if margin_note is not None:

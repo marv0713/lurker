@@ -391,6 +391,28 @@ def test_daily_report_renders_readable_stale_etf_and_margin_details():
         in report.content_md
     )
     assert "⚠️ 部分数据非当日或采集不完整" not in report.content_md
+    assert (
+        "大盘资金：主力净流入 +625.4亿元；超大单净流入 +699.9亿元"
+        in report.content_md
+    )
+    assert "62535737344" not in report.content_md
+    assert "69993807872" not in report.content_md
+
+
+def test_market_notes_formats_negative_and_zero_market_flow_in_billions():
+    notes = _market_notes(
+        {
+            "main_net_inflow": -41_870_618_624.0,
+            "super_large_net_inflow": 0.0,
+        },
+        {},
+        "观察",
+    )
+
+    assert (
+        "大盘资金：主力净流入 -418.7亿元；超大单净流入 +0.0亿元"
+        in notes
+    )
 
 
 def test_market_temperature_defense_downgrades_candidates():
