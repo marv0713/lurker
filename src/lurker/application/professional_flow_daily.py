@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from collections import Counter
 from dataclasses import dataclass
 from datetime import date, datetime, timezone, timedelta
 from typing import Any, Callable
@@ -48,6 +49,166 @@ def _stock_flow_coverage(
     if not raw:
         return "available_empty", []
     return "available", raw
+
+
+_SPRING_QUALITY_LABELS = {
+    "insufficient_history": "有效日线不足",
+    "missing_spring_result": "旧快照缺少三态结果",
+    "duplicate_trade_date": "交易日重复",
+    "invalid_trade_date": "交易日期无效",
+    "invalid_price_data": "价格数据无效",
+    "invalid_volume_data": "成交量数据无效",
+    "zero_volume_baseline": "前期成交量基准无效",
+}
+
+_SPRING_REASON_PRIORITY = {
+    "ma20_broken": 0,
+    "third_support_test": 1,
+    "volume_not_compressed": 2,
+}
+
+
+def _optional_float(value: Any) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _build_spring_scan(
+    price_rows: list[dict[str, Any]],
+    *,
+    candidates: list[dict[str, Any]],
+    symbol_names: dict[str, str] | None,
+) -> tuple[dict[str, list[dict[str, Any]]], list[str]]:
+    groups: dict[str, list[dict[str, Any]]] = {
+        "confirmed": [],
+        "watch": [],
+        "excluded": [],
+    }
+    scores = {
+        str(item.get("symbol", "")).upper(): _optional_float(item.get("score"))
+        for item in candidates
+    }
+    unknown_reasons: Counter[str] = Counter()
+
+    for row in price_rows:
+        if row.get("market") != "cn":
+            continue
+        symbol = str(row.get("symbol", "")).upper()
+        spring = row.get("spring")
+        if not isinstance(spring, dict):
+            unknown_reasons["missing_spring_result"] += 1
+            continue
+        state = spring.get("state")
+        if state == "unknown":
+            reasons = spring.get("reasons")
+            reason = (
+                str(reasons[0])
+                if isinstance(reasons, list) and reasons
+                else "invalid_price_data"
+            )
+            unknown_reasons[reason] += 1
+            continue
+        if state not in {
+            "first_bullish_confirmed",
+            "compressed_watch",
+            "weak_excluded",
+        }:
+            continue
+
+        raw_reasons = spring.get("reasons")
+        reasons = (
+            [str(reason) for reason in raw_reasons]
+            if isinstance(raw_reasons, list)
+            else []
+        )
+        item = {
+            "symbol": symbol,
+            "name": (symbol_names or {}).get(symbol) or symbol,
+            "state": state,
+            "score": scores.get(symbol),
+            "ma20_distance_pct": _optional_float(
+                spring.get("ma20_distance_pct")
+            ),
+            "volume_compression_ratio": _optional_float(
+                spring.get("volume_compression_ratio")
+            ),
+            "support_touch_count_60d": int(
+                spring.get("support_touch_count_60d") or 0
+            ),
+            "min_ma20_distance_2d_pct": _optional_float(
+                spring.get("min_ma20_distance_2d_pct")
+            ),
+            "reasons": reasons,
+        }
+        if state == "first_bullish_confirmed":
+            groups["confirmed"].append(item)
+        elif state == "compressed_watch":
+            groups["watch"].append(item)
+        else:
+            groups["excluded"].append(item)
+
+    def positive_sort_key(item: dict[str, Any]) -> tuple[Any, ...]:
+        distance = item["ma20_distance_pct"]
+        ratio = item["volume_compression_ratio"]
+        score = item["score"]
+        return (
+            item["support_touch_count_60d"],
+            abs(distance) if distance is not None else math.inf,
+            ratio if ratio is not None else math.inf,
+            score is None,
+            -score if score is not None else 0.0,
+            item["symbol"],
+        )
+
+    def excluded_sort_key(item: dict[str, Any]) -> tuple[Any, ...]:
+        reasons = item["reasons"]
+        primary = min(
+            reasons,
+            key=lambda reason: _SPRING_REASON_PRIORITY.get(reason, 99),
+            default="",
+        )
+        priority = _SPRING_REASON_PRIORITY.get(primary, 99)
+        distance = item["ma20_distance_pct"]
+        if primary == "ma20_broken":
+            risk = item["min_ma20_distance_2d_pct"]
+            detail = (
+                risk if risk is not None else math.inf,
+                -item["support_touch_count_60d"],
+            )
+        elif primary == "third_support_test":
+            detail = (
+                -item["support_touch_count_60d"],
+                abs(distance) if distance is not None else math.inf,
+            )
+        else:
+            ratio = item["volume_compression_ratio"]
+            detail = (
+                -(ratio if ratio is not None else -math.inf),
+                abs(distance) if distance is not None else math.inf,
+            )
+        return (priority, *detail, item["symbol"])
+
+    groups["confirmed"] = sorted(
+        groups["confirmed"], key=positive_sort_key
+    )[:5]
+    groups["watch"] = sorted(groups["watch"], key=positive_sort_key)[:10]
+    groups["excluded"] = sorted(
+        groups["excluded"], key=excluded_sort_key
+    )[:5]
+
+    quality: list[str] = []
+    if unknown_reasons:
+        parts = [
+            f"{count} 只{_SPRING_QUALITY_LABELS.get(reason, '规则原因暂不可用')}"
+            for reason, count in sorted(unknown_reasons.items())
+        ]
+        quality.append(
+            f"⚠️ 弹簧三态：{'，'.join(parts)}；这些股票本次暂不判断。"
+        )
+    return groups, quality
 
 
 # ---------------------------------------------------------------------------
@@ -599,15 +760,11 @@ def run_professional_flow_daily(
 
     candidates.sort(key=lambda item: item["score"], reverse=True)
     two_percent = [item for item in candidates if item["label"] == "2%候选"][:10]
-    setup_watch = [
-        item
-        for item in candidates
-        if item["label"] != "2%候选"
-        and item["score"] >= 0
-        and item.get("setup_score", 0) >= 60
-        and item.get("contradiction") is None
-        and temperature != "防守"
-    ][:10]
+    spring_scan, spring_quality = _build_spring_scan(
+        list(price_rows.values()),
+        candidates=candidates,
+        symbol_names=symbol_names,
+    )
 
     # 修复 4 + 6：退潮板块也加入证伪提醒
     for ebb_sector in _ebb_sectors(sector_flows, theme_mapping):
@@ -624,6 +781,7 @@ def run_professional_flow_daily(
     # 数据质量
     data_quality: list[str] = []
     data_quality.extend(prepared.quality_notes)
+    data_quality.extend(spring_quality)
     if not temperature_rollout_approved:
         data_quality.append(
             "⚠️ 市场温度规则尚未完成上线验收，已禁用温度驱动的 2%候选。"
@@ -652,7 +810,10 @@ def run_professional_flow_daily(
         top_names = "、".join(item["name"] for item in two_percent[:3])
         conclusion = f"今日状态：{temperature}。共 {two_pct_count} 只标的满足 2%候选条件，领跑者：{top_names}。"
     else:
-        conclusion = f"今日状态：{temperature}。暂无标的满足 2%候选条件，建议观望或布局弹簧买点。"
+        conclusion = (
+            f"今日状态：{temperature}。暂无标的满足 2%候选条件；"
+            "弹簧三态扫描见下文。"
+        )
 
     content = render_professional_flow_report(
         report_date=report_date,
@@ -671,7 +832,7 @@ def run_professional_flow_daily(
         sector_leaders=sector_leaders,
         stock_flow_leaders=_core_stock_flow_leaders(stock_flows),
         two_percent_candidates=two_percent,
-        setup_watch=setup_watch,
+        spring_scan=spring_scan,
         invalidation_alerts=invalidation_alerts,
         data_quality=data_quality,
         conclusion=conclusion,

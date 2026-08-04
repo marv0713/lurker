@@ -4,6 +4,7 @@ import pytest
 
 from lurker.application.market_temperature import classify_market_temperature
 from lurker.application.professional_flow_daily import (
+    _build_spring_scan,
     _detect_contradiction,
     _market_notes,
     _setup_score,
@@ -533,7 +534,7 @@ def test_professional_daily_report_includes_core_stock_flows():
     )
 
     assert "## 核心股票资金流向" in report.content_md
-    stock_section = report.content_md.split("## 核心股票资金流向", 1)[1].split("## 弹簧买点观察", 1)[0]
+    stock_section = report.content_md.split("## 核心股票资金流向", 1)[1].split("## 弹簧三态扫描", 1)[0]
     assert "烽火通信 (600498.SH)" in stock_section
     assert "今日 21.7亿" in stock_section
 
@@ -888,7 +889,7 @@ def test_invalidation_alerts_auto_populated_from_contradictions():
     assert "强势未获资金确认" in report.content_md
 
 
-def test_negative_score_candidate_is_not_shown_as_spring_setup():
+def test_legacy_setup_proxy_is_not_shown_as_spring_state():
     price_snapshot = {
         "snapshots": [
             {
@@ -935,8 +936,9 @@ def test_negative_score_candidate_is_not_shown_as_spring_setup():
         report_date="2026-06-04",
     )
 
-    setup_section = report.content_md.split("## 弹簧买点观察", 1)[1].split("## 证伪/退潮提醒", 1)[0]
-    assert "迈瑞医疗" not in setup_section
+    spring_section = report.content_md.split("## 弹簧三态扫描", 1)[1].split("## 证伪/退潮提醒", 1)[0]
+    assert "迈瑞医疗" not in spring_section
+    assert "## 弹簧买点观察" not in report.content_md
 
 
 # ---------------------------------------------------------------------------
@@ -979,7 +981,7 @@ def test_daily_sector_labels_include_time_scope(label):
         ],
         stock_flow_leaders=[],
         two_percent_candidates=[],
-        setup_watch=[],
+        spring_scan={"confirmed": [], "watch": [], "excluded": []},
         invalidation_alerts=[],
         data_quality=[],
     )
@@ -1034,3 +1036,193 @@ def test_successful_empty_stock_flow_is_distinct_from_failure():
     )
     assert "本次个股资金流来源返回 0 条记录" in report.content_md
     assert "个股资金流不可用" not in report.content_md
+
+
+def _spring_payload(
+    state,
+    *,
+    distance=0.008,
+    ratio=0.28,
+    touches=1,
+    reasons=None,
+    break_distance=None,
+):
+    return {
+        "rule_version": "ma20-v1",
+        "state": state,
+        "as_of": "2026-08-04",
+        "ma20_distance_pct": distance,
+        "volume_compression_ratio": ratio,
+        "support_touch_count_60d": touches,
+        "min_ma20_distance_2d_pct": break_distance,
+        "reasons": list(reasons or []),
+    }
+
+
+def _spring_price_row(symbol, state, **spring_kwargs):
+    return {
+        "symbol": symbol,
+        "market": "cn",
+        "return_20d": 0.05,
+        "return_60d": 0.10,
+        "return_120d": 0.15,
+        "return_180d": 0.20,
+        "spring": _spring_payload(state, **spring_kwargs),
+    }
+
+
+def test_daily_report_renders_three_spring_states_and_explanation():
+    price_snapshot = {
+        "snapshots": [
+            _spring_price_row("300001.SZ", "first_bullish_confirmed"),
+            _spring_price_row("300002.SZ", "compressed_watch", ratio=0.20),
+            _spring_price_row(
+                "300003.SZ",
+                "weak_excluded",
+                distance=-0.04,
+                ratio=0.46,
+                touches=3,
+                break_distance=-0.05,
+                reasons=[
+                    "ma20_broken",
+                    "third_support_test",
+                    "volume_not_compressed",
+                ],
+            ),
+            _spring_price_row(
+                "300004.SZ",
+                "unknown",
+                reasons=["invalid_volume_data"],
+            ),
+            _spring_price_row("300005.SZ", "none"),
+            {
+                "symbol": "NVDA",
+                "market": "us",
+                "spring": _spring_payload(
+                    "unknown", reasons=["insufficient_history"]
+                ),
+            },
+        ]
+    }
+    report = run_professional_flow_daily(
+        price_snapshot=price_snapshot,
+        flow_snapshot={
+            "market_flow": {"main_net_inflow": 1.0, "super_large_net_inflow": 1.0},
+            "sector_flows": [],
+            "stock_flows": [],
+            "margin": {},
+            "core_etfs": [],
+            "failures": [],
+        },
+        theme_mapping={},
+        symbol_names={
+            "300001.SZ": "首阳股票",
+            "300002.SZ": "压紧股票",
+            "300003.SZ": "弱弹簧股票",
+            "300004.SZ": "数据不足股票",
+            "300005.SZ": "无形态股票",
+        },
+        report_date="2026-08-04",
+    )
+
+    assert "## 弹簧三态扫描" in report.content_md
+    assert "### 首阳确认" in report.content_md
+    assert "### 压紧观察" in report.content_md
+    assert "### 弱弹簧排除" in report.content_md
+    assert "仅代表形态确认" in report.content_md
+    assert "首阳股票 (300001.SZ)：首阳确认" in report.content_md
+    assert "压紧股票 (300002.SZ)：压紧观察" in report.content_md
+    assert "弱弹簧股票 (300003.SZ)：弱弹簧排除" in report.content_md
+    assert "连续2日有效跌破 MA20" in report.content_md
+    assert "近60日第3次回踩" in report.content_md
+    assert "回踩时缩量不足（缩量比 46%）" in report.content_md
+    assert "1 只成交量数据无效" in report.content_md
+    assert "有效日线不足" not in report.content_md
+    assert "数据不足股票" not in report.content_md
+    assert "无形态股票" not in report.content_md
+    assert "NVDA" not in report.content_md
+    assert "## 弹簧买点观察" not in report.content_md
+    assert "建议观望或布局弹簧买点" not in report.content_md
+
+
+def test_spring_scan_sorts_present_score_before_missing_score_after_metric_ties():
+    rows = [
+        _spring_price_row("300002.SZ", "compressed_watch"),
+        _spring_price_row("300001.SZ", "compressed_watch"),
+    ]
+
+    groups, quality = _build_spring_scan(
+        rows,
+        candidates=[{"symbol": "300002.SZ", "score": 0.0}],
+        symbol_names={},
+    )
+
+    assert [item["symbol"] for item in groups["watch"]] == [
+        "300002.SZ",
+        "300001.SZ",
+    ]
+    assert quality == []
+
+
+def test_spring_scan_weak_reason_order_is_deterministic():
+    rows = [
+        _spring_price_row(
+            "300003.SZ",
+            "weak_excluded",
+            reasons=["volume_not_compressed"],
+            ratio=0.80,
+        ),
+        _spring_price_row(
+            "300002.SZ",
+            "weak_excluded",
+            reasons=["third_support_test"],
+            touches=3,
+        ),
+        _spring_price_row(
+            "300001.SZ",
+            "weak_excluded",
+            reasons=["ma20_broken"],
+            break_distance=-0.05,
+        ),
+    ]
+
+    groups, _quality = _build_spring_scan(rows, candidates=[], symbol_names={})
+
+    assert [item["symbol"] for item in groups["excluded"]] == [
+        "300001.SZ",
+        "300002.SZ",
+        "300003.SZ",
+    ]
+
+
+def test_spring_scan_limits_groups_and_keeps_empty_subsections():
+    rows = [
+        _spring_price_row(f"30{index:04d}.SZ", "compressed_watch")
+        for index in range(12)
+    ]
+
+    groups, _quality = _build_spring_scan(rows, candidates=[], symbol_names={})
+
+    assert len(groups["confirmed"]) == 0
+    assert len(groups["watch"]) == 10
+    assert len(groups["excluded"]) == 0
+
+
+def test_spring_renderer_keeps_empty_groups_and_explains_defense_mode():
+    report = render_professional_flow_report(
+        report_date="2026-08-04",
+        market_temperature="防守",
+        market_notes=[],
+        sector_leaders=[],
+        stock_flow_leaders=[],
+        two_percent_candidates=[],
+        spring_scan={"confirmed": [], "watch": [], "excluded": []},
+        invalidation_alerts=[],
+        data_quality=[],
+    )
+
+    assert "防守模式：三态结果仅供形态跟踪，不进入候选。" in report
+    spring_section = report.split("## 弹簧三态扫描", 1)[1].split(
+        "## 证伪/退潮提醒", 1
+    )[0]
+    assert spring_section.count("- 暂无") == 3
