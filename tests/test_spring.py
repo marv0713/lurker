@@ -100,3 +100,211 @@ def test_segments_with_anchor_distance_exactly_five_stay_separate():
     flags = [False, True, False, False, False, False, True]
 
     assert _merge_touch_segments(flags) == [(1, 1), (6, 6)]
+
+
+def _trending_state_bars() -> list[dict[str, object]]:
+    values = _bars()
+    closes = [80.0 + index * 0.5 for index in range(59)]
+    closes.extend(109.0 + index * 0.1 for index in range(20))
+    for index, (row, close) in enumerate(zip(values, closes, strict=True)):
+        row.update(
+            {
+                "open": close,
+                "high": close * 1.01,
+                "low": close * 0.995,
+                "close": close,
+                "volume": 1_000_000.0 if index < 75 else 200_000.0,
+            }
+        )
+    return values
+
+
+def _bars_for_touch_flags(flags: list[bool]) -> list[dict[str, object]]:
+    assert len(flags) == 60
+    values = _bars()
+    closes = [80.0 + index * 0.25 for index in range(19)]
+    for touched in flags:
+        prior_average = sum(closes[-19:]) / 19
+        closes.append(prior_average if touched else prior_average * 1.10)
+    for row, close in zip(values, closes, strict=True):
+        row.update(
+            {
+                "open": close,
+                "high": close * 1.01,
+                "low": close * 0.995,
+                "close": close,
+                "volume": 1_000_000.0,
+            }
+        )
+    return values
+
+
+def _set_last_close_distance(values: list[dict[str, object]], distance: float) -> None:
+    prior_sum = sum(float(row["close"]) for row in values[-20:-1])
+    close = (1.0 + distance) * prior_sum / (19.0 - distance)
+    values[-1].update(
+        {
+            "open": close,
+            "high": close * 1.01,
+            "low": close * 0.995,
+            "close": close,
+        }
+    )
+
+
+def test_rising_ma20_touch_with_compression_is_watch():
+    result = analyze_spring_bars(_trending_state_bars())
+
+    assert result["state"] == "compressed_watch"
+    assert result["support_touch_count_60d"] == 1
+    assert result["volume_compression_ratio"] == 0.2
+
+
+def test_first_bullish_after_compression_is_confirmed():
+    values = _trending_state_bars()
+    values[-1]["open"] = float(values[-1]["close"]) - 0.05
+
+    result = analyze_spring_bars(values)
+
+    assert result["state"] == "first_bullish_confirmed"
+    assert result["reasons"] == []
+
+
+def test_first_bullish_uses_prior_three_days_not_its_own_volume():
+    values = _trending_state_bars()
+    values[-1]["open"] = float(values[-1]["close"]) - 0.05
+    values[-1]["volume"] = 3_000_000.0
+
+    result = analyze_spring_bars(values)
+
+    assert result["state"] == "first_bullish_confirmed"
+    assert result["volume_compression_ratio"] == 0.2
+
+
+def test_first_bullish_volume_does_not_overflow_to_next_day():
+    values = _trending_state_bars()
+    values[-2]["open"] = float(values[-2]["close"]) - 0.05
+    values[-2]["volume"] = 3_000_000.0
+
+    result = analyze_spring_bars(values)
+
+    assert result["state"] == "none"
+    assert "volume_not_compressed" not in result["reasons"]
+
+
+def test_uncompressed_touch_is_weak_excluded():
+    values = _trending_state_bars()
+    for row in values[-3:]:
+        row["volume"] = 600_000.0
+
+    result = analyze_spring_bars(values)
+
+    assert result["state"] == "weak_excluded"
+    assert result["reasons"] == ["volume_not_compressed"]
+
+
+def test_volume_ratio_at_exactly_thirty_percent_is_compressed():
+    values = _trending_state_bars()
+    for row in values[-3:]:
+        row["volume"] = 300_000.0
+
+    result = analyze_spring_bars(values)
+
+    assert result["state"] == "compressed_watch"
+    assert result["volume_compression_ratio"] == 0.3
+
+
+def test_third_independent_touch_is_weak_excluded():
+    flags = [False] * 60
+    flags[40] = True
+    flags[50] = True
+    flags[59] = True
+    values = _bars_for_touch_flags(flags)
+
+    result = analyze_spring_bars(values)
+
+    assert result["state"] == "weak_excluded"
+    assert result["support_touch_count_60d"] == 3
+    assert "third_support_test" in result["reasons"]
+
+
+def test_latest_two_day_break_after_recent_touch_is_weak_excluded():
+    flags = [False] * 60
+    flags[55] = True
+    values = _bars_for_touch_flags(flags)
+    for index in (-2, -1):
+        prior_sum = sum(float(row["close"]) for row in values[index - 19 : index])
+        close = 0.95 * prior_sum / 19
+        values[index].update(
+            {
+                "open": close,
+                "high": close * 1.01,
+                "low": close * 0.995,
+                "close": close,
+            }
+        )
+
+    result = analyze_spring_bars(values)
+
+    assert result["state"] == "weak_excluded"
+    assert result["reasons"] == ["ma20_broken"]
+
+
+def test_ma20_down_does_not_create_watch_or_confirmation():
+    values = _trending_state_bars()
+    for index, row in enumerate(values[-30:]):
+        close = 112.0 - index * 0.2
+        row.update(
+            {"open": close, "high": close * 1.01, "low": close * 0.995, "close": close}
+        )
+
+    result = analyze_spring_bars(values)
+
+    assert result["state"] == "none"
+
+
+def test_far_above_ma20_is_none():
+    values = _bars()
+    for index, row in enumerate(values):
+        close = 50.0 * (1.03**index)
+        row.update(
+            {"open": close, "high": close * 1.01, "low": close * 0.995, "close": close}
+        )
+    for row in values[-3:]:
+        row["volume"] = 200_000.0
+
+    result = analyze_spring_bars(values)
+
+    assert result["state"] == "none"
+
+
+def test_long_shadow_with_close_above_band_and_no_first_bullish_is_none():
+    values = _trending_state_bars()
+    prior_sum = sum(float(row["close"]) for row in values[-20:-1])
+    close = 1.05 * prior_sum / 18.95
+    ma20 = (prior_sum + close) / 20
+    values[-1].update(
+        {
+            "open": close,
+            "high": close * 1.01,
+            "low": ma20 * 1.01,
+            "close": close,
+            "volume": 600_000.0,
+        }
+    )
+
+    result = analyze_spring_bars(values)
+
+    assert result["ma20_distance_pct"] > 0.02
+    assert result["state"] == "none"
+    assert result["reasons"] == []
+
+
+def test_ma20_distance_boundaries_are_inside_support_band():
+    for distance in (-0.02, 0.02):
+        values = _trending_state_bars()
+        _set_last_close_distance(values, distance)
+        result = analyze_spring_bars(values)
+
+        assert math.isclose(result["ma20_distance_pct"], distance, abs_tol=1e-12)
+        assert result["state"] == "compressed_watch"

@@ -10,6 +10,7 @@ from typing import Any
 RULE_VERSION = "ma20-v1"
 MINIMUM_BARS = 79
 PRICE_FIELDS = ("open", "high", "low", "close")
+BOUNDARY_EPSILON = 1e-12
 
 
 @dataclass(frozen=True)
@@ -91,6 +92,25 @@ def _moving_average(values: Sequence[float], end: int, window: int) -> float:
     return sum(values[start : end + 1]) / window
 
 
+def _is_bullish(bars: Sequence[_Bar], index: int) -> bool:
+    return (
+        index > 0
+        and bars[index].close > bars[index].open
+        and bars[index].close > bars[index - 1].close
+    )
+
+
+def _compression_ratio(bars: Sequence[_Bar], compression_end: int) -> float:
+    compression = [bar.volume for bar in bars[compression_end - 2 : compression_end + 1]]
+    active = [bar.volume for bar in bars[compression_end - 42 : compression_end - 2]]
+    rolling_five = [
+        sum(active[index : index + 5]) / 5
+        for index in range(len(active) - 4)
+    ]
+    baseline = max(rolling_five)
+    return (sum(compression) / 3) / baseline
+
+
 def analyze_spring_bars(
     bars: Sequence[Mapping[str, Any]],
 ) -> dict[str, Any]:
@@ -137,21 +157,91 @@ def analyze_spring_bars(
         for index in range(19, MINIMUM_BARS)
     ]
     touch_flags = [
-        normalized[index].low <= ma20 * 1.02
-        and normalized[index].close >= ma20 * 0.98
+        normalized[index].low / ma20 - 1.0 <= 0.02 + BOUNDARY_EPSILON
+        and normalized[index].close / ma20 - 1.0 >= -0.02 - BOUNDARY_EPSILON
         for index, ma20 in zip(range(19, MINIMUM_BARS), ma20_values, strict=True)
     ]
     segments = _merge_touch_segments(touch_flags)
     ma20_distance = normalized[-1].close / ma20_values[-1] - 1.0
     prior_distance = normalized[-2].close / ma20_values[-2] - 1.0
 
+    current_segment = (
+        segments[-1]
+        if touch_flags[-1] and segments and segments[-1][1] == len(touch_flags) - 1
+        else None
+    )
+    prior_bullish_in_segment = False
+    if current_segment is not None:
+        prior_bullish_in_segment = any(
+            _is_bullish(normalized, local_index + 19)
+            for local_index in range(current_segment[0], len(touch_flags) - 1)
+        )
+    current_bullish = (
+        current_segment is not None
+        and not prior_bullish_in_segment
+        and _is_bullish(normalized, len(normalized) - 1)
+    )
+
+    ma20_up = ma20_values[-1] > ma20_values[-6]
+    recent_touch = any(touch_flags[-10:])
+    broken = recent_touch and all(
+        distance < -0.02 - BOUNDARY_EPSILON
+        for distance in (prior_distance, ma20_distance)
+    )
+    third_or_later_touch = current_segment is not None and len(segments) >= 3
+
+    compression_ratio: float | None = None
+    if current_segment is not None and not prior_bullish_in_segment:
+        compression_end = len(normalized) - 2 if current_bullish else len(normalized) - 1
+        compression_ratio = _compression_ratio(normalized, compression_end)
+
+    volume_not_compressed = (
+        ma20_up
+        and current_segment is not None
+        and not prior_bullish_in_segment
+        and compression_ratio is not None
+        and (ma20_distance <= 0.02 + BOUNDARY_EPSILON or current_bullish)
+        and compression_ratio > 0.30 + BOUNDARY_EPSILON
+    )
+
+    reasons: list[str] = []
+    if broken:
+        reasons.append("ma20_broken")
+    if third_or_later_touch:
+        reasons.append("third_support_test")
+    if volume_not_compressed:
+        reasons.append("volume_not_compressed")
+
+    state = "none"
+    if reasons:
+        state = "weak_excluded"
+    elif (
+        ma20_up
+        and current_bullish
+        and compression_ratio is not None
+        and compression_ratio <= 0.30 + BOUNDARY_EPSILON
+    ):
+        state = "first_bullish_confirmed"
+    elif (
+        ma20_up
+        and current_segment is not None
+        and not prior_bullish_in_segment
+        and not current_bullish
+        and -0.02 - BOUNDARY_EPSILON
+        <= ma20_distance
+        <= 0.02 + BOUNDARY_EPSILON
+        and compression_ratio is not None
+        and compression_ratio <= 0.30 + BOUNDARY_EPSILON
+    ):
+        state = "compressed_watch"
+
     return {
         "rule_version": RULE_VERSION,
-        "state": "none",
+        "state": state,
         "as_of": as_of,
         "ma20_distance_pct": ma20_distance,
-        "volume_compression_ratio": None,
+        "volume_compression_ratio": compression_ratio,
         "support_touch_count_60d": len(segments),
         "min_ma20_distance_2d_pct": min(prior_distance, ma20_distance),
-        "reasons": [],
+        "reasons": reasons,
     }
