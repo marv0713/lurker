@@ -72,6 +72,7 @@
     "ma20_distance_pct": 0.008,
     "volume_compression_ratio": 0.28,
     "support_touch_count_60d": 1,
+    "min_ma20_distance_2d_pct": -0.006,
     "reasons": []
   }
 }
@@ -88,6 +89,8 @@
 | `unknown` | 数据不足或无法安全计算 | 否，计入数据质量 |
 
 新生成的快照必须为每只成功取得价格快照的 A 股写入 `spring` 对象，包括 `none` 和 `unknown`。只有历史快照允许完全缺少该对象。`rule_version` 用于区分未来规则变化；`as_of` 必须取该股票日线的最新交易日，不能直接复制报告日。
+
+`min_ma20_distance_2d_pct` 保存最新两日 MA20 距离的最小值，只用于“有效跌破”风险排序；不适用或无法计算时为 `null`。
 
 `reasons` 使用稳定原因码，不直接保存中文文案：
 
