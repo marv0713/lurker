@@ -124,6 +124,7 @@ def _build_spring_scan(
             if isinstance(raw_reasons, list)
             else []
         )
+        reasons.sort(key=lambda reason: _SPRING_REASON_PRIORITY.get(reason, 99))
         item = {
             "symbol": symbol,
             "name": (symbol_names or {}).get(symbol) or symbol,

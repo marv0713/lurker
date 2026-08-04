@@ -1195,6 +1195,28 @@ def test_spring_scan_weak_reason_order_is_deterministic():
     ]
 
 
+def test_spring_scan_normalizes_reason_order_from_external_snapshot():
+    rows = [
+        _spring_price_row(
+            "300001.SZ",
+            "weak_excluded",
+            reasons=[
+                "volume_not_compressed",
+                "third_support_test",
+                "ma20_broken",
+            ],
+        )
+    ]
+
+    groups, _quality = _build_spring_scan(rows, candidates=[], symbol_names={})
+
+    assert groups["excluded"][0]["reasons"] == [
+        "ma20_broken",
+        "third_support_test",
+        "volume_not_compressed",
+    ]
+
+
 def test_spring_scan_limits_groups_and_keeps_empty_subsections():
     rows = [
         _spring_price_row(f"30{index:04d}.SZ", "compressed_watch")
