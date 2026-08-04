@@ -98,6 +98,7 @@
 - `third_support_test`
 - `volume_not_compressed`
 - `insufficient_history`
+- `missing_spring_result`
 - `duplicate_trade_date`
 - `invalid_trade_date`
 - `invalid_price_data`
