@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 import pandas as pd
 
 from lurker.application.price_snapshot import (
@@ -29,6 +31,26 @@ def fake_fetcher(symbol: str, period: str) -> pd.DataFrame:
     )
 
 
+def spring_fetcher(symbol: str, period: str) -> pd.DataFrame:
+    del period
+    end = date(2026, 8, 4)
+    dates = [end - timedelta(days=78 - index) for index in range(79)]
+    closes = [80.0 + index * 0.5 for index in range(59)]
+    closes.extend(109.0 + index * 0.1 for index in range(20))
+    return pd.DataFrame(
+        {
+            "symbol": [symbol] * 79,
+            "trade_date": dates,
+            "open": closes,
+            "high": [close * 1.01 for close in closes],
+            "low": [close * 0.995 for close in closes],
+            "close": closes,
+            "adj_close": closes,
+            "volume": [1_000_000.0] * 75 + [200_000.0] * 4,
+        }
+    )
+
+
 def test_collect_price_snapshots_from_seed_symbols():
     seed_symbols = {"us": ["NVDA", "AVGO"], "hk": ["0700.HK"]}
 
@@ -46,6 +68,53 @@ def test_collect_price_snapshots_from_seed_symbols():
     assert snapshots[0]["market"] == "us"
     assert round(snapshots[0]["return_1d"], 4) == 0.1667
     assert round(snapshots[0]["return_2d"], 4) == 0.4
+
+
+def test_collect_cn_snapshot_attaches_spring_result():
+    batch = collect_price_snapshot_batch(
+        seed_symbols={"cn": ["300001.SZ"]},
+        markets=["cn"],
+        windows=[20],
+        period="6mo",
+        fetcher=spring_fetcher,
+    )
+
+    row = batch["snapshots"][0]
+    assert row["spring"]["rule_version"] == "ma20-v1"
+    assert row["spring"]["state"] == "compressed_watch"
+    assert row["spring"]["as_of"] == "2026-08-04"
+
+
+def test_collect_non_cn_snapshot_does_not_attach_spring_result():
+    batch = collect_price_snapshot_batch(
+        seed_symbols={"us": ["NVDA"]},
+        markets=["us"],
+        windows=[20],
+        period="6mo",
+        fetcher=spring_fetcher,
+    )
+
+    assert "spring" not in batch["snapshots"][0]
+
+
+def test_spring_analysis_failure_preserves_cn_price_snapshot(monkeypatch):
+    def explode(_bars):
+        raise RuntimeError("spring calculation failed")
+
+    monkeypatch.setattr("lurker.application.price_snapshot.analyze_spring_bars", explode)
+
+    batch = collect_price_snapshot_batch(
+        seed_symbols={"cn": ["300001.SZ"]},
+        markets=["cn"],
+        windows=[20],
+        period="6mo",
+        fetcher=spring_fetcher,
+    )
+
+    assert batch["failures"] == []
+    assert batch["snapshots"][0]["symbol"] == "300001.SZ"
+    assert batch["snapshots"][0]["spring"]["state"] == "unknown"
+    assert batch["snapshots"][0]["spring"]["reasons"] == ["invalid_price_data"]
 
 
 def test_render_price_snapshot_as_markdown_table():

@@ -7,6 +7,7 @@ from typing import Any, Protocol
 import pandas as pd
 
 from lurker.ingest.prices import fetch_cn_prices, fetch_yfinance_prices
+from lurker.domain.spring import analyze_spring_bars, unknown_spring_result
 from lurker.signals.stock_strength import calculate_returns
 
 
@@ -156,14 +157,22 @@ def collect_price_snapshot_batch(
                 db_session.commit()
 
             returns = calculate_returns(closes, window_list)
-            snapshots.append(
-                {
-                    "symbol": symbol,
-                    "market": market,
-                    "latest_close": float(closes.iloc[-1]),
-                    **returns,
-                }
-            )
+            snapshot_row: dict[str, Any] = {
+                "symbol": symbol,
+                "market": market,
+                "latest_close": float(closes.iloc[-1]),
+                **returns,
+            }
+            if market == "cn":
+                try:
+                    snapshot_row["spring"] = analyze_spring_bars(
+                        prices.to_dict(orient="records")
+                    )
+                except Exception:
+                    snapshot_row["spring"] = unknown_spring_result(
+                        "invalid_price_data"
+                    )
+            snapshots.append(snapshot_row)
 
     return {
         "generated_at": generated_at or datetime.now(UTC).isoformat(),
