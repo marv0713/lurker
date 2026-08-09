@@ -7,6 +7,63 @@ defaults:
 holdings: []
 
 watchlist:
-  - symbol: 300308.SZ
+  - symbol: 000333.SZ
     market: cn
-    name: 中际旭创
+    name: 美的集团
+  - symbol: 600036.SH
+    market: cn
+    name: 招商银行
+  - symbol: 601088.SH
+    market: cn
+    name: 中国神华
+  - symbol: 600519.SH
+    market: cn
+    name: 贵州茅台
+  - symbol: 600941.SH
+    market: cn
+    name: 中国移动
+  - symbol: 600660.SH
+    market: cn
+    name: 福耀玻璃
+  - symbol: 300760.SZ
+    market: cn
+    name: 迈瑞医疗
+  - symbol: 002270.SZ
+    market: cn
+    name: 华明装备
+  - symbol: 600298.SH
+    market: cn
+    name: 安琪酵母
+  - symbol: 300750.SZ
+    market: cn
+    name: 宁德时代
+  - symbol: 300274.SZ
+    market: cn
+    name: 阳光电源
+  - symbol: 002837.SZ
+    market: cn
+    name: 英维克
+  - symbol: 601138.SH
+    market: cn
+    name: 工业富联
+  - symbol: 000338.SZ
+    market: cn
+    name: 潍柴动力
+  - symbol: 601058.SH
+    market: cn
+    name: 赛轮轮胎
+  - symbol: 002001.SZ
+    market: cn
+    name: 新和成
+  - symbol: 09992.HK
+    market: hk
+    name: 泡泡玛特
+  - symbol: 00700.HK
+    market: hk
+    name: 腾讯
+  - symbol: 00883.HK
+    market: hk
+    name: 中国海洋石油
+  - symbol: 00941.HK
+    market: hk
+    name: 中国移动
