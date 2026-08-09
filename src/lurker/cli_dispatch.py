@@ -52,6 +52,27 @@ def _watchlist_checkup(
     )
 
 
+def _personal_close_report(
+    parser: argparse.ArgumentParser,
+    args: argparse.Namespace,
+) -> None:
+    from lurker import cli
+
+    try:
+        message = cli.personal_close_report(
+            config_path=args.config,
+            report_dir=args.report_dir,
+            state_file=args.state_file,
+            report_date=args.date,
+            period=args.period,
+            no_push=args.no_push,
+            force_push=args.force_push,
+        )
+    except (ValueError, cli.TradingCalendarUnavailable) as exc:
+        parser.error(str(exc))
+    print(message)
+
+
 def _data_snapshot(
     parser: argparse.ArgumentParser,
     args: argparse.Namespace,
@@ -290,6 +311,7 @@ def _list_reports(
 COMMAND_HANDLERS: dict[str, CommandHandler] = {
     "monthly-macro-flow": _monthly_macro_flow,
     "watchlist-checkup": _watchlist_checkup,
+    "personal-close-report": _personal_close_report,
     "data-snapshot": _data_snapshot,
     "resolve-seeds": _resolve_seeds,
     "run-daily": _run_daily,

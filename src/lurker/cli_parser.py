@@ -403,4 +403,29 @@ def build_parser() -> argparse.ArgumentParser:
     watchlist_cmd.add_argument("--period", default="2y")
     watchlist_cmd.add_argument("--no-push", action="store_true")
 
+    personal_cmd = subparsers.add_parser(
+        "personal-close-report",
+        help="生成独立的个人持仓与观察池盘后简报",
+    )
+    personal_cmd.add_argument(
+        "--config",
+        type=Path,
+        default=ROOT / "configs" / "personal_watch.yaml",
+    )
+    personal_cmd.add_argument(
+        "--report-dir",
+        type=Path,
+        default=ROOT / "data" / "reports" / "personal_close",
+    )
+    personal_cmd.add_argument(
+        "--state-file",
+        type=Path,
+        default=ROOT / "data" / "processed" / "personal_close_push_state.json",
+    )
+    personal_cmd.add_argument("--date", default=None)
+    personal_cmd.add_argument("--period", choices=("2y",), default="2y")
+    push_group = personal_cmd.add_mutually_exclusive_group()
+    push_group.add_argument("--no-push", action="store_true")
+    push_group.add_argument("--force-push", action="store_true")
+
     return parser

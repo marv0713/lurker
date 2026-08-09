@@ -54,6 +54,8 @@ class PersonalCloseRunResult:
     report_path: Path | None
     content_md: str
     push_status: str
+    checked_count: int = 0
+    failure_count: int = 0
 
 
 def _atomic_write_text(path: Path, content: str) -> None:
@@ -228,7 +230,12 @@ def run_personal_close(
         market_open[market] = calendar.is_trading_day(report_date)
     if not any(market_open.values()):
         return PersonalCloseRunResult(
-            "skipped_markets_closed", report_date, None, "", "not_attempted"
+            "skipped_markets_closed",
+            report_date,
+            None,
+            "",
+            "not_attempted",
+            checked_count=len(all_items),
         )
 
     provider_map = action_providers or _default_action_providers()
@@ -298,6 +305,13 @@ def run_personal_close(
             store.save(state)
             push_status = "accepted"
 
+    all_facts = (*holdings, *watchlist)
     return PersonalCloseRunResult(
-        "generated", report_date, report_path, content, push_status
+        "generated",
+        report_date,
+        report_path,
+        content,
+        push_status,
+        checked_count=len(all_facts),
+        failure_count=sum(bool(fact.issues) for fact in all_facts),
     )

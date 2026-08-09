@@ -24,6 +24,7 @@ from lurker.cli import (
     list_reports,
     load_suppressed_symbols,
     monthly_macro_flow_job,
+    personal_close_report,
     read_api_key_file,
     parse_markets,
     refresh_flows,
@@ -1238,6 +1239,90 @@ def test_personal_notifier_rejects_invalid_port(monkeypatch):
 
     with pytest.raises(ValueError, match="PERSONAL_SMTP_PORT must be an integer"):
         build_personal_notifier_from_env()
+
+
+def test_parser_has_personal_close_defaults_and_mutually_exclusive_push_flags():
+    args = build_parser().parse_args(["personal-close-report"])
+
+    assert args.command == "personal-close-report"
+    assert args.config.name == "personal_watch.yaml"
+    assert args.report_dir.parts[-2:] == ("reports", "personal_close")
+    assert args.state_file.name == "personal_close_push_state.json"
+    assert args.date is None
+    assert args.period == "2y"
+    assert args.no_push is False
+    assert args.force_push is False
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(
+            ["personal-close-report", "--no-push", "--force-push"]
+        )
+
+
+def test_parser_rejects_non_2y_personal_period():
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["personal-close-report", "--period", "1y"])
+
+
+def test_personal_close_facade_builds_dependencies_and_formats_result(monkeypatch, tmp_path):
+    calls = {}
+    notifier = object()
+    calendars = {"cn": object(), "hk": object()}
+    monkeypatch.setattr("lurker.cli.build_personal_notifier_from_env", lambda: notifier)
+    monkeypatch.setattr("lurker.cli.build_default_personal_calendars", lambda: calendars)
+
+    def fake_run(**kwargs):
+        calls.update(kwargs)
+        return SimpleNamespace(
+            status="generated",
+            report_path=tmp_path / "reports" / "2026-08-10.md",
+            checked_count=2,
+            failure_count=1,
+            push_status="not_configured",
+        )
+
+    monkeypatch.setattr("lurker.cli.run_personal_close", fake_run)
+
+    message = personal_close_report(
+        config_path=tmp_path / "personal.yaml",
+        report_dir=tmp_path / "reports",
+        state_file=tmp_path / "state.json",
+        report_date="2026-08-10",
+        period="2y",
+        no_push=False,
+        force_push=False,
+        today=date(2026, 8, 10),
+    )
+
+    assert calls["report_date"] == date(2026, 8, 10)
+    assert calls["today"] == date(2026, 8, 10)
+    assert calls["notifier"] is notifier
+    assert calls["calendars"] is calendars
+    assert "checked=2, failures=1, push=no_channel" in message
+
+
+def test_personal_close_facade_rejects_future_and_historical_force_before_dependencies(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr(
+        "lurker.cli.build_personal_notifier_from_env",
+        lambda: (_ for _ in ()).throw(AssertionError("must not build")),
+    )
+    common = {
+        "config_path": tmp_path / "personal.yaml",
+        "report_dir": tmp_path / "reports",
+        "state_file": tmp_path / "state.json",
+        "period": "2y",
+        "no_push": False,
+        "today": date(2026, 8, 10),
+    }
+    with pytest.raises(ValueError, match="future"):
+        personal_close_report(
+            **common, report_date="2026-08-11", force_push=False
+        )
+    with pytest.raises(ValueError, match="historical"):
+        personal_close_report(
+            **common, report_date="2026-08-09", force_push=True
+        )
 
 
 def test_parser_has_monthly_macro_flow_defaults():

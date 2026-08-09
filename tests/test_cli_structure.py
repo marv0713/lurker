@@ -37,3 +37,46 @@ def test_dispatch_returns_false_for_demo_fallback():
     args = parser.parse_args([])
 
     assert dispatch_command(parser, args) is False
+
+
+def test_dispatch_personal_close_passes_every_argument(monkeypatch, tmp_path, capsys):
+    from lurker import cli
+    from lurker.cli_dispatch import dispatch_command
+    from lurker.cli_parser import build_parser
+
+    captured = {}
+
+    def fake_personal_close(**kwargs):
+        captured.update(kwargs)
+        return "personal complete"
+
+    monkeypatch.setattr(cli, "personal_close_report", fake_personal_close)
+    parser = build_parser()
+    args = parser.parse_args(
+        [
+            "personal-close-report",
+            "--config",
+            str(tmp_path / "scope.yaml"),
+            "--report-dir",
+            str(tmp_path / "reports"),
+            "--state-file",
+            str(tmp_path / "state.json"),
+            "--date",
+            "2026-08-10",
+            "--period",
+            "2y",
+            "--force-push",
+        ]
+    )
+
+    assert dispatch_command(parser, args) is True
+    assert captured == {
+        "config_path": tmp_path / "scope.yaml",
+        "report_dir": tmp_path / "reports",
+        "state_file": tmp_path / "state.json",
+        "report_date": "2026-08-10",
+        "period": "2y",
+        "no_push": False,
+        "force_push": True,
+    }
+    assert capsys.readouterr().out.strip() == "personal complete"

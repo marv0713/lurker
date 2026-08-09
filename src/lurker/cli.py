@@ -20,6 +20,7 @@ from lurker.application.price_snapshot import (
     render_price_snapshot,
     select_price_snapshot_rows,
 )
+from lurker.application.personal_close import run_personal_close
 from lurker.application.flow_snapshot import (
     FileFlowSnapshotStore,
     collect_flow_snapshot,
@@ -53,6 +54,7 @@ from lurker.trading_calendar import (
     TradingCalendarUnavailable,
     all_markets_are_cn,
     build_default_cn_calendar,
+    build_default_personal_calendars,
     is_cn_trading_day,
     parse_iso_date,
     resolve_daily_date,
@@ -1589,6 +1591,54 @@ def watchlist_checkup(
         f"Wrote watchlist anomaly report to {result.report_path} "
         f"(checked={result.checked_count}, alerts={result.new_alert_count}, "
         f"failures={result.failure_count}, pushed={result.pushed})"
+    )
+
+
+def personal_close_report(
+    *,
+    config_path: Path,
+    report_dir: Path,
+    state_file: Path,
+    report_date: str | None = None,
+    period: str = "2y",
+    no_push: bool = False,
+    force_push: bool = False,
+    today: date | None = None,
+) -> str:
+    resolved_today = today or shanghai_today()
+    resolved_date = parse_iso_date(report_date) if report_date else resolved_today
+    if period != "2y":
+        raise ValueError("personal close period must equal 2y")
+    if no_push and force_push:
+        raise ValueError("--no-push and --force-push are mutually exclusive")
+    if resolved_date > resolved_today:
+        raise ValueError("future personal close report date is not allowed")
+    if resolved_date < resolved_today and force_push:
+        raise ValueError("historical replay cannot use --force-push")
+
+    notifier = build_personal_notifier_from_env()
+    result = run_personal_close(
+        config_path=config_path,
+        report_dir=report_dir,
+        state_file=state_file,
+        report_date=resolved_date,
+        today=resolved_today,
+        period=period,
+        no_push=no_push,
+        force_push=force_push,
+        notifier=notifier,
+        calendars=build_default_personal_calendars(),
+    )
+    if result.status == "skipped_markets_closed":
+        return (
+            f"Skipped personal close report for {resolved_date.isoformat()}: "
+            "all configured markets closed"
+        )
+    push_label = "no_channel" if result.push_status == "not_configured" else result.push_status
+    return (
+        f"Wrote personal close report to {result.report_path} "
+        f"(checked={result.checked_count}, failures={result.failure_count}, "
+        f"push={push_label})"
     )
 
 
