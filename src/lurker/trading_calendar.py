@@ -268,6 +268,11 @@ class TradingCalendar:
 
     def previous_or_same_session(self, day: date | str) -> date:
         resolved = parse_iso_date(day) if isinstance(day, str) else day
+        cache = _read_cache(self.cache_path, self.calendar_name)
+        if cache is not None and cache.covers(resolved, resolved):
+            cached_sessions = tuple(item for item in cache.sessions if item <= resolved)
+            if cached_sessions:
+                return cached_sessions[-1]
         cursor_year = resolved.year
         while True:
             start = date(cursor_year, 1, 1)

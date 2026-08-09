@@ -245,6 +245,25 @@ def test_provider_metadata_failure_uses_cache_covering_original_request(tmp_path
     assert calendar.is_trading_day(date(2027, 1, 4)) is True
 
 
+def test_previous_session_uses_partial_cache_covering_report_date_when_offline(tmp_path):
+    cache_path = tmp_path / "calendar.json"
+    _cache(
+        cache_path,
+        start=date(2027, 8, 1),
+        end=date(2027, 8, 10),
+        sessions=[date(2027, 8, 6), date(2027, 8, 9)],
+    )
+    calendar = CnTradingCalendar(
+        cache_path,
+        provider_factory=lambda: FakeProvider(
+            [],
+            error=TradingCalendarUnavailable("offline"),
+        ),
+    )
+
+    assert calendar.previous_or_same_session(date(2027, 8, 10)) == date(2027, 8, 9)
+
+
 def test_atomic_write_failure_preserves_previous_cache(monkeypatch, tmp_path):
     cache_path = tmp_path / "calendar.json"
     _cache(
