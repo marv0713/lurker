@@ -131,6 +131,60 @@ PYTHONPATH=src .venv/bin/lurker watchlist-checkup --no-push
 
 See [`docs/watchlist_anomaly.md`](docs/watchlist_anomaly.md) for thresholds, dedicated `WATCHLIST_*` notification variables, state, and scheduling.
 
+### Personal close report
+
+`personal-close-report` is a separate, personal-use close report for A-share and Hong Kong holdings and watch items. It does not feed the daily, weekly, monthly, or watchlist-anomaly reports. Every invocation reloads `configs/personal_watch.yaml`, and every generated report includes every configured stock name and symbol in YAML order.
+
+Configure the scope like this:
+
+```yaml
+defaults:
+  hk_experimental_spring:
+    min_avg_turnover_hkd_20d: 10000000
+    min_positive_volume_ratio_60d: 0.95
+
+holdings:
+  - symbol: 300308.SZ
+    market: cn
+    name: 中际旭创
+
+watchlist:
+  - symbol: 00700.HK
+    market: hk
+    name: 腾讯控股
+```
+
+Only `cn` and `hk` are supported in v1. A stock cannot appear twice across the two groups, and `name` is required. Edit this file at any time; the next run reads the new scope without restarting a service.
+
+Run locally without notification:
+
+```bash
+PYTHONPATH=src .venv/bin/lurker personal-close-report \
+  --config configs/personal_watch.yaml \
+  --period 2y \
+  --no-push
+```
+
+Reports overwrite the current complete view for that date at `data/reports/personal_close/YYYY-MM-DD.md`. At least one configured market must be open; when both configured markets are closed, the command skips cleanly and writes nothing. A stock from a closed market still appears when the other market is open, using its latest price on or before the report date and an explicit closed-market note.
+
+The report starts with a one-line conclusion, then shows all holdings, all watch items, and data-quality notes. It includes adjusted MA5/20/200 direction, the formal A-share `ma20-v1` spring state, the separately labelled experimental HK spring state, and corporate actions in the inclusive 14-calendar-day window `[report date, report date + 13 days]`. The structured providers do not cover every action type in every market; an unsupported or failed source is shown as incomplete coverage and is never described as “no known events.”
+
+Personal notification settings use only these nine variables; they never fall back to daily or watchlist credentials:
+
+- `PERSONAL_PUSHPLUS_TOKEN`
+- `PERSONAL_SMTP_HOST`
+- `PERSONAL_SMTP_PORT` (default `587`)
+- `PERSONAL_SMTP_USER` (optional)
+- `PERSONAL_SMTP_PASSWORD` (optional)
+- `PERSONAL_SMTP_FROM`
+- `PERSONAL_EMAIL_TO` (comma-separated)
+- `PERSONAL_SMTP_USE_TLS` (default enabled)
+- `PERSONAL_SMTP_USE_SSL` (default disabled)
+
+PushPlus and email may be used alone or together. If any personal email variable is present, `PERSONAL_SMTP_HOST`, `PERSONAL_SMTP_FROM`, and `PERSONAL_EMAIL_TO` must all be non-empty. With no personal channel configured, the command still writes the report and says `push=no_channel`.
+
+The independent acceptance state is stored at `data/processed/personal_close_push_state.json`. A normal same-day rerun rebuilds the report but does not resend after all configured channels have accepted it. Use `--force-push` to resend today's rebuilt report. `--no-push` never changes state. An explicit historical `--date` is a read-only replay and cannot be combined with `--force-push`. V1 accepts only `--period 2y`.
+
 ## Local schedule
 
 For local self-use, run the daily job with cron after market data is available:
@@ -140,6 +194,14 @@ For local self-use, run the daily job with cron after market data is available:
 ```
 
 PushPlus can be enabled by setting `PUSHPLUS_TOKEN` and calling the push adapter from the final pipeline step.
+
+Run the personal report after both A-share and Hong Kong close data should be available:
+
+```bash
+30 18 * * 1-5 cd /Users/marv/Documents/lurker && PYTHONPATH=src .venv/bin/lurker personal-close-report
+```
+
+Cron wakes the command Monday through Friday, but the XSHG/XHKG exchange calendars decide whether a report is due and suppress weekends and exchange holidays.
 
 ## Architecture
 
