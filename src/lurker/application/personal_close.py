@@ -250,11 +250,6 @@ def run_personal_close(
         if calendar is None:
             raise ValueError(f"missing personal trading calendar: {market}")
         market_open[market] = calendar.is_trading_day(report_date)
-        market_as_of[market] = (
-            report_date
-            if market_open[market]
-            else calendar.previous_or_same_session(report_date)
-        )
     if not any(market_open.values()):
         return PersonalCloseRunResult(
             "skipped_markets_closed",
@@ -263,6 +258,13 @@ def run_personal_close(
             "",
             "not_attempted",
             checked_count=len(all_items),
+        )
+    for market in configured_markets:
+        calendar = calendar_map[market]
+        market_as_of[market] = (
+            report_date
+            if market_open[market]
+            else calendar.previous_or_same_session(report_date)
         )
 
     provider_map = action_providers or _default_action_providers()

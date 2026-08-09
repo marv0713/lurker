@@ -22,12 +22,14 @@ class Calendar:
         self.open = open_
         self.previous = previous
         self.calls = []
+        self.previous_calls = []
 
     def is_trading_day(self, day):
         self.calls.append(day)
         return self.open
 
     def previous_or_same_session(self, day):
+        self.previous_calls.append(day)
         return self.previous or day
 
 
@@ -104,10 +106,12 @@ def test_both_configured_markets_closed_skips_without_prices_or_report(tmp_path)
         called = True
         raise AssertionError("price loader must not run")
 
+    cn_calendar = Calendar(False)
+    hk_calendar = Calendar(False)
     result = run_personal_close(
         **kwargs(
             tmp_path,
-            calendars={"cn": Calendar(False), "hk": Calendar(False)},
+            calendars={"cn": cn_calendar, "hk": hk_calendar},
             price_loader=forbidden,
         )
     )
@@ -115,6 +119,8 @@ def test_both_configured_markets_closed_skips_without_prices_or_report(tmp_path)
     assert result.status == "skipped_markets_closed"
     assert result.report_path is None
     assert called is False
+    assert cn_calendar.previous_calls == []
+    assert hk_calendar.previous_calls == []
 
 
 def test_same_day_rerun_overwrites_report_but_does_not_repush(tmp_path):
