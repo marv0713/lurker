@@ -231,14 +231,16 @@ class TradingCalendar:
         try:
             provider = self.provider_factory()
             sessions = provider.sessions_in_range(query_start, query_end)
+            provider_name = provider.provider_name
+            provider_version = provider.provider_version
         except TradingCalendarUnavailable:
             if cache is not None and cache.covers(start, end):
                 return cache
             raise
         rebuilt = CalendarCache(
             calendar_name=self.calendar_name,
-            provider=provider.provider_name,
-            provider_version=provider.provider_version,
+            provider=provider_name,
+            provider_version=provider_version,
             generated_at=datetime.now(SHANGHAI_TZ).isoformat(),
             coverage_start=query_start,
             coverage_end=query_end,

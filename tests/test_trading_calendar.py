@@ -223,6 +223,28 @@ def test_provider_failure_uses_partial_cache_when_it_covers_original_request(tmp
     assert calendar.is_trading_day(date(2027, 1, 4)) is True
 
 
+def test_provider_metadata_failure_uses_cache_covering_original_request(tmp_path):
+    cache_path = tmp_path / "calendar.json"
+    _cache(
+        cache_path,
+        start=date(2027, 1, 1),
+        end=date(2027, 1, 31),
+        sessions=[date(2027, 1, 4)],
+    )
+
+    class MetadataFailureProvider(FakeProvider):
+        @property
+        def provider_version(self):
+            raise TradingCalendarUnavailable("metadata offline")
+
+    calendar = CnTradingCalendar(
+        cache_path,
+        provider_factory=lambda: MetadataFailureProvider([date(2027, 1, 4)]),
+    )
+
+    assert calendar.is_trading_day(date(2027, 1, 4)) is True
+
+
 def test_atomic_write_failure_preserves_previous_cache(monkeypatch, tmp_path):
     cache_path = tmp_path / "calendar.json"
     _cache(

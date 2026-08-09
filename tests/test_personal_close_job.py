@@ -18,13 +18,17 @@ NOW = datetime(2026, 8, 10, 18, 0, tzinfo=ZoneInfo("Asia/Shanghai"))
 
 
 class Calendar:
-    def __init__(self, open_: bool):
+    def __init__(self, open_: bool, previous=None):
         self.open = open_
+        self.previous = previous
         self.calls = []
 
     def is_trading_day(self, day):
         self.calls.append(day)
         return self.open
+
+    def previous_or_same_session(self, day):
+        return self.previous or day
 
 
 class RecordingNotifier:
@@ -199,6 +203,35 @@ def test_open_market_stale_price_is_reported_as_incomplete(tmp_path):
 
     assert "开市日行情未更新：最新 2026-08-07" in result.content_md
     assert "部分数据不完整，详见数据质量" in result.content_md
+
+
+def test_closed_market_price_must_match_most_recent_session(tmp_path):
+    expected = REPORT_DATE - timedelta(days=3)
+
+    def stale(symbol, market, report_date, period):
+        frame = prices(symbol, market, report_date, period)
+        if market == "hk":
+            frame["trade_date"] = [day - timedelta(days=4) for day in frame["trade_date"]]
+        return frame
+
+    personal_config = PersonalWatchConfig(
+        holdings=(PersonalStockConfig("300308.SZ", "cn", "中际旭创"),),
+        watchlist=(PersonalStockConfig("00700.HK", "hk", "腾讯控股"),),
+        hk_experimental_spring=HkExperimentalSpringConfig(),
+    )
+
+    result = run_personal_close(
+        **kwargs(
+            tmp_path,
+            config_loader=lambda path: personal_config,
+            calendars={"hk": Calendar(False, previous=expected), "cn": Calendar(True)},
+            price_loader=stale,
+            action_providers={"cn": CompleteProvider(), "hk": CompleteProvider()},
+            no_push=True,
+        )
+    )
+
+    assert "休市市场行情未对齐：应截止 2026-08-07，最新 2026-08-06" in result.content_md
 
 
 def test_notification_failure_keeps_report_and_does_not_mark_state(tmp_path):

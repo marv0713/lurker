@@ -40,6 +40,8 @@ from lurker.trading_calendar import build_default_personal_calendars, shanghai_t
 class PersonalCalendar(Protocol):
     def is_trading_day(self, day: date | str) -> bool: ...
 
+    def previous_or_same_session(self, day: date | str) -> date: ...
+
 
 ConfigLoader = Callable[[str | Path], PersonalWatchConfig]
 PriceLoader = Callable[..., pd.DataFrame]
@@ -111,6 +113,7 @@ def _analyze_stock(
     item: PersonalStockConfig,
     group: str,
     market_open: bool,
+    expected_as_of: date,
     report_date: date,
     period: str,
     config: PersonalWatchConfig,
@@ -139,11 +142,20 @@ def _analyze_stock(
         bullish_quality = project_first_bullish_quality(spring, prices)
         as_of = trend.as_of
         adjusted_close = trend.adjusted_close
-        if market_open and as_of is not None and as_of < report_date:
+        if as_of is not None and as_of != expected_as_of:
+            if market_open:
+                code = "price_not_updated"
+                message = f"开市日行情未更新：最新 {as_of.isoformat()}"
+            else:
+                code = "closed_market_price_mismatch"
+                message = (
+                    f"休市市场行情未对齐：应截止 {expected_as_of.isoformat()}，"
+                    f"最新 {as_of.isoformat()}"
+                )
             issues.append(
                 DataQualityIssue(
-                    "price_not_updated",
-                    f"开市日行情未更新：最新 {as_of.isoformat()}",
+                    code,
+                    message,
                     symbol=item.symbol,
                     market=item.market,
                 )
@@ -232,11 +244,17 @@ def run_personal_close(
         calendars if calendars is not None else build_default_personal_calendars()
     )
     market_open: dict[str, bool] = {}
+    market_as_of: dict[str, date] = {}
     for market in configured_markets:
         calendar = calendar_map.get(market)
         if calendar is None:
             raise ValueError(f"missing personal trading calendar: {market}")
         market_open[market] = calendar.is_trading_day(report_date)
+        market_as_of[market] = (
+            report_date
+            if market_open[market]
+            else calendar.previous_or_same_session(report_date)
+        )
     if not any(market_open.values()):
         return PersonalCloseRunResult(
             "skipped_markets_closed",
@@ -264,6 +282,7 @@ def run_personal_close(
             item=item,
             group="holding",
             market_open=market_open[item.market],
+            expected_as_of=market_as_of[item.market],
             report_date=report_date,
             period=period,
             config=config,
@@ -278,6 +297,7 @@ def run_personal_close(
             item=item,
             group="watchlist",
             market_open=market_open[item.market],
+            expected_as_of=market_as_of[item.market],
             report_date=report_date,
             period=period,
             config=config,
