@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import date, timedelta
 import math
 
+import pytest
+
 from lurker.domain.spring import _merge_touch_segments, analyze_spring_bars
 
 
@@ -150,6 +152,118 @@ def _set_last_close_distance(values: list[dict[str, object]], distance: float) -
             "close": close,
         }
     )
+
+
+def _golden_cases() -> list[tuple[list[dict[str, object]], dict[str, object]]]:
+    watch = _trending_state_bars()
+
+    bullish = _trending_state_bars()
+    bullish[-1]["open"] = float(bullish[-1]["close"]) - 0.05
+    bullish[-1]["volume"] = 3_000_000.0
+
+    uncompressed = _trending_state_bars()
+    for row in uncompressed[-3:]:
+        row["volume"] = 600_000.0
+
+    third_flags = [False] * 60
+    third_flags[40] = True
+    third_flags[50] = True
+    third_flags[59] = True
+    third = _bars_for_touch_flags(third_flags)
+
+    broken_flags = [False] * 60
+    broken_flags[55] = True
+    broken = _bars_for_touch_flags(broken_flags)
+    for index in (-2, -1):
+        prior_sum = sum(
+            float(row["close"])
+            for row in broken[index - 19 : index]
+        )
+        close = 0.95 * prior_sum / 19
+        broken[index].update(
+            {
+                "open": close,
+                "high": close * 1.01,
+                "low": close * 0.995,
+                "close": close,
+            }
+        )
+
+    return [
+        (
+            watch,
+            {
+                "rule_version": "ma20-v1",
+                "state": "compressed_watch",
+                "as_of": "2026-03-20",
+                "ma20_distance_pct": 0.00864029104138253,
+                "volume_compression_ratio": 0.2,
+                "support_touch_count_60d": 1,
+                "min_ma20_distance_2d_pct": 0.008602248418369651,
+                "reasons": [],
+            },
+        ),
+        (
+            bullish,
+            {
+                "rule_version": "ma20-v1",
+                "state": "first_bullish_confirmed",
+                "as_of": "2026-03-20",
+                "ma20_distance_pct": 0.00864029104138253,
+                "volume_compression_ratio": 0.2,
+                "support_touch_count_60d": 1,
+                "min_ma20_distance_2d_pct": 0.008602248418369651,
+                "reasons": [],
+            },
+        ),
+        (
+            uncompressed,
+            {
+                "rule_version": "ma20-v1",
+                "state": "weak_excluded",
+                "as_of": "2026-03-20",
+                "ma20_distance_pct": 0.00864029104138253,
+                "volume_compression_ratio": 0.6,
+                "support_touch_count_60d": 1,
+                "min_ma20_distance_2d_pct": 0.008602248418369651,
+                "reasons": ["volume_not_compressed"],
+            },
+        ),
+        (
+            third,
+            {
+                "rule_version": "ma20-v1",
+                "state": "weak_excluded",
+                "as_of": "2026-03-20",
+                "ma20_distance_pct": 0.0,
+                "volume_compression_ratio": 1.0,
+                "support_touch_count_60d": 3,
+                "min_ma20_distance_2d_pct": 0.0,
+                "reasons": ["third_support_test", "volume_not_compressed"],
+            },
+        ),
+        (
+            broken,
+            {
+                "rule_version": "ma20-v1",
+                "state": "weak_excluded",
+                "as_of": "2026-03-20",
+                "ma20_distance_pct": -0.04761904761904778,
+                "volume_compression_ratio": None,
+                "support_touch_count_60d": 1,
+                "min_ma20_distance_2d_pct": -0.04761904761904778,
+                "reasons": ["ma20_broken"],
+            },
+        ),
+    ]
+
+
+@pytest.mark.parametrize(("bars", "expected"), _golden_cases())
+def test_ma20_v1_full_result_golden(
+    bars: list[dict[str, object]],
+    expected: dict[str, object],
+) -> None:
+    assert analyze_spring_bars(bars) == expected
 
 
 def test_rising_ma20_touch_with_compression_is_watch():
