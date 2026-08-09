@@ -174,6 +174,33 @@ def test_price_failure_isolated_and_report_still_contains_stock(tmp_path):
     assert "腾讯控股（00700.HK）" in result.content_md
 
 
+def test_open_market_stale_price_is_reported_as_incomplete(tmp_path):
+    def stale(symbol, market, report_date, period):
+        frame = prices(symbol, market, report_date, period)
+        frame["trade_date"] = [day - timedelta(days=3) for day in frame["trade_date"]]
+        return frame
+
+    personal_config = PersonalWatchConfig(
+        holdings=(PersonalStockConfig("300308.SZ", "cn", "中际旭创"),),
+        watchlist=(),
+        hk_experimental_spring=HkExperimentalSpringConfig(),
+    )
+
+    result = run_personal_close(
+        **kwargs(
+            tmp_path,
+            config_loader=lambda path: personal_config,
+            calendars={"cn": Calendar(True)},
+            price_loader=stale,
+            action_providers={"cn": CompleteProvider()},
+            no_push=True,
+        )
+    )
+
+    assert "开市日行情未更新：最新 2026-08-07" in result.content_md
+    assert "部分数据不完整，详见数据质量" in result.content_md
+
+
 def test_notification_failure_keeps_report_and_does_not_mark_state(tmp_path):
     notifier = RecordingNotifier(RuntimeError("rejected"))
 

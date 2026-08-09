@@ -364,6 +364,17 @@ class HkCorporateActionProvider:
                             "财报披露",
                         )
                     )
+                ex_dividend = _date(calendar.get("Ex-Dividend Date"))
+                if ex_dividend is not None:
+                    actions.append(
+                        CorporateAction(
+                            item.symbol,
+                            "dividend",
+                            ex_dividend,
+                            "expected",
+                            "除息日",
+                        )
+                    )
             except Exception as exc:
                 issues.append(_unavailable(item.symbol, "hk", exc))
             try:

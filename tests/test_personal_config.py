@@ -103,6 +103,25 @@ watchlist:
         load_personal_watch(path)
 
 
+@pytest.mark.parametrize(
+    ("symbol", "market"),
+    [
+        ("AAPL", "cn"),
+        ("00700.HK", "cn"),
+        ("300308.SZ", "hk"),
+        ("700.HK", "hk"),
+    ],
+)
+def test_personal_watch_rejects_symbol_market_mismatch(tmp_path, symbol, market):
+    path = _write_yaml(
+        tmp_path,
+        f"holdings: []\nwatchlist:\n  - {{symbol: {symbol}, market: {market}, name: 测试}}\n",
+    )
+
+    with pytest.raises(ValueError, match="invalid personal stock symbol for market"):
+        load_personal_watch(path)
+
+
 def test_personal_watch_rejects_unknown_fields(tmp_path):
     path = _write_yaml(
         tmp_path,

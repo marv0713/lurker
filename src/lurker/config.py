@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import math
+import re
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -462,6 +463,11 @@ def load_personal_watch(path: str | Path) -> PersonalWatchConfig:
             market = str(raw_item.get("market", "")).strip().lower()
             if market not in _PERSONAL_MARKETS:
                 raise ValueError(f"unsupported personal stock market: {market}")
+            pattern = r"\d{6}\.(?:SZ|SH|BJ)" if market == "cn" else r"\d{5}\.HK"
+            if re.fullmatch(pattern, symbol) is None:
+                raise ValueError(
+                    f"invalid personal stock symbol for market {market}: {symbol}"
+                )
             stock_name = str(raw_item.get("name", "")).strip()
             if not stock_name:
                 raise ValueError("personal stock name is required")

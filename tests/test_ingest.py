@@ -1,3 +1,5 @@
+from datetime import date
+
 import pandas as pd
 import pytest
 
@@ -11,8 +13,10 @@ from lurker.ingest.constituents import (
 )
 from lurker.ingest.prices import (
     PRICE_COLUMNS,
+    fetch_akshare_cn_prices,
     fetch_cn_prices,
     fetch_watchlist_history,
+    fetch_yfinance_prices,
     normalize_baostock_cn_price_frame,
     normalize_cn_index_price_frame,
     normalize_cn_price_frame,
@@ -22,6 +26,57 @@ from lurker.ingest.prices import (
     to_baostock_symbol,
     to_yfinance_symbol,
 )
+
+
+def test_yfinance_price_window_is_anchored_to_explicit_report_date(monkeypatch):
+    calls = []
+
+    def download(symbol, **kwargs):
+        calls.append((symbol, kwargs))
+        return pd.DataFrame(
+            {
+                "Date": ["2024-08-12"],
+                "Open": [10],
+                "High": [11],
+                "Low": [9],
+                "Close": [10],
+                "Adj Close": [10],
+                "Volume": [100],
+            }
+        )
+
+    monkeypatch.setattr("lurker.ingest.prices.yf.download", download)
+
+    fetch_yfinance_prices("00700.HK", "2y", end_date=date(2026, 8, 10))
+
+    _, kwargs = calls[0]
+    assert kwargs["start"] == "2024-08-10"
+    assert kwargs["end"] == "2026-08-11"
+    assert "period" not in kwargs
+
+
+def test_akshare_price_window_is_anchored_to_explicit_report_date(monkeypatch):
+    calls = []
+
+    def fetch(**kwargs):
+        calls.append(kwargs)
+        return pd.DataFrame(
+            {
+                "日期": ["2024-08-12"],
+                "开盘": [10],
+                "最高": [11],
+                "最低": [9],
+                "收盘": [10],
+                "成交量": [100],
+            }
+        )
+
+    monkeypatch.setattr("lurker.ingest.prices.ak.stock_zh_a_hist", fetch)
+
+    fetch_akshare_cn_prices("300308.SZ", "2y", end_date=date(2026, 8, 10))
+
+    assert calls[0]["start_date"] == "20240810"
+    assert calls[0]["end_date"] == "20260810"
 
 
 def test_normalize_price_frame_outputs_required_columns():

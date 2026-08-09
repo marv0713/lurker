@@ -29,7 +29,7 @@ SPRING_LABELS = {
 }
 ACTION_STATUS = {"expected": "预计", "confirmed": "已确认"}
 QUALITY_LABELS = {"micro": "微弱首阳", "standard": "标准首阳", "strong": "强首阳"}
-DIRECTION_SYMBOLS = {"up": "↑", "down": "↓", "flat": "→"}
+DIRECTION_SYMBOLS = {"up": "↗", "down": "↘", "flat": "→"}
 
 
 def _pct(value: float) -> str:
@@ -115,20 +115,36 @@ def _is_incomplete(facts: PersonalReportFacts) -> bool:
 
 def _one_line(facts: PersonalReportFacts) -> str:
     holdings = facts.holdings
-    weak = sum(
+    long_risk = sum(
         fact.trend is not None
         and fact.trend.label in {"long_structure_weakened", "testing_ma200"}
         for fact in holdings
     )
-    weak_springs = sum(
-        fact.spring is not None and fact.spring.get("state") == "weak_excluded"
+    pullback = sum(
+        fact.trend is not None
+        and (
+            (fact.trend.ma20 is not None and fact.trend.ma20.distance_pct < 0)
+            or fact.trend.label in {"long_up_medium_pullback", "mixed"}
+        )
         for fact in holdings
     )
-    confirmed = sum(
+    formal_confirmed_holdings = sum(
         fact.config.market == "cn"
         and fact.spring is not None
         and fact.spring.get("state") == "first_bullish_confirmed"
         for fact in holdings
+    )
+    formal_confirmed_all = sum(
+        fact.config.market == "cn"
+        and fact.spring is not None
+        and fact.spring.get("state") == "first_bullish_confirmed"
+        for fact in (*holdings, *facts.watchlist)
+    )
+    formal_compressed = sum(
+        fact.config.market == "cn"
+        and fact.spring is not None
+        and fact.spring.get("state") == "compressed_watch"
+        for fact in (*holdings, *facts.watchlist)
     )
     action_count = sum(len(fact.actions) for fact in (*holdings, *facts.watchlist))
     hk_observations = sum(
@@ -139,17 +155,26 @@ def _one_line(facts: PersonalReportFacts) -> str:
     )
 
     clauses: list[str] = []
-    if weak or weak_springs:
-        clauses.append(f"持仓风险优先：{weak} 只长期结构承压，{weak_springs} 只弱弹簧排除")
-    elif confirmed:
-        clauses.append(f"{confirmed} 只持仓出现 A 股正式弹簧首阳确认")
-    else:
-        clauses.append("持仓未见优先级更高的长期结构或正式弹簧风险")
+    if long_risk:
+        clauses.append(f"{long_risk} 只持仓长期结构转弱或测试 MA200")
+    if pullback:
+        clauses.append(f"{pullback} 只持仓位于 MA20 下方或处于回踩/混合")
     if action_count:
         clauses.append(f"未来 14 日有 {action_count} 项重要公司行动")
+    if formal_confirmed_holdings:
+        clauses.append(f"{formal_confirmed_holdings} 只持仓出现 A 股正式弹簧首阳确认")
+    remaining_confirmed = formal_confirmed_all - formal_confirmed_holdings
+    if remaining_confirmed:
+        clauses.append(f"{remaining_confirmed} 只 A 股观察标的出现正式弹簧首阳确认")
+    if formal_compressed:
+        clauses.append(f"{formal_compressed} 只 A 股标的进入正式弹簧压紧观察")
     if hk_observations:
         clauses.append(f"另有 {hk_observations} 只港股实验弹簧观察")
-    result = "；".join(clauses) + "。"
+    result = (
+        "；".join(clauses) + "。"
+        if clauses
+        else "持仓趋势整体稳定，暂无正式弹簧确认。"
+    )
     if _is_incomplete(facts):
         result += "部分数据不完整，详见数据质量。"
     return result

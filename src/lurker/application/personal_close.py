@@ -139,6 +139,15 @@ def _analyze_stock(
         bullish_quality = project_first_bullish_quality(spring, prices)
         as_of = trend.as_of
         adjusted_close = trend.adjusted_close
+        if market_open and as_of is not None and as_of < report_date:
+            issues.append(
+                DataQualityIssue(
+                    "price_not_updated",
+                    f"开市日行情未更新：最新 {as_of.isoformat()}",
+                    symbol=item.symbol,
+                    market=item.market,
+                )
+            )
         if trend.label == "data_insufficient":
             issues.append(
                 DataQualityIssue(

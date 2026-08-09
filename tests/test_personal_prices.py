@@ -129,4 +129,9 @@ def test_loader_fetches_exactly_two_years():
         fetcher=fetcher,
     )
 
-    assert calls == [(('00700.HK', 'hk', '2y'), {"is_benchmark": False})]
+    assert calls == [
+        (
+            ("00700.HK", "hk", "2y"),
+            {"is_benchmark": False, "end_date": REPORT_DATE},
+        )
+    ]

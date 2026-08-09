@@ -1,6 +1,7 @@
 import os
 import time
 from collections.abc import Callable, Sequence
+from datetime import date, timedelta
 
 import pandas as pd
 import akshare as ak
@@ -135,42 +136,61 @@ def normalize_baostock_cn_price_frame(raw: pd.DataFrame, symbol: str) -> pd.Data
     return normalized[PRICE_COLUMNS].dropna(subset=["close"]).reset_index(drop=True)
 
 
-def fetch_yfinance_prices(symbol: str, period: str = "1y") -> pd.DataFrame:
-    raw = yf.download(
-        to_yfinance_symbol(symbol),
-        period=period,
-        progress=False,
-        auto_adjust=False,
-        multi_level_index=False,
-    )
+def fetch_yfinance_prices(
+    symbol: str,
+    period: str = "1y",
+    *,
+    end_date: date | None = None,
+) -> pd.DataFrame:
+    download_args: dict[str, object] = {
+        "progress": False,
+        "auto_adjust": False,
+        "multi_level_index": False,
+    }
+    if end_date is None:
+        download_args["period"] = period
+    else:
+        download_args["start"] = pd.Timestamp(
+            period_to_start_date(period, end_date=end_date)
+        ).strftime("%Y-%m-%d")
+        download_args["end"] = (end_date + timedelta(days=1)).isoformat()
+    raw = yf.download(to_yfinance_symbol(symbol), **download_args)
     return normalize_price_frame(raw, symbol=symbol)
 
 
-def period_to_start_date(period: str) -> str:
-    today = pd.Timestamp.today().normalize()
+def period_to_start_date(period: str, *, end_date: date | None = None) -> str:
+    anchor = pd.Timestamp(end_date) if end_date is not None else pd.Timestamp.today().normalize()
     if period.endswith("mo"):
         amount = int(period.removesuffix("mo"))
-        start = today - pd.DateOffset(months=amount)
+        start = anchor - pd.DateOffset(months=amount)
     elif period.endswith("d"):
         amount = int(period.removesuffix("d"))
-        start = today - pd.DateOffset(days=amount)
+        start = anchor - pd.DateOffset(days=amount)
     elif period.endswith("y"):
         amount = int(period.removesuffix("y"))
-        start = today - pd.DateOffset(years=amount)
+        start = anchor - pd.DateOffset(years=amount)
     else:
         raise ValueError(f"Unsupported period: {period}")
     return start.strftime("%Y%m%d")
 
 
-def today_yyyymmdd() -> str:
-    return pd.Timestamp.today().strftime("%Y%m%d")
+def today_yyyymmdd(end_date: date | None = None) -> str:
+    return (pd.Timestamp(end_date) if end_date is not None else pd.Timestamp.today()).strftime(
+        "%Y%m%d"
+    )
 
 
-def fetch_akshare_cn_prices(symbol: str, period: str = "1y") -> pd.DataFrame:
+def fetch_akshare_cn_prices(
+    symbol: str,
+    period: str = "1y",
+    *,
+    end_date: date | None = None,
+) -> pd.DataFrame:
     raw = ak.stock_zh_a_hist(
         symbol=to_akshare_symbol(symbol),
         period="daily",
-        start_date=period_to_start_date(period),
+        start_date=period_to_start_date(period, end_date=end_date),
+        end_date=today_yyyymmdd(end_date),
         adjust="qfq",
     )
     return normalize_cn_price_frame(raw, symbol=symbol)
@@ -179,12 +199,14 @@ def fetch_akshare_cn_prices(symbol: str, period: str = "1y") -> pd.DataFrame:
 def fetch_cn_benchmark_prices(
     symbol: str = "000300.SH",
     period: str = "2y",
+    *,
+    end_date: date | None = None,
 ) -> pd.DataFrame:
     raw = ak.index_zh_a_hist(
         symbol=to_akshare_symbol(symbol),
         period="daily",
-        start_date=period_to_start_date(period),
-        end_date=today_yyyymmdd(),
+        start_date=period_to_start_date(period, end_date=end_date),
+        end_date=today_yyyymmdd(end_date),
     )
     return normalize_cn_index_price_frame(raw, symbol)
 
@@ -194,6 +216,7 @@ def fetch_tushare_cn_prices(
     period: str = "1y",
     *,
     token: str | None = None,
+    end_date: date | None = None,
 ) -> pd.DataFrame:
     resolved_token = token or os.environ.get("TUSHARE_TOKEN", "")
     if not resolved_token:
@@ -204,8 +227,8 @@ def fetch_tushare_cn_prices(
     raw = ts.pro_bar(
         ts_code=symbol,
         adj="qfq",
-        start_date=period_to_start_date(period),
-        end_date=today_yyyymmdd(),
+        start_date=period_to_start_date(period, end_date=end_date),
+        end_date=today_yyyymmdd(end_date),
         token=resolved_token,
     )
     if raw is None or raw.empty:
@@ -213,7 +236,12 @@ def fetch_tushare_cn_prices(
     return normalize_tushare_cn_price_frame(raw, symbol=symbol)
 
 
-def fetch_baostock_cn_prices(symbol: str, period: str = "1y") -> pd.DataFrame:
+def fetch_baostock_cn_prices(
+    symbol: str,
+    period: str = "1y",
+    *,
+    end_date: date | None = None,
+) -> pd.DataFrame:
     import baostock as bs
 
     login = bs.login()
@@ -223,8 +251,10 @@ def fetch_baostock_cn_prices(symbol: str, period: str = "1y") -> pd.DataFrame:
         result = bs.query_history_k_data_plus(
             to_baostock_symbol(symbol),
             "date,code,open,high,low,close,volume",
-            start_date=pd.to_datetime(period_to_start_date(period)).strftime("%Y-%m-%d"),
-            end_date=pd.Timestamp.today().strftime("%Y-%m-%d"),
+            start_date=pd.to_datetime(
+                period_to_start_date(period, end_date=end_date)
+            ).strftime("%Y-%m-%d"),
+            end_date=(end_date or date.today()).isoformat(),
             frequency="d",
             adjustflag="2",
         )
@@ -241,7 +271,7 @@ def fetch_baostock_cn_prices(symbol: str, period: str = "1y") -> pd.DataFrame:
         bs.logout()
 
 
-CnPriceFetcher = Callable[[str, str], pd.DataFrame]
+CnPriceFetcher = Callable[..., pd.DataFrame]
 
 
 def fetch_cn_prices(
@@ -250,6 +280,7 @@ def fetch_cn_prices(
     *,
     fetchers: Sequence[CnPriceFetcher] | None = None,
     sleep_seconds: float = 0.8,
+    end_date: date | None = None,
 ) -> pd.DataFrame:
     providers = list(fetchers or [
         fetch_tushare_cn_prices,
@@ -260,7 +291,11 @@ def fetch_cn_prices(
 
     for index, fetcher in enumerate(providers):
         try:
-            result = fetcher(symbol, period)
+            result = (
+                fetcher(symbol, period)
+                if end_date is None
+                else fetcher(symbol, period, end_date=end_date)
+            )
             if result.empty:
                 raise ValueError("empty price data")
             return result
@@ -280,11 +315,20 @@ def fetch_watchlist_history(
     is_benchmark: bool = False,
     stock_fetcher: CnPriceFetcher | None = None,
     cn_benchmark_fetcher: CnPriceFetcher | None = None,
+    end_date: date | None = None,
 ) -> pd.DataFrame:
     if market == "cn" and is_benchmark:
         fetcher = cn_benchmark_fetcher or fetch_cn_benchmark_prices
-        return fetcher(symbol, period)
+        return (
+            fetcher(symbol, period)
+            if end_date is None
+            else fetcher(symbol, period, end_date=end_date)
+        )
     if market == "cn":
         fetcher = stock_fetcher or fetch_cn_prices
-        return fetcher(symbol, period)
-    return fetch_yfinance_prices(symbol, period)
+        return (
+            fetcher(symbol, period)
+            if end_date is None
+            else fetcher(symbol, period, end_date=end_date)
+        )
+    return fetch_yfinance_prices(symbol, period, end_date=end_date)

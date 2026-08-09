@@ -250,6 +250,23 @@ def test_hk_provider_normalizes_calendar_and_dividend_with_explicit_unsupported_
     assert coverage.actions[1].payment_date == date(2026, 8, 20)
 
 
+def test_hk_provider_keeps_yfinance_ex_dividend_when_detail_source_has_no_row():
+    provider = HkCorporateActionProvider(
+        calendar_fetcher=lambda symbol: {
+            "Ex-Dividend Date": pd.Timestamp("2026-08-13")
+        },
+        dividend_fetcher=lambda symbol: pd.DataFrame(),
+    )
+
+    coverage = provider.fetch_many(
+        (PersonalStockConfig("00700.HK", "hk", "腾讯控股"),), REPORT_DATE
+    )["00700.HK"]
+
+    assert [(item.event_type, item.primary_date, item.status) for item in coverage.actions] == [
+        ("dividend", date(2026, 8, 13), "expected")
+    ]
+
+
 def test_collection_does_not_call_provider_for_unconfigured_market():
     class ExplodingProvider:
         def fetch_many(self, items, report_date):

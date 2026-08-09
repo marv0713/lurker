@@ -139,9 +139,9 @@ def test_report_renders_ma_spring_quality_and_all_actions():
     report = render_personal_close_report(facts)
 
     assert "1 只持仓出现 A 股正式弹簧首阳确认" in report
-    assert "MA5：下方 -1.0% ↓" in report
-    assert "MA20：上方 +6.1% ↑" in report
-    assert "MA200：上方 +35.2% ↑" in report
+    assert "MA5：下方 -1.0% ↘" in report
+    assert "MA20：上方 +6.1% ↗" in report
+    assert "MA200：上方 +35.2% ↗" in report
     assert "缩量比 25.0%｜近60日回踩 2 次" in report
     assert "实体比例 +1.2%｜当日涨跌 +1.8%｜标准首阳" in report
     assert "2026-08-15 半年度报告披露（预计）" in report
@@ -192,3 +192,29 @@ def test_report_keeps_stock_with_unavailable_prices():
     assert "收盘：不可用｜行情日期：不可用" in report
     assert "趋势：数据不足" in report
     assert "行情获取失败" in report
+
+
+def test_headline_includes_pullback_and_formal_watchlist_compression():
+    holding = stock_fact(
+        "300308.SZ",
+        "cn",
+        "中际旭创",
+        group="holding",
+        trend_label="long_up_medium_pullback",
+    )
+    watch = stock_fact(
+        "000001.SZ",
+        "cn",
+        "平安银行",
+        group="watchlist",
+        spring_state="compressed_watch",
+    )
+
+    report = render_personal_close_report(
+        PersonalReportFacts(date(2026, 8, 10), (holding,), (watch,))
+    )
+
+    headline = report.split("一句话结论：", 1)[1].split("\n", 1)[0]
+    assert "1 只持仓位于 MA20 下方或处于回踩/混合" in headline
+    assert "1 只 A 股标的进入正式弹簧压紧观察" in headline
+    assert "未见优先级更高" not in headline

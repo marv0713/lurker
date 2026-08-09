@@ -115,7 +115,13 @@ def load_personal_prices(
 ) -> pd.DataFrame:
     if period != "2y":
         raise ValueError("personal price period must equal 2y")
-    raw = fetcher(symbol, market, period, is_benchmark=False)
+    raw = fetcher(
+        symbol,
+        market,
+        period,
+        is_benchmark=False,
+        end_date=report_date,
+    )
     return normalize_personal_prices(
         raw,
         market=market,
