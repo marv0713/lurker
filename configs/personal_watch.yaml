@@ -1,0 +1,12 @@
+defaults:
+  hk_experimental_spring:
+    min_avg_turnover_hkd_20d: 10000000
+    min_positive_volume_ratio_60d: 0.95
+
+# 持仓与观察池按此文件中的顺序展示；每次运行都会重新读取。
+holdings: []
+
+watchlist:
+  - symbol: 300308.SZ
+    market: cn
+    name: 中际旭创

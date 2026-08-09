@@ -52,6 +52,26 @@ class WatchlistConfig:
     items: tuple[WatchlistItemConfig, ...]
 
 
+@dataclass(frozen=True)
+class PersonalStockConfig:
+    symbol: str
+    market: str
+    name: str
+
+
+@dataclass(frozen=True)
+class HkExperimentalSpringConfig:
+    min_avg_turnover_hkd_20d: float = 10_000_000.0
+    min_positive_volume_ratio_60d: float = 0.95
+
+
+@dataclass(frozen=True)
+class PersonalWatchConfig:
+    holdings: tuple[PersonalStockConfig, ...]
+    watchlist: tuple[PersonalStockConfig, ...]
+    hk_experimental_spring: HkExperimentalSpringConfig
+
+
 _WATCHLIST_DEFAULTS = {
     "enabled_alerts": list(ALERT_TYPES),
     "volume_ratio": 3.0,
@@ -64,6 +84,14 @@ _WATCHLIST_DEFAULTS = {
 _WATCHLIST_TOP_LEVEL_FIELDS = {"defaults", "watchlist"}
 _WATCHLIST_ITEM_FIELDS = {"symbol", "market", "name", "overrides"}
 _WATCHLIST_RULE_FIELDS = set(_WATCHLIST_DEFAULTS)
+_PERSONAL_TOP_LEVEL_FIELDS = {"defaults", "holdings", "watchlist"}
+_PERSONAL_DEFAULT_FIELDS = {"hk_experimental_spring"}
+_PERSONAL_HK_SPRING_FIELDS = {
+    "min_avg_turnover_hkd_20d",
+    "min_positive_volume_ratio_60d",
+}
+_PERSONAL_STOCK_FIELDS = {"symbol", "market", "name"}
+_PERSONAL_MARKETS = {"cn", "hk"}
 
 
 def load_yaml(path: str | Path) -> dict[str, Any]:
@@ -384,6 +412,78 @@ def load_watchlist(path: str | Path) -> WatchlistConfig:
             )
         )
     return WatchlistConfig(items=tuple(items))
+
+
+def load_personal_watch(path: str | Path) -> PersonalWatchConfig:
+    data = load_yaml(path)
+    _reject_unknown_fields(data, _PERSONAL_TOP_LEVEL_FIELDS, "personal top-level")
+
+    defaults = _mapping(data.get("defaults"), "personal defaults")
+    _reject_unknown_fields(defaults, _PERSONAL_DEFAULT_FIELDS, "personal default")
+    hk_defaults = _mapping(
+        defaults.get("hk_experimental_spring"),
+        "personal hk_experimental_spring",
+    )
+    _reject_unknown_fields(
+        hk_defaults,
+        _PERSONAL_HK_SPRING_FIELDS,
+        "personal hk_experimental_spring",
+    )
+    hk_config = HkExperimentalSpringConfig(
+        min_avg_turnover_hkd_20d=_positive_float(
+            hk_defaults.get("min_avg_turnover_hkd_20d", 10_000_000.0),
+            "min_avg_turnover_hkd_20d",
+        ),
+        min_positive_volume_ratio_60d=_ratio(
+            hk_defaults.get("min_positive_volume_ratio_60d", 0.95),
+            "min_positive_volume_ratio_60d",
+        ),
+    )
+
+    seen: set[str] = set()
+
+    def load_group(name: str) -> tuple[PersonalStockConfig, ...]:
+        raw_items = data.get(name, [])
+        if not isinstance(raw_items, list):
+            raise ValueError(f"personal {name} must be a list")
+        items: list[PersonalStockConfig] = []
+        for value in raw_items:
+            raw_item = _mapping(value, "personal stock")
+            _reject_unknown_fields(
+                raw_item,
+                _PERSONAL_STOCK_FIELDS,
+                "personal stock",
+            )
+            symbol = str(raw_item.get("symbol", "")).strip().upper()
+            if not symbol:
+                raise ValueError("personal stock symbol is required")
+            if symbol in seen:
+                raise ValueError(f"duplicate personal stock symbol: {symbol}")
+            market = str(raw_item.get("market", "")).strip().lower()
+            if market not in _PERSONAL_MARKETS:
+                raise ValueError(f"unsupported personal stock market: {market}")
+            stock_name = str(raw_item.get("name", "")).strip()
+            if not stock_name:
+                raise ValueError("personal stock name is required")
+            seen.add(symbol)
+            items.append(
+                PersonalStockConfig(
+                    symbol=symbol,
+                    market=market,
+                    name=stock_name,
+                )
+            )
+        return tuple(items)
+
+    holdings = load_group("holdings")
+    watchlist = load_group("watchlist")
+    if not holdings and not watchlist:
+        raise ValueError("personal watch must contain at least one stock")
+    return PersonalWatchConfig(
+        holdings=holdings,
+        watchlist=watchlist,
+        hk_experimental_spring=hk_config,
+    )
 
 
 def load_core_etfs(path: str | Path) -> list[dict[str, str]]:
