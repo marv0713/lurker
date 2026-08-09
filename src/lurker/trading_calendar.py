@@ -37,7 +37,18 @@ class CnTradingCalendarProvider(Protocol):
     ) -> tuple[date, ...]: ...
 
 
-class ExchangeCalendarsCnProvider:
+CALENDAR_TIMEZONES = {
+    "XSHG": "Asia/Shanghai",
+    "XHKG": "Asia/Hong_Kong",
+}
+
+
+class ExchangeCalendarsProvider:
+    def __init__(self, calendar_name: str) -> None:
+        if calendar_name not in CALENDAR_TIMEZONES:
+            raise ValueError(f"unsupported exchange calendar: {calendar_name}")
+        self.calendar_name = calendar_name
+
     @property
     def provider_name(self) -> str:
         return "exchange_calendars"
@@ -48,7 +59,7 @@ class ExchangeCalendarsCnProvider:
             return version("exchange-calendars")
         except Exception as exc:
             raise TradingCalendarUnavailable(
-                f"XSHG calendar unavailable: {exc}"
+                f"{self.calendar_name} calendar unavailable: {exc}"
             ) from exc
 
     def sessions_in_range(
@@ -60,7 +71,7 @@ class ExchangeCalendarsCnProvider:
             import exchange_calendars as xcals
             import pandas as pd
 
-            calendar = xcals.get_calendar("XSHG")
+            calendar = xcals.get_calendar(self.calendar_name)
             sessions = calendar.sessions_in_range(
                 pd.Timestamp(start),
                 pd.Timestamp(end),
@@ -68,13 +79,18 @@ class ExchangeCalendarsCnProvider:
             normalized = tuple(item.date() for item in sessions)
         except Exception as exc:
             raise TradingCalendarUnavailable(
-                f"XSHG calendar unavailable: {exc}"
+                f"{self.calendar_name} calendar unavailable: {exc}"
             ) from exc
         if tuple(sorted(set(normalized))) != normalized:
             raise TradingCalendarUnavailable(
-                "XSHG sessions are not strictly increasing and unique"
+                f"{self.calendar_name} sessions are not strictly increasing and unique"
             )
         return normalized
+
+
+class ExchangeCalendarsCnProvider(ExchangeCalendarsProvider):
+    def __init__(self) -> None:
+        super().__init__("XSHG")
 
 
 def parse_iso_date(value: str) -> date:
@@ -83,6 +99,7 @@ def parse_iso_date(value: str) -> date:
 
 @dataclass(frozen=True)
 class CalendarCache:
+    calendar_name: str
     provider: str
     provider_version: str
     generated_at: str
@@ -91,14 +108,20 @@ class CalendarCache:
     sessions: tuple[date, ...]
 
     @classmethod
-    def from_dict(cls, raw: object) -> CalendarCache:
+    def from_dict(
+        cls,
+        raw: object,
+        *,
+        expected_calendar: str = "XSHG",
+    ) -> CalendarCache:
         if not isinstance(raw, dict):
             raise ValueError("calendar cache must be a mapping")
         if raw.get("schema_version") != 1:
             raise ValueError("unsupported calendar cache schema")
-        if raw.get("calendar") != "XSHG":
-            raise ValueError("calendar cache must use XSHG")
-        if raw.get("timezone") != "Asia/Shanghai":
+        if raw.get("calendar") != expected_calendar:
+            raise ValueError(f"calendar cache must use {expected_calendar}")
+        expected_timezone = CALENDAR_TIMEZONES[expected_calendar]
+        if raw.get("timezone") != expected_timezone:
             raise ValueError("calendar cache timezone mismatch")
         start = parse_iso_date(str(raw["coverage_start"]))
         end = parse_iso_date(str(raw["coverage_end"]))
@@ -113,6 +136,7 @@ class CalendarCache:
         if any(item < start or item > end for item in sessions):
             raise ValueError("calendar cache session outside coverage")
         return cls(
+            calendar_name=expected_calendar,
             provider=str(raw["provider"]),
             provider_version=str(raw["provider_version"]),
             generated_at=str(raw["generated_at"]),
@@ -127,8 +151,8 @@ class CalendarCache:
     def to_dict(self) -> dict[str, object]:
         return {
             "schema_version": 1,
-            "calendar": "XSHG",
-            "timezone": "Asia/Shanghai",
+            "calendar": self.calendar_name,
+            "timezone": CALENDAR_TIMEZONES[self.calendar_name],
             "provider": self.provider,
             "provider_version": self.provider_version,
             "generated_at": self.generated_at,
@@ -138,12 +162,13 @@ class CalendarCache:
         }
 
 
-def _read_cache(path: Path) -> CalendarCache | None:
+def _read_cache(path: Path, calendar_name: str = "XSHG") -> CalendarCache | None:
     if not path.exists():
         return None
     try:
         return CalendarCache.from_dict(
-            json.loads(path.read_text(encoding="utf-8"))
+            json.loads(path.read_text(encoding="utf-8")),
+            expected_calendar=calendar_name,
         )
     # json.JSONDecodeError inherits from ValueError and is covered here.
     except (OSError, KeyError, TypeError, ValueError):
@@ -176,20 +201,26 @@ def _write_cache(path: Path, cache: CalendarCache) -> None:
 ProviderFactory = Callable[[], CnTradingCalendarProvider]
 
 
-class CnTradingCalendar:
+class TradingCalendar:
     def __init__(
         self,
+        calendar_name: str,
         cache_path: Path,
         *,
-        provider_factory: ProviderFactory = ExchangeCalendarsCnProvider,
+        provider_factory: ProviderFactory | None = None,
     ) -> None:
+        if calendar_name not in CALENDAR_TIMEZONES:
+            raise ValueError(f"unsupported exchange calendar: {calendar_name}")
+        self.calendar_name = calendar_name
         self.cache_path = Path(cache_path)
-        self.provider_factory = provider_factory
+        self.provider_factory = provider_factory or (
+            lambda: ExchangeCalendarsProvider(calendar_name)
+        )
 
     def _ensure(self, start: date, end: date) -> CalendarCache:
         requested_start = date(start.year, 1, 1)
         requested_end = date(end.year, 12, 31)
-        cache = _read_cache(self.cache_path)
+        cache = _read_cache(self.cache_path, self.calendar_name)
         if cache is not None and cache.covers(requested_start, requested_end):
             return cache
         if cache is None:
@@ -200,6 +231,7 @@ class CnTradingCalendar:
         provider = self.provider_factory()
         sessions = provider.sessions_in_range(query_start, query_end)
         rebuilt = CalendarCache(
+            calendar_name=self.calendar_name,
             provider=provider.provider_name,
             provider_version=provider.provider_version,
             generated_at=datetime.now(SHANGHAI_TZ).isoformat(),
@@ -241,6 +273,20 @@ class CnTradingCalendar:
             if sessions:
                 return sessions[-1]
             cursor_year -= 1
+
+
+class CnTradingCalendar(TradingCalendar):
+    def __init__(
+        self,
+        cache_path: Path,
+        *,
+        provider_factory: ProviderFactory = ExchangeCalendarsCnProvider,
+    ) -> None:
+        super().__init__(
+            "XSHG",
+            cache_path,
+            provider_factory=provider_factory,
+        )
 
 
 @dataclass(frozen=True)
@@ -304,19 +350,29 @@ def resolve_weekly_date(
     )
 
 
-DEFAULT_CALENDAR_CACHE = (
+DEFAULT_CALENDAR_CACHE_DIR = (
     Path(__file__).resolve().parents[2]
     / "data"
     / "cache"
     / "trading_calendars"
-    / "xshg_sessions.json"
 )
+DEFAULT_CALENDAR_CACHE = DEFAULT_CALENDAR_CACHE_DIR / "xshg_sessions.json"
 
 
 def build_default_cn_calendar(
     cache_path: Path | None = None,
 ) -> CnTradingCalendar:
     return CnTradingCalendar(cache_path or DEFAULT_CALENDAR_CACHE)
+
+
+def build_default_personal_calendars(
+    cache_dir: Path | None = None,
+) -> dict[str, TradingCalendar]:
+    root = Path(cache_dir) if cache_dir is not None else DEFAULT_CALENDAR_CACHE_DIR
+    return {
+        "cn": TradingCalendar("XSHG", root / "xshg_sessions.json"),
+        "hk": TradingCalendar("XHKG", root / "xhkg_sessions.json"),
+    }
 
 
 def is_cn_trading_day(

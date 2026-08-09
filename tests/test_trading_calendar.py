@@ -8,9 +8,12 @@ import pytest
 from lurker.trading_calendar import (
     CnTradingCalendar,
     ExchangeCalendarsCnProvider,
+    ExchangeCalendarsProvider,
     FutureReportDateError,
     ReportDateResolution,
+    TradingCalendar,
     TradingCalendarUnavailable,
+    build_default_personal_calendars,
     is_cn_trading_day,
     resolve_daily_date,
     resolve_weekly_date,
@@ -47,6 +50,39 @@ def test_exchange_calendar_provider_contract():
     assert provider.provider_name == "exchange_calendars"
     assert provider.provider_version == version("exchange-calendars")
     assert sessions == (date(2026, 6, 18), date(2026, 6, 22))
+
+
+def test_exchange_calendar_provider_supports_xhkg():
+    provider = ExchangeCalendarsProvider("XHKG")
+
+    sessions = provider.sessions_in_range(
+        date(2026, 7, 1),
+        date(2026, 7, 2),
+    )
+
+    assert provider.calendar_name == "XHKG"
+    assert sessions == (date(2026, 7, 2),)
+
+
+def test_personal_calendars_use_separate_names_and_cache_files(tmp_path):
+    calendars = build_default_personal_calendars(tmp_path)
+
+    assert calendars["cn"].calendar_name == "XSHG"
+    assert calendars["hk"].calendar_name == "XHKG"
+    assert calendars["cn"].cache_path.name == "xshg_sessions.json"
+    assert calendars["hk"].cache_path.name == "xhkg_sessions.json"
+
+
+def test_hk_calendar_failure_without_covering_cache_is_hard_failure(tmp_path):
+    error = TradingCalendarUnavailable("provider down")
+    calendar = TradingCalendar(
+        "XHKG",
+        tmp_path / "xhkg.json",
+        provider_factory=lambda: FakeProvider([], error=error),
+    )
+
+    with pytest.raises(TradingCalendarUnavailable, match="provider down"):
+        calendar.is_trading_day(date(2026, 8, 10))
 
 
 def test_exchange_calendar_provider_wraps_version_failure(monkeypatch):
