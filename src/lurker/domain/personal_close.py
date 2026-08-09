@@ -18,6 +18,15 @@ TrendLabel = Literal[
     "data_insufficient",
 ]
 BullishQualityLabel = Literal["micro", "standard", "strong"]
+CorporateEventType = Literal[
+    "earnings",
+    "dividend",
+    "split",
+    "consolidation",
+    "rights_issue",
+    "additional_issuance",
+]
+CorporateEventStatus = Literal["expected", "confirmed"]
 
 
 @dataclass(frozen=True)
@@ -43,6 +52,34 @@ class FirstBullishQuality:
     entity_ratio: float
     daily_return: float
     label: BullishQualityLabel
+
+
+@dataclass(frozen=True)
+class CorporateAction:
+    symbol: str
+    event_type: CorporateEventType
+    primary_date: date
+    status: CorporateEventStatus
+    summary: str
+    record_date: date | None = None
+    payment_date: date | None = None
+    source_updated_at: str | None = None
+
+
+@dataclass(frozen=True)
+class DataQualityIssue:
+    code: str
+    message: str
+    symbol: str | None = None
+    market: str | None = None
+
+
+@dataclass(frozen=True)
+class CorporateActionCoverage:
+    actions: tuple[CorporateAction, ...]
+    complete: bool
+    issues: tuple[DataQualityIssue, ...] = ()
+    unsupported_event_types: tuple[CorporateEventType, ...] = ()
 
 
 def _moving_average(closes: list[float], end: int, window: int) -> float:
