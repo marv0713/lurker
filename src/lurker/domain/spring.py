@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 import math
@@ -8,6 +8,7 @@ from typing import Any
 
 
 RULE_VERSION = "ma20-v1"
+HK_RULE_VERSION = "hk-ma20-experimental-v1"
 MINIMUM_BARS = 79
 PRICE_FIELDS = ("open", "high", "low", "close")
 BOUNDARY_EPSILON = 1e-12
@@ -66,6 +67,16 @@ def _as_positive_float(value: Any) -> float | None:
     return number
 
 
+def _as_non_negative_float(value: Any) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(number) or number < 0:
+        return None
+    return number
+
+
 def _merge_touch_segments(flags: Sequence[bool]) -> list[tuple[int, int]]:
     raw_segments: list[tuple[int, int]] = []
     start: int | None = None
@@ -111,59 +122,26 @@ def _compression_ratio(bars: Sequence[_Bar], compression_end: int) -> float:
     return (sum(compression) / 3) / baseline
 
 
-def analyze_spring_bars(
-    bars: Sequence[Mapping[str, Any]],
+def _analyze_shape(
+    bars: Sequence[_Bar],
+    *,
+    rule_version: str,
+    as_of: str,
+    compression_ratio_for: Callable[[int], float],
 ) -> dict[str, Any]:
-    dated_rows: list[tuple[date, Mapping[str, Any]]] = []
-    for row in bars:
-        trade_date = _parse_date(row.get("trade_date"))
-        if trade_date is None:
-            return unknown_spring_result("invalid_trade_date")
-        dated_rows.append((trade_date, row))
-
-    dated_rows.sort(key=lambda item: item[0])
-    if len(dated_rows) < MINIMUM_BARS:
-        as_of = dated_rows[-1][0].isoformat() if dated_rows else None
-        return unknown_spring_result("insufficient_history", as_of=as_of)
-
-    latest = dated_rows[-MINIMUM_BARS:]
-    dates = [item[0] for item in latest]
-    as_of = dates[-1].isoformat()
-    if len(set(dates)) != len(dates):
-        return unknown_spring_result("duplicate_trade_date", as_of=as_of)
-
-    normalized: list[_Bar] = []
-    for trade_date, row in latest:
-        prices = [_as_positive_float(row.get(field)) for field in PRICE_FIELDS]
-        if any(value is None for value in prices):
-            return unknown_spring_result("invalid_price_data", as_of=as_of)
-        volume = _as_positive_float(row.get("volume"))
-        if volume is None:
-            return unknown_spring_result("invalid_volume_data", as_of=as_of)
-        normalized.append(
-            _Bar(
-                trade_date=trade_date,
-                open=prices[0],  # type: ignore[arg-type]
-                high=prices[1],  # type: ignore[arg-type]
-                low=prices[2],  # type: ignore[arg-type]
-                close=prices[3],  # type: ignore[arg-type]
-                volume=volume,
-            )
-        )
-
-    closes = [bar.close for bar in normalized]
+    closes = [bar.close for bar in bars]
     ma20_values = [
         _moving_average(closes, end=index, window=20)
         for index in range(19, MINIMUM_BARS)
     ]
     touch_flags = [
-        normalized[index].low / ma20 - 1.0 <= 0.02 + BOUNDARY_EPSILON
-        and normalized[index].close / ma20 - 1.0 >= -0.02 - BOUNDARY_EPSILON
+        bars[index].low / ma20 - 1.0 <= 0.02 + BOUNDARY_EPSILON
+        and bars[index].close / ma20 - 1.0 >= -0.02 - BOUNDARY_EPSILON
         for index, ma20 in zip(range(19, MINIMUM_BARS), ma20_values, strict=True)
     ]
     segments = _merge_touch_segments(touch_flags)
-    ma20_distance = normalized[-1].close / ma20_values[-1] - 1.0
-    prior_distance = normalized[-2].close / ma20_values[-2] - 1.0
+    ma20_distance = bars[-1].close / ma20_values[-1] - 1.0
+    prior_distance = bars[-2].close / ma20_values[-2] - 1.0
 
     current_segment = (
         segments[-1]
@@ -173,13 +151,13 @@ def analyze_spring_bars(
     prior_bullish_in_segment = False
     if current_segment is not None:
         prior_bullish_in_segment = any(
-            _is_bullish(normalized, local_index + 19)
+            _is_bullish(bars, local_index + 19)
             for local_index in range(current_segment[0], len(touch_flags) - 1)
         )
     current_bullish = (
         current_segment is not None
         and not prior_bullish_in_segment
-        and _is_bullish(normalized, len(normalized) - 1)
+        and _is_bullish(bars, len(bars) - 1)
     )
 
     ma20_up = ma20_values[-1] > ma20_values[-6]
@@ -192,8 +170,8 @@ def analyze_spring_bars(
 
     compression_ratio: float | None = None
     if current_segment is not None and not prior_bullish_in_segment:
-        compression_end = len(normalized) - 2 if current_bullish else len(normalized) - 1
-        compression_ratio = _compression_ratio(normalized, compression_end)
+        compression_end = len(bars) - 2 if current_bullish else len(bars) - 1
+        compression_ratio = compression_ratio_for(compression_end)
 
     volume_not_compressed = (
         ma20_up
@@ -236,7 +214,7 @@ def analyze_spring_bars(
         state = "compressed_watch"
 
     return {
-        "rule_version": RULE_VERSION,
+        "rule_version": rule_version,
         "state": state,
         "as_of": as_of,
         "ma20_distance_pct": ma20_distance,
@@ -244,4 +222,177 @@ def analyze_spring_bars(
         "support_touch_count_60d": len(segments),
         "min_ma20_distance_2d_pct": min(prior_distance, ma20_distance),
         "reasons": reasons,
+    }
+
+
+def analyze_spring_bars(
+    bars: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    dated_rows: list[tuple[date, Mapping[str, Any]]] = []
+    for row in bars:
+        trade_date = _parse_date(row.get("trade_date"))
+        if trade_date is None:
+            return unknown_spring_result("invalid_trade_date")
+        dated_rows.append((trade_date, row))
+
+    dated_rows.sort(key=lambda item: item[0])
+    if len(dated_rows) < MINIMUM_BARS:
+        as_of = dated_rows[-1][0].isoformat() if dated_rows else None
+        return unknown_spring_result("insufficient_history", as_of=as_of)
+
+    latest = dated_rows[-MINIMUM_BARS:]
+    dates = [item[0] for item in latest]
+    as_of = dates[-1].isoformat()
+    if len(set(dates)) != len(dates):
+        return unknown_spring_result("duplicate_trade_date", as_of=as_of)
+
+    normalized: list[_Bar] = []
+    for trade_date, row in latest:
+        prices = [_as_positive_float(row.get(field)) for field in PRICE_FIELDS]
+        if any(value is None for value in prices):
+            return unknown_spring_result("invalid_price_data", as_of=as_of)
+        volume = _as_positive_float(row.get("volume"))
+        if volume is None:
+            return unknown_spring_result("invalid_volume_data", as_of=as_of)
+        normalized.append(
+            _Bar(
+                trade_date=trade_date,
+                open=prices[0],  # type: ignore[arg-type]
+                high=prices[1],  # type: ignore[arg-type]
+                low=prices[2],  # type: ignore[arg-type]
+                close=prices[3],  # type: ignore[arg-type]
+                volume=volume,
+            )
+        )
+
+    return _analyze_shape(
+        normalized,
+        rule_version=RULE_VERSION,
+        as_of=as_of,
+        compression_ratio_for=lambda end: _compression_ratio(normalized, end),
+    )
+
+
+def _unknown_hk_spring_result(
+    reason: str,
+    *,
+    as_of: str | None = None,
+    avg_turnover_hkd_20d: float | None = None,
+    positive_volume_ratio_60d: float | None = None,
+) -> dict[str, Any]:
+    return {
+        "rule_version": HK_RULE_VERSION,
+        "state": "unknown",
+        "as_of": as_of,
+        "ma20_distance_pct": None,
+        "volume_compression_ratio": None,
+        "support_touch_count_60d": 0,
+        "min_ma20_distance_2d_pct": None,
+        "reasons": [reason],
+        "experimental": True,
+        "avg_turnover_hkd_20d": avg_turnover_hkd_20d,
+        "positive_volume_ratio_60d": positive_volume_ratio_60d,
+    }
+
+
+class _HkCompressionVolumeError(ValueError):
+    pass
+
+
+def analyze_hk_experimental_spring(
+    bars: Sequence[Mapping[str, Any]],
+    *,
+    min_avg_turnover_hkd_20d: float = 10_000_000.0,
+    min_positive_volume_ratio_60d: float = 0.95,
+) -> dict[str, Any]:
+    dated_rows: list[tuple[date, Mapping[str, Any]]] = []
+    for row in bars:
+        trade_date = _parse_date(row.get("trade_date"))
+        if trade_date is None:
+            return _unknown_hk_spring_result("invalid_trade_date")
+        dated_rows.append((trade_date, row))
+
+    dated_rows.sort(key=lambda item: item[0])
+    if len(dated_rows) < MINIMUM_BARS:
+        as_of = dated_rows[-1][0].isoformat() if dated_rows else None
+        return _unknown_hk_spring_result("insufficient_history", as_of=as_of)
+
+    latest = dated_rows[-MINIMUM_BARS:]
+    dates = [item[0] for item in latest]
+    as_of = dates[-1].isoformat()
+    if len(set(dates)) != len(dates):
+        return _unknown_hk_spring_result("duplicate_trade_date", as_of=as_of)
+
+    normalized: list[_Bar] = []
+    raw_closes: list[float] = []
+    for trade_date, row in latest:
+        prices = [_as_positive_float(row.get(field)) for field in PRICE_FIELDS]
+        if any(value is None for value in prices):
+            return _unknown_hk_spring_result("invalid_price_data", as_of=as_of)
+        open_price, high, low, close = prices
+        if not (low <= open_price <= high and low <= close <= high):
+            return _unknown_hk_spring_result("invalid_price_data", as_of=as_of)
+        raw_close = _as_positive_float(row.get("raw_close"))
+        if raw_close is None:
+            return _unknown_hk_spring_result("invalid_price_data", as_of=as_of)
+        volume = _as_non_negative_float(row.get("volume"))
+        if volume is None:
+            return _unknown_hk_spring_result("invalid_volume_data", as_of=as_of)
+        normalized.append(
+            _Bar(
+                trade_date=trade_date,
+                open=open_price,
+                high=high,
+                low=low,
+                close=close,
+                volume=volume,
+            )
+        )
+        raw_closes.append(raw_close)
+
+    avg_turnover = sum(
+        raw_close * bar.volume
+        for raw_close, bar in zip(raw_closes[-20:], normalized[-20:], strict=True)
+    ) / 20
+    positive_ratio = sum(bar.volume > 0 for bar in normalized[-60:]) / 60
+    if avg_turnover + BOUNDARY_EPSILON < min_avg_turnover_hkd_20d:
+        return _unknown_hk_spring_result(
+            "hk_insufficient_turnover",
+            as_of=as_of,
+            avg_turnover_hkd_20d=avg_turnover,
+            positive_volume_ratio_60d=positive_ratio,
+        )
+    if positive_ratio + BOUNDARY_EPSILON < min_positive_volume_ratio_60d:
+        return _unknown_hk_spring_result(
+            "hk_insufficient_positive_volume_days",
+            as_of=as_of,
+            avg_turnover_hkd_20d=avg_turnover,
+            positive_volume_ratio_60d=positive_ratio,
+        )
+
+    def compression_ratio_for(compression_end: int) -> float:
+        required = normalized[compression_end - 42 : compression_end + 1]
+        if any(bar.volume <= 0 for bar in required):
+            raise _HkCompressionVolumeError
+        return _compression_ratio(normalized, compression_end)
+
+    try:
+        result = _analyze_shape(
+            normalized,
+            rule_version=HK_RULE_VERSION,
+            as_of=as_of,
+            compression_ratio_for=compression_ratio_for,
+        )
+    except _HkCompressionVolumeError:
+        return _unknown_hk_spring_result(
+            "hk_zero_volume_in_compression_window",
+            as_of=as_of,
+            avg_turnover_hkd_20d=avg_turnover,
+            positive_volume_ratio_60d=positive_ratio,
+        )
+    return {
+        **result,
+        "experimental": True,
+        "avg_turnover_hkd_20d": avg_turnover,
+        "positive_volume_ratio_60d": positive_ratio,
     }
