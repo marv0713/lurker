@@ -925,6 +925,72 @@ def build_watchlist_notifier_from_env():
     return CompositeNotifier(notifiers)
 
 
+def build_personal_notifier_from_env():
+    import os
+
+    notifiers = []
+    token = os.environ.get("PERSONAL_PUSHPLUS_TOKEN")
+    if token:
+        from lurker.notification.pushplus_notifier import PushPlusNotifier
+
+        notifiers.append(PushPlusNotifier(token=token))
+
+    email_environment_names = (
+        "PERSONAL_SMTP_HOST",
+        "PERSONAL_SMTP_PORT",
+        "PERSONAL_SMTP_USER",
+        "PERSONAL_SMTP_PASSWORD",
+        "PERSONAL_SMTP_FROM",
+        "PERSONAL_EMAIL_TO",
+        "PERSONAL_SMTP_USE_TLS",
+        "PERSONAL_SMTP_USE_SSL",
+    )
+    email_configured = any(name in os.environ for name in email_environment_names)
+    if email_configured:
+        smtp_host = os.environ.get("PERSONAL_SMTP_HOST", "").strip()
+        smtp_from = os.environ.get("PERSONAL_SMTP_FROM", "").strip()
+        email_to = os.environ.get("PERSONAL_EMAIL_TO", "")
+        if not (smtp_host and smtp_from and email_to):
+            raise ValueError("incomplete PERSONAL email configuration")
+        recipients = [value.strip() for value in email_to.split(",") if value.strip()]
+        if not recipients:
+            raise ValueError("PERSONAL_EMAIL_TO has no recipients")
+        try:
+            port = int(os.environ.get("PERSONAL_SMTP_PORT", "587"))
+        except ValueError as exc:
+            raise ValueError("PERSONAL_SMTP_PORT must be an integer") from exc
+
+        from lurker.notification.email_notifier import EmailNotifier
+
+        notifiers.append(
+            EmailNotifier(
+                host=smtp_host,
+                port=port,
+                username=os.environ.get("PERSONAL_SMTP_USER"),
+                password=os.environ.get("PERSONAL_SMTP_PASSWORD"),
+                sender=smtp_from,
+                recipients=recipients,
+                use_tls=_env_bool(
+                    os.environ.get("PERSONAL_SMTP_USE_TLS"),
+                    default=True,
+                ),
+                use_ssl=_env_bool(
+                    os.environ.get("PERSONAL_SMTP_USE_SSL"),
+                    default=False,
+                ),
+            )
+        )
+
+    if not notifiers:
+        return None
+    if len(notifiers) == 1:
+        return notifiers[0]
+
+    from lurker.notification.notifier import CompositeNotifier
+
+    return CompositeNotifier(notifiers)
+
+
 def _validated_report_date(
     report_date: str | None,
     *,

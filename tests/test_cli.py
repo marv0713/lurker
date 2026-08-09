@@ -14,6 +14,7 @@ from lurker.cli import (
     build_data_snapshot,
     build_demo_report,
     build_notifier_from_env,
+    build_personal_notifier_from_env,
     build_watchlist_notifier_from_env,
     build_run_daily,
     append_report_archive_index,
@@ -1148,6 +1149,95 @@ def test_watchlist_notifier_rejects_incomplete_email_configuration(monkeypatch):
 
     with pytest.raises(ValueError, match="incomplete WATCHLIST email configuration"):
         build_watchlist_notifier_from_env()
+
+
+PERSONAL_ENV_NAMES = (
+    "PERSONAL_PUSHPLUS_TOKEN",
+    "PERSONAL_SMTP_HOST",
+    "PERSONAL_SMTP_PORT",
+    "PERSONAL_SMTP_USER",
+    "PERSONAL_SMTP_PASSWORD",
+    "PERSONAL_SMTP_FROM",
+    "PERSONAL_EMAIL_TO",
+    "PERSONAL_SMTP_USE_TLS",
+    "PERSONAL_SMTP_USE_SSL",
+)
+
+
+def clear_personal_environment(monkeypatch):
+    for name in PERSONAL_ENV_NAMES:
+        monkeypatch.delenv(name, raising=False)
+
+
+def test_personal_notifier_ignores_daily_and_watchlist_environment(monkeypatch):
+    clear_personal_environment(monkeypatch)
+    monkeypatch.setenv("PUSHPLUS_TOKEN", "daily")
+    monkeypatch.setenv("WATCHLIST_PUSHPLUS_TOKEN", "watchlist")
+    monkeypatch.setenv("EMAIL_TO", "daily@example.com")
+
+    assert build_personal_notifier_from_env() is None
+
+
+def test_personal_notifier_builds_pushplus_and_complete_email(monkeypatch):
+    clear_personal_environment(monkeypatch)
+    monkeypatch.setenv("PERSONAL_PUSHPLUS_TOKEN", "personal-token")
+    monkeypatch.setenv("PERSONAL_SMTP_HOST", "smtp.example.com")
+    monkeypatch.setenv("PERSONAL_SMTP_PORT", "465")
+    monkeypatch.setenv("PERSONAL_SMTP_USER", "owner")
+    monkeypatch.setenv("PERSONAL_SMTP_PASSWORD", "secret")
+    monkeypatch.setenv("PERSONAL_SMTP_FROM", "owner@example.com")
+    monkeypatch.setenv("PERSONAL_EMAIL_TO", "a@example.com, b@example.com")
+    monkeypatch.setenv("PERSONAL_SMTP_USE_TLS", "false")
+    monkeypatch.setenv("PERSONAL_SMTP_USE_SSL", "true")
+
+    notifier = build_personal_notifier_from_env()
+
+    assert type(notifier).__name__ == "CompositeNotifier"
+    pushplus, email = notifier.notifiers
+    assert pushplus.token == "personal-token"
+    assert email.port == 465
+    assert email.recipients == ["a@example.com", "b@example.com"]
+    assert email.use_tls is False
+    assert email.use_ssl is True
+
+
+@pytest.mark.parametrize(
+    "partial",
+    [
+        {"PERSONAL_SMTP_HOST": "smtp.example.com"},
+        {"PERSONAL_SMTP_FROM": "owner@example.com"},
+        {"PERSONAL_EMAIL_TO": "owner@example.com"},
+        {"PERSONAL_SMTP_USER": "owner"},
+    ],
+)
+def test_personal_notifier_rejects_incomplete_email_configuration(monkeypatch, partial):
+    clear_personal_environment(monkeypatch)
+    for name, value in partial.items():
+        monkeypatch.setenv(name, value)
+
+    with pytest.raises(ValueError, match="incomplete PERSONAL email configuration"):
+        build_personal_notifier_from_env()
+
+
+def test_personal_notifier_rejects_empty_recipients(monkeypatch):
+    clear_personal_environment(monkeypatch)
+    monkeypatch.setenv("PERSONAL_SMTP_HOST", "smtp.example.com")
+    monkeypatch.setenv("PERSONAL_SMTP_FROM", "owner@example.com")
+    monkeypatch.setenv("PERSONAL_EMAIL_TO", " , ")
+
+    with pytest.raises(ValueError, match="PERSONAL_EMAIL_TO has no recipients"):
+        build_personal_notifier_from_env()
+
+
+def test_personal_notifier_rejects_invalid_port(monkeypatch):
+    clear_personal_environment(monkeypatch)
+    monkeypatch.setenv("PERSONAL_SMTP_HOST", "smtp.example.com")
+    monkeypatch.setenv("PERSONAL_SMTP_FROM", "owner@example.com")
+    monkeypatch.setenv("PERSONAL_EMAIL_TO", "owner@example.com")
+    monkeypatch.setenv("PERSONAL_SMTP_PORT", "invalid")
+
+    with pytest.raises(ValueError, match="PERSONAL_SMTP_PORT must be an integer"):
+        build_personal_notifier_from_env()
 
 
 def test_parser_has_monthly_macro_flow_defaults():
