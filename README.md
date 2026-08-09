@@ -154,7 +154,7 @@ watchlist:
     name: 腾讯控股
 ```
 
-Only `cn` and `hk` are supported in v1. A stock cannot appear twice across the two groups, and `name` is required. Edit this file at any time; the next run reads the new scope without restarting a service.
+Only `cn` and `hk` are supported in v1. Hong Kong symbols may use one to five digits before `.HK` (for example, `700.HK` or `00700.HK`) and are normalized for each data provider. A stock cannot appear twice across the two groups, and `name` is required. Edit this file at any time; the next run reads the new scope without restarting a service.
 
 Run locally without notification:
 
@@ -167,7 +167,7 @@ PYTHONPATH=src .venv/bin/lurker personal-close-report \
 
 Reports overwrite the current complete view for that date at `data/reports/personal_close/YYYY-MM-DD.md`. At least one configured market must be open; when both configured markets are closed, the command skips cleanly and writes nothing. A stock from a closed market still appears when the other market is open, using its latest price on or before the report date and an explicit closed-market note.
 
-The report starts with a one-line conclusion, then shows all holdings, all watch items, and data-quality notes. It includes adjusted MA5/20/200 direction, the formal A-share `ma20-v1` spring state, the separately labelled experimental HK spring state, and corporate actions in the inclusive 14-calendar-day window `[report date, report date + 13 days]`. The structured providers do not cover every action type in every market; an unsupported or failed source is shown as incomplete coverage and is never described as “no known events.”
+The report starts with a one-line conclusion, then shows all holdings, all watch items, and data-quality notes. It includes adjusted MA5/20/200 direction, the formal A-share `ma20-v1` spring state, the separately labelled experimental HK spring state, and corporate actions in the inclusive 14-calendar-day window `[report date, report date + 13 days]`. An unknown spring result is included in the data-quality summary. Event types that a provider does not support are listed once per market as a capability boundary; a fetch failure is separately marked as incomplete coverage. Neither case is presented as proof that no event exists.
 
 Personal notification settings use only these nine variables; they never fall back to daily or watchlist credentials:
 
@@ -181,7 +181,7 @@ Personal notification settings use only these nine variables; they never fall ba
 - `PERSONAL_SMTP_USE_TLS` (default enabled)
 - `PERSONAL_SMTP_USE_SSL` (default disabled)
 
-PushPlus and email may be used alone or together. If any personal email variable is present, `PERSONAL_SMTP_HOST`, `PERSONAL_SMTP_FROM`, and `PERSONAL_EMAIL_TO` must all be non-empty. With no personal channel configured, the command still writes the report and says `push=no_channel`.
+PushPlus and email may be used alone or together. If any personal email variable is present, `PERSONAL_SMTP_HOST`, `PERSONAL_SMTP_FROM`, and `PERSONAL_EMAIL_TO` must all be non-empty. With no personal channel configured, the command still writes the report and says `push=no_channel`. If prices fail for every configured stock, the diagnostic report is still written but notification and push-state updates are skipped.
 
 The independent acceptance state is stored at `data/processed/personal_close_push_state.json`. A normal same-day rerun rebuilds the report but does not resend after all configured channels have accepted it. Use `--force-push` to resend today's rebuilt report. `--no-push` never changes state. An explicit historical `--date` is a read-only replay and cannot be combined with `--force-push`. V1 accepts only `--period 2y`.
 
