@@ -98,6 +98,8 @@ def test_report_leads_with_one_line_and_keeps_every_stock_in_yaml_order():
     assert report.index("中际旭创（300308.SZ）") < report.index("贵州茅台（600519.SH）")
     assert report.index("贵州茅台（600519.SH）") < report.index("腾讯控股（00700.HK）")
     assert "部分数据不完整，详见数据质量" in report
+    assert "持仓趋势整体稳定" not in report
+    assert "当前未发现可确认的优先重点" in report
     assert "今日休市，数据截止至 2026-08-10" in report
     assert "港股实验弹簧" in report
     assert "未来两周：公司行动日历不完整" in report

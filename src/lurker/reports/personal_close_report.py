@@ -170,12 +170,14 @@ def _one_line(facts: PersonalReportFacts) -> str:
         clauses.append(f"{formal_compressed} 只 A 股标的进入正式弹簧压紧观察")
     if hk_observations:
         clauses.append(f"另有 {hk_observations} 只港股实验弹簧观察")
-    result = (
-        "；".join(clauses) + "。"
-        if clauses
-        else "持仓趋势整体稳定，暂无正式弹簧确认。"
-    )
-    if _is_incomplete(facts):
+    incomplete = _is_incomplete(facts)
+    if clauses:
+        result = "；".join(clauses) + "。"
+    elif incomplete:
+        result = "当前未发现可确认的优先重点。"
+    else:
+        result = "持仓趋势整体稳定，暂无正式弹簧确认。"
+    if incomplete:
         result += "部分数据不完整，详见数据质量。"
     return result
 
