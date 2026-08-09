@@ -35,9 +35,7 @@ def test_cn_trading_calendar_marks_next_session_open():
 
 
 def test_ci_constraint_pins_exchange_calendars_baseline():
-    text = (ROOT / "requirements" / "ci-constraints.txt").read_text(
-        encoding="utf-8"
-    )
+    text = (ROOT / "requirements" / "ci-constraints.txt").read_text(encoding="utf-8")
     assert "exchange_calendars==4.13.2" in text.splitlines()
 
 
@@ -289,9 +287,7 @@ def test_atomic_write_failure_preserves_previous_cache(monkeypatch, tmp_path):
 
 
 def test_shanghai_today_converts_utc_across_local_midnight():
-    assert shanghai_today(
-        datetime(2026, 7, 27, 16, 30, tzinfo=UTC)
-    ) == date(2026, 7, 28)
+    assert shanghai_today(datetime(2026, 7, 27, 16, 30, tzinfo=UTC)) == date(2026, 7, 28)
 
 
 def test_future_requested_date_is_rejected():
@@ -322,9 +318,7 @@ def test_daily_non_session_skips_without_backfill(tmp_path):
 
 
 def test_weekly_holiday_and_cross_year_fall_back_to_confirmed_session(tmp_path):
-    provider = FakeProvider(
-        [date(2025, 12, 31), date(2026, 1, 5), date(2026, 6, 18)]
-    )
+    provider = FakeProvider([date(2025, 12, 31), date(2026, 1, 5), date(2026, 6, 18)])
     calendar = CnTradingCalendar(
         tmp_path / "calendar.json",
         provider_factory=lambda: provider,

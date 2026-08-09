@@ -36,9 +36,11 @@ def to_yfinance_symbol(symbol: str) -> str:
         return symbol
 
     code = symbol.removesuffix(".HK")
-    if len(code) > 4 and code.isdigit():
-        return f"{code.lstrip('0')}.HK"
-    return symbol
+    if not code.isdigit():
+        return symbol
+    significant = code.lstrip("0") or "0"
+    yahoo_code = significant.zfill(4) if len(significant) < 4 else significant
+    return f"{yahoo_code}.HK"
 
 
 def to_akshare_symbol(symbol: str) -> str:
@@ -251,9 +253,9 @@ def fetch_baostock_cn_prices(
         result = bs.query_history_k_data_plus(
             to_baostock_symbol(symbol),
             "date,code,open,high,low,close,volume",
-            start_date=pd.to_datetime(
-                period_to_start_date(period, end_date=end_date)
-            ).strftime("%Y-%m-%d"),
+            start_date=pd.to_datetime(period_to_start_date(period, end_date=end_date)).strftime(
+                "%Y-%m-%d"
+            ),
             end_date=(end_date or date.today()).isoformat(),
             frequency="d",
             adjustflag="2",
@@ -282,11 +284,14 @@ def fetch_cn_prices(
     sleep_seconds: float = 0.8,
     end_date: date | None = None,
 ) -> pd.DataFrame:
-    providers = list(fetchers or [
-        fetch_tushare_cn_prices,
-        fetch_akshare_cn_prices,
-        fetch_baostock_cn_prices,
-    ])
+    providers = list(
+        fetchers
+        or [
+            fetch_tushare_cn_prices,
+            fetch_akshare_cn_prices,
+            fetch_baostock_cn_prices,
+        ]
+    )
     errors: list[str] = []
 
     for index, fetcher in enumerate(providers):

@@ -175,10 +175,7 @@ def _golden_cases() -> list[tuple[list[dict[str, object]], dict[str, object]]]:
     broken_flags[55] = True
     broken = _bars_for_touch_flags(broken_flags)
     for index in (-2, -1):
-        prior_sum = sum(
-            float(row["close"])
-            for row in broken[index - 19 : index]
-        )
+        prior_sum = sum(float(row["close"]) for row in broken[index - 19 : index])
         close = 0.95 * prior_sum / 19
         broken[index].update(
             {
@@ -368,9 +365,7 @@ def test_ma20_down_does_not_create_watch_or_confirmation():
     values = _trending_state_bars()
     for index, row in enumerate(values[-30:]):
         close = 112.0 - index * 0.2
-        row.update(
-            {"open": close, "high": close * 1.01, "low": close * 0.995, "close": close}
-        )
+        row.update({"open": close, "high": close * 1.01, "low": close * 0.995, "close": close})
 
     result = analyze_spring_bars(values)
 
@@ -381,9 +376,7 @@ def test_far_above_ma20_is_none():
     values = _bars()
     for index, row in enumerate(values):
         close = 50.0 * (1.03**index)
-        row.update(
-            {"open": close, "high": close * 1.01, "low": close * 0.995, "close": close}
-        )
+        row.update({"open": close, "high": close * 1.01, "low": close * 0.995, "close": close})
     for row in values[-3:]:
         row["volume"] = 200_000.0
 

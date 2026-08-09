@@ -142,6 +142,16 @@ def _analyze_stock(
         bullish_quality = project_first_bullish_quality(spring, prices)
         as_of = trend.as_of
         adjusted_close = trend.adjusted_close
+        if spring.get("state") == "unknown":
+            spring_name = "A股正式弹簧" if item.market == "cn" else "港股实验弹簧"
+            issues.append(
+                DataQualityIssue(
+                    "spring_unknown",
+                    f"{spring_name}不可判断",
+                    symbol=item.symbol,
+                    market=item.market,
+                )
+            )
         if as_of is not None and as_of != expected_as_of:
             if market_open:
                 code = "price_not_updated"
@@ -262,9 +272,7 @@ def run_personal_close(
     for market in configured_markets:
         calendar = calendar_map[market]
         market_as_of[market] = (
-            report_date
-            if market_open[market]
-            else calendar.previous_or_same_session(report_date)
+            report_date if market_open[market] else calendar.previous_or_same_session(report_date)
         )
 
     provider_map = action_providers or _default_action_providers()
@@ -275,9 +283,7 @@ def run_personal_close(
             providers=provider_map,
         )
     except Exception as exc:
-        action_coverages = {
-            item.symbol: _missing_action_coverage(item, exc) for item in all_items
-        }
+        action_coverages = {item.symbol: _missing_action_coverage(item, exc) for item in all_items}
 
     holdings = tuple(
         _analyze_stock(
@@ -313,11 +319,15 @@ def run_personal_close(
     content = renderer(facts)
     report_path = Path(report_dir) / f"{report_date.isoformat()}.md"
     report_writer(report_path, content)
+    all_facts = (*holdings, *watchlist)
+    all_stocks_failed = all(fact.trend is None for fact in all_facts)
 
     if report_date < resolved_today:
         push_status = "historical_read_only"
     elif no_push:
         push_status = "disabled"
+    elif all_stocks_failed:
+        push_status = "all_stocks_failed"
     elif notifier is None:
         push_status = "not_configured"
     else:
@@ -336,7 +346,6 @@ def run_personal_close(
             store.save(state)
             push_status = "accepted"
 
-    all_facts = (*holdings, *watchlist)
     return PersonalCloseRunResult(
         "generated",
         report_date,

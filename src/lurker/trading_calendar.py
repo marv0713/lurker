@@ -257,9 +257,7 @@ class TradingCalendar:
         if start > end:
             raise ValueError("calendar range start must not exceed end")
         cache = self._ensure(start, end)
-        return tuple(
-            item for item in cache.sessions if start <= item <= end
-        )
+        return tuple(item for item in cache.sessions if start <= item <= end)
 
     def is_trading_day(self, day: date | str) -> bool:
         resolved = parse_iso_date(day) if isinstance(day, str) else day
@@ -276,11 +274,7 @@ class TradingCalendar:
         cursor_year = resolved.year
         while True:
             start = date(cursor_year, 1, 1)
-            end = (
-                resolved
-                if cursor_year == resolved.year
-                else date(cursor_year, 12, 31)
-            )
+            end = resolved if cursor_year == resolved.year else date(cursor_year, 12, 31)
             sessions = self.sessions_in_range(start, end)
             if sessions:
                 return sessions[-1]
@@ -321,8 +315,7 @@ def _requested_date(value: str | None, today: date) -> date:
     requested = parse_iso_date(value) if value is not None else today
     if requested > today:
         raise FutureReportDateError(
-            f"future report date {requested.isoformat()} exceeds "
-            f"Shanghai today {today.isoformat()}"
+            f"future report date {requested.isoformat()} exceeds Shanghai today {today.isoformat()}"
         )
     return requested
 
@@ -354,19 +347,12 @@ def resolve_weekly_date(
         requested=requested,
         effective=effective,
         adjusted=effective != requested,
-        reason=(
-            "previous confirmed CN trading session"
-            if effective != requested
-            else None
-        ),
+        reason=("previous confirmed CN trading session" if effective != requested else None),
     )
 
 
 DEFAULT_CALENDAR_CACHE_DIR = (
-    Path(__file__).resolve().parents[2]
-    / "data"
-    / "cache"
-    / "trading_calendars"
+    Path(__file__).resolve().parents[2] / "data" / "cache" / "trading_calendars"
 )
 DEFAULT_CALENDAR_CACHE = DEFAULT_CALENDAR_CACHE_DIR / "xshg_sessions.json"
 

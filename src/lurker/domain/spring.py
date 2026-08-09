@@ -114,10 +114,7 @@ def _is_bullish(bars: Sequence[_Bar], index: int) -> bool:
 def _compression_ratio(bars: Sequence[_Bar], compression_end: int) -> float:
     compression = [bar.volume for bar in bars[compression_end - 2 : compression_end + 1]]
     active = [bar.volume for bar in bars[compression_end - 42 : compression_end - 2]]
-    rolling_five = [
-        sum(active[index : index + 5]) / 5
-        for index in range(len(active) - 4)
-    ]
+    rolling_five = [sum(active[index : index + 5]) / 5 for index in range(len(active) - 4)]
     baseline = max(rolling_five)
     return (sum(compression) / 3) / baseline
 
@@ -131,8 +128,7 @@ def _analyze_shape(
 ) -> dict[str, Any]:
     closes = [bar.close for bar in bars]
     ma20_values = [
-        _moving_average(closes, end=index, window=20)
-        for index in range(19, MINIMUM_BARS)
+        _moving_average(closes, end=index, window=20) for index in range(19, MINIMUM_BARS)
     ]
     touch_flags = [
         bars[index].low / ma20 - 1.0 <= 0.02 + BOUNDARY_EPSILON
@@ -163,8 +159,7 @@ def _analyze_shape(
     ma20_up = ma20_values[-1] > ma20_values[-6]
     recent_touch = any(touch_flags[-10:])
     broken = recent_touch and all(
-        distance < -0.02 - BOUNDARY_EPSILON
-        for distance in (prior_distance, ma20_distance)
+        distance < -0.02 - BOUNDARY_EPSILON for distance in (prior_distance, ma20_distance)
     )
     third_or_later_touch = current_segment is not None and len(segments) >= 3
 
@@ -205,9 +200,7 @@ def _analyze_shape(
         and current_segment is not None
         and not prior_bullish_in_segment
         and not current_bullish
-        and -0.02 - BOUNDARY_EPSILON
-        <= ma20_distance
-        <= 0.02 + BOUNDARY_EPSILON
+        and -0.02 - BOUNDARY_EPSILON <= ma20_distance <= 0.02 + BOUNDARY_EPSILON
         and compression_ratio is not None
         and compression_ratio <= 0.30 + BOUNDARY_EPSILON
     ):
@@ -350,10 +343,13 @@ def analyze_hk_experimental_spring(
         )
         raw_closes.append(raw_close)
 
-    avg_turnover = sum(
-        raw_close * bar.volume
-        for raw_close, bar in zip(raw_closes[-20:], normalized[-20:], strict=True)
-    ) / 20
+    avg_turnover = (
+        sum(
+            raw_close * bar.volume
+            for raw_close, bar in zip(raw_closes[-20:], normalized[-20:], strict=True)
+        )
+        / 20
+    )
     positive_ratio = sum(bar.volume > 0 for bar in normalized[-60:]) / 60
     if avg_turnover + BOUNDARY_EPSILON < min_avg_turnover_hkd_20d:
         return _unknown_hk_spring_result(

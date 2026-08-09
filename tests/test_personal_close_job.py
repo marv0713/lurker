@@ -46,10 +46,7 @@ class RecordingNotifier:
 
 class CompleteProvider:
     def fetch_many(self, items, report_date):
-        return {
-            item.symbol: CorporateActionCoverage(actions=(), complete=True)
-            for item in items
-        }
+        return {item.symbol: CorporateActionCoverage(actions=(), complete=True) for item in items}
 
 
 def prices(symbol, market, report_date, period):
@@ -143,9 +140,7 @@ def test_force_push_resends_and_updates_acceptance_timestamp(tmp_path):
     run_personal_close(**kwargs(tmp_path, notifier=notifier))
 
     later = NOW + timedelta(minutes=5)
-    result = run_personal_close(
-        **kwargs(tmp_path, notifier=notifier, force_push=True, now=later)
-    )
+    result = run_personal_close(**kwargs(tmp_path, notifier=notifier, force_push=True, now=later))
 
     assert len(notifier.calls) == 2
     assert result.push_status == "accepted"
@@ -161,9 +156,7 @@ def test_historical_and_no_push_runs_never_send_or_write_state(tmp_path):
             report_date=REPORT_DATE - timedelta(days=3),
         )
     )
-    no_push = run_personal_close(
-        **kwargs(tmp_path, notifier=notifier, no_push=True)
-    )
+    no_push = run_personal_close(**kwargs(tmp_path, notifier=notifier, no_push=True))
 
     assert historical.push_status == "historical_read_only"
     assert no_push.push_status == "disabled"
@@ -247,6 +240,47 @@ def test_notification_failure_keeps_report_and_does_not_mark_state(tmp_path):
         run_personal_close(**kwargs(tmp_path, notifier=notifier))
 
     assert (tmp_path / "reports" / "2026-08-10.md").exists()
+    assert not (tmp_path / "state.json").exists()
+
+
+def test_spring_unknown_enters_data_quality_and_marks_conclusion_incomplete(tmp_path):
+    def zero_volume(symbol, market, report_date, period):
+        frame = prices(symbol, market, report_date, period)
+        frame["volume"] = 0.0
+        return frame
+
+    personal_config = PersonalWatchConfig(
+        holdings=(PersonalStockConfig("300308.SZ", "cn", "中际旭创"),),
+        watchlist=(),
+        hk_experimental_spring=HkExperimentalSpringConfig(),
+    )
+
+    result = run_personal_close(
+        **kwargs(
+            tmp_path,
+            config_loader=lambda path: personal_config,
+            calendars={"cn": Calendar(True)},
+            price_loader=zero_volume,
+            action_providers={"cn": CompleteProvider()},
+            no_push=True,
+        )
+    )
+
+    assert "A股正式弹簧不可判断" in result.content_md
+    assert "部分数据不完整，详见数据质量" in result.content_md
+
+
+def test_all_stock_price_failures_write_report_but_skip_notification(tmp_path):
+    notifier = RecordingNotifier()
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("all sources down")
+
+    result = run_personal_close(**kwargs(tmp_path, notifier=notifier, price_loader=fail))
+
+    assert result.report_path.exists()
+    assert result.push_status == "all_stocks_failed"
+    assert notifier.calls == []
     assert not (tmp_path / "state.json").exists()
 
 

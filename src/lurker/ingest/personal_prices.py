@@ -53,13 +53,7 @@ def normalize_personal_prices(
         normalized[column] = pd.to_numeric(normalized[column], errors="coerce")
     if normalized.empty:
         return normalized.assign(raw_close=pd.Series(dtype=float))
-    if (
-        normalized[list(_RAW_PRICE_COLUMNS)]
-        .map(_finite_positive)
-        .eq(False)
-        .any()
-        .any()
-    ):
+    if normalized[list(_RAW_PRICE_COLUMNS)].map(_finite_positive).eq(False).any().any():
         raise ValueError("invalid_price_data")
     volumes = normalized["volume"]
     if any(not math.isfinite(float(value)) or float(value) < 0 for value in volumes):

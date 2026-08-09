@@ -139,6 +139,20 @@ def test_normalize_price_frame_flattens_yfinance_multiindex_columns():
     assert result.iloc[0]["adj_close"] == 108
 
 
+@pytest.mark.parametrize(
+    ("configured", "yahoo"),
+    [
+        ("7.HK", "0007.HK"),
+        ("700.HK", "0700.HK"),
+        ("00700.HK", "0700.HK"),
+        ("09988.HK", "9988.HK"),
+        ("12345.HK", "12345.HK"),
+    ],
+)
+def test_hk_symbols_are_normalized_to_yahoo_code_width(configured, yahoo):
+    assert to_yfinance_symbol(configured) == yahoo
+
+
 def test_to_yfinance_symbol_normalizes_five_digit_hk_codes():
     assert to_yfinance_symbol("01801.HK") == "1801.HK"
     assert to_yfinance_symbol("06160.HK") == "6160.HK"

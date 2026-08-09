@@ -109,7 +109,6 @@ watchlist:
         ("AAPL", "cn"),
         ("00700.HK", "cn"),
         ("300308.SZ", "hk"),
-        ("700.HK", "hk"),
     ],
 )
 def test_personal_watch_rejects_symbol_market_mismatch(tmp_path, symbol, market):
@@ -120,6 +119,18 @@ def test_personal_watch_rejects_symbol_market_mismatch(tmp_path, symbol, market)
 
     with pytest.raises(ValueError, match="invalid personal stock symbol for market"):
         load_personal_watch(path)
+
+
+@pytest.mark.parametrize("symbol", ["7.HK", "700.HK", "9988.HK", "09988.HK"])
+def test_personal_watch_accepts_one_to_five_digit_hk_symbols(tmp_path, symbol):
+    path = _write_yaml(
+        tmp_path,
+        f"holdings: []\nwatchlist:\n  - {{symbol: {symbol}, market: hk, name: 港股}}\n",
+    )
+
+    config = load_personal_watch(path)
+
+    assert config.watchlist[0].symbol == symbol
 
 
 def test_personal_watch_rejects_unknown_fields(tmp_path):

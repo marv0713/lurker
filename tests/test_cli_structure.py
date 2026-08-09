@@ -21,9 +21,7 @@ def test_dispatch_uses_existing_cli_command_for_list_reports(
         lambda **kwargs: "reports",
     )
     parser = build_parser()
-    args = parser.parse_args(
-        ["list-reports", "--report-dir", str(tmp_path), "--limit", "1"]
-    )
+    args = parser.parse_args(["list-reports", "--report-dir", str(tmp_path), "--limit", "1"])
 
     assert dispatch_command(parser, args) is True
     assert capsys.readouterr().out == "reports\n"

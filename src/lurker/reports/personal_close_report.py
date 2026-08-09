@@ -30,6 +30,36 @@ SPRING_LABELS = {
 ACTION_STATUS = {"expected": "预计", "confirmed": "已确认"}
 QUALITY_LABELS = {"micro": "微弱首阳", "standard": "标准首阳", "strong": "强首阳"}
 DIRECTION_SYMBOLS = {"up": "↗", "down": "↘", "flat": "→"}
+SPRING_REASON_LABELS = {
+    "ma20_broken": "连续2日有效跌破 MA20",
+    "third_support_test": "近60日第{touches}次回踩",
+    "volume_not_compressed": "回踩时缩量不足",
+    "hk_insufficient_turnover": "流动性不足",
+    "hk_insufficient_positive_volume_days": "有效成交日不足",
+    "hk_zero_volume_in_compression_window": "压紧窗口存在零成交量",
+    "invalid_trade_date": "交易日期无效",
+    "duplicate_trade_date": "交易日期重复",
+    "insufficient_history": "历史日线不足",
+    "invalid_price_data": "价格数据无效",
+    "invalid_volume_data": "成交量数据无效",
+}
+ACTION_TYPE_LABELS = {
+    "earnings": "财报披露",
+    "dividend": "分红",
+    "split": "拆股",
+    "consolidation": "合股",
+    "rights_issue": "配股/供股",
+    "additional_issuance": "增发",
+}
+UNSUPPORTED_ACTION_ORDER = (
+    "additional_issuance",
+    "consolidation",
+    "rights_issue",
+    "split",
+    "dividend",
+    "earnings",
+)
+MARKET_LABELS = {"cn": "A股", "hk": "港股"}
 
 
 def _pct(value: float) -> str:
@@ -43,12 +73,34 @@ def _ma_line(fact: MovingAverageFact | None) -> str:
     return f"{position} {_pct(fact.distance_pct)} {DIRECTION_SYMBOLS[fact.direction]}"
 
 
+def _spring_reason(reason: str, spring: Mapping[str, object]) -> str:
+    label = SPRING_REASON_LABELS.get(reason)
+    if label is None:
+        return "规则原因暂不可用"
+    if reason == "third_support_test":
+        touches = spring.get("support_touch_count_60d", 0)
+        return label.format(touches=touches)
+    if reason == "volume_not_compressed":
+        ratio = spring.get("volume_compression_ratio")
+        if isinstance(ratio, (int, float)):
+            return f"{label}（缩量比 {float(ratio):.0%}）"
+    return label
+
+
 def _spring_line(spring: Mapping[str, object] | None) -> str:
     if spring is None:
         return "不可用"
     state = str(spring.get("state", "unknown"))
     prefix = "港股实验弹簧：" if spring.get("experimental") else "A股正式弹簧："
     result = prefix + SPRING_LABELS.get(state, state)
+    reasons = spring.get("reasons")
+    reason_labels = (
+        [_spring_reason(str(reason), spring) for reason in reasons]
+        if isinstance(reasons, list)
+        else []
+    )
+    if spring.get("experimental") and state == "unknown" and reason_labels:
+        result += "：" + "；".join(reason_labels)
     distance = spring.get("ma20_distance_pct")
     ratio = spring.get("volume_compression_ratio")
     touches = spring.get("support_touch_count_60d")
@@ -59,9 +111,8 @@ def _spring_line(spring: Mapping[str, object] | None) -> str:
         details.append(f"缩量比 {float(ratio):.1%}")
     if isinstance(touches, int):
         details.append(f"近60日回踩 {touches} 次")
-    reasons = spring.get("reasons")
-    if isinstance(reasons, list) and reasons:
-        details.append("原因 " + "/".join(str(reason) for reason in reasons))
+    if reason_labels and not (spring.get("experimental") and state == "unknown"):
+        details.append("原因 " + "；".join(reason_labels))
     return result + ("｜" + "｜".join(details) if details else "")
 
 
@@ -79,6 +130,8 @@ def _actions_line(fact: PersonalStockReportFact) -> str:
         rendered = "；".join(_render_action(action) for action in fact.actions)
         return f"未来两周：{rendered}"
     if fact.action_coverage_complete:
+        if fact.unsupported_event_types:
+            return "未来两周：已支持类型暂无已知事件"
         return "未来两周：暂无已知事件"
     return "未来两周：公司行动日历不完整"
 
@@ -116,8 +169,7 @@ def _is_incomplete(facts: PersonalReportFacts) -> bool:
 def _one_line(facts: PersonalReportFacts) -> str:
     holdings = facts.holdings
     long_risk = sum(
-        fact.trend is not None
-        and fact.trend.label in {"long_structure_weakened", "testing_ma200"}
+        fact.trend is not None and fact.trend.label in {"long_structure_weakened", "testing_ma200"}
         for fact in holdings
     )
     pullback = sum(
@@ -236,12 +288,19 @@ def render_personal_close_report(facts: PersonalReportFacts) -> str:
             seen.add(key)
             target = issue.symbol or issue.market or "全局"
             quality_lines.append(f"- {target}：{issue.message}")
+    unsupported_by_market: dict[str, set[str]] = {}
     for fact in (*facts.holdings, *facts.watchlist):
-        if fact.unsupported_event_types:
-            quality_lines.append(
-                f"- {fact.config.name}（{fact.config.symbol}）：公司行动未覆盖 "
-                + ", ".join(fact.unsupported_event_types)
-            )
+        unsupported_by_market.setdefault(fact.config.market, set()).update(
+            fact.unsupported_event_types
+        )
+    for market, unsupported in unsupported_by_market.items():
+        if not unsupported:
+            continue
+        ordered = [item for item in UNSUPPORTED_ACTION_ORDER if item in unsupported]
+        labels = "、".join(ACTION_TYPE_LABELS[item] for item in ordered)
+        quality_lines.append(
+            f"- {MARKET_LABELS.get(market, '其他市场')}：公司行动数据暂未覆盖{labels}"
+        )
     lines.extend(["## 数据质量", ""])
     lines.extend(quality_lines or ["- 未发现已知数据质量问题"])
     return "\n".join(lines).rstrip() + "\n"

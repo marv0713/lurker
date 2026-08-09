@@ -181,17 +181,9 @@ def analyze_personal_trend(prices: Any) -> TrendAnalysis:
         and ma200.direction != "down"
     ):
         label = "long_medium_strong"
-    elif (
-        current_close < ma20.value
-        and current_close > ma200.value
-        and ma200.direction != "down"
-    ):
+    elif current_close < ma20.value and current_close > ma200.value and ma200.direction != "down":
         label = "long_up_medium_pullback"
-    elif (
-        current_close > ma20.value
-        and prior_close <= prior_ma20
-        and ma20.direction != "up"
-    ):
+    elif current_close > ma20.value and prior_close <= prior_ma20 and ma20.direction != "up":
         label = "medium_repair"
 
     return TrendAnalysis(label, as_of, current_close, ma5, ma20, ma200)

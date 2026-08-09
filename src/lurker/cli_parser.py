@@ -346,12 +346,7 @@ def build_parser() -> argparse.ArgumentParser:
     monthly_macro.add_argument(
         "--snapshot-dir",
         type=Path,
-        default=(
-            ROOT
-            / "data"
-            / "processed"
-            / "monthly_macro_flow_snapshots"
-        ),
+        default=(ROOT / "data" / "processed" / "monthly_macro_flow_snapshots"),
     )
     monthly_macro.add_argument(
         "--raw-dir",

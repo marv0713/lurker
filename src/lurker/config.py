@@ -232,9 +232,7 @@ def load_monthly_macro_config(path: str | Path) -> MonthlyMacroConfig:
     return MonthlyMacroConfig(
         credit_table_urls=urls,
         allowed_hosts=allowed_hosts,
-        timeout_seconds=_integer(
-            pboc.get("timeout_seconds"), "timeout_seconds", minimum=1
-        ),
+        timeout_seconds=_integer(pboc.get("timeout_seconds"), "timeout_seconds", minimum=1),
         max_response_bytes=_integer(
             pboc.get("max_response_bytes"),
             "max_response_bytes",
@@ -285,9 +283,7 @@ def _validate_weight_mapping(
 ) -> None:
     mapping = _mapping(values, context)
     if "return_120_180d" in mapping:
-        raise ValueError(
-            "unsupported scoring weight return_120_180d; use return_180d"
-        )
+        raise ValueError("unsupported scoring weight return_120_180d; use return_180d")
     _reject_unknown_fields(mapping, allowed, context)
     for key, value in mapping.items():
         if isinstance(value, bool):
@@ -295,9 +291,7 @@ def _validate_weight_mapping(
         try:
             number = float(value)
         except (TypeError, ValueError) as exc:
-            raise ValueError(
-                f"{context}.{key} must be finite and non-negative"
-            ) from exc
+            raise ValueError(f"{context}.{key} must be finite and non-negative") from exc
         if not math.isfinite(number) or number < 0:
             raise ValueError(f"{context}.{key} must be finite and non-negative")
 
@@ -463,11 +457,9 @@ def load_personal_watch(path: str | Path) -> PersonalWatchConfig:
             market = str(raw_item.get("market", "")).strip().lower()
             if market not in _PERSONAL_MARKETS:
                 raise ValueError(f"unsupported personal stock market: {market}")
-            pattern = r"\d{6}\.(?:SZ|SH|BJ)" if market == "cn" else r"\d{5}\.HK"
+            pattern = r"\d{6}\.(?:SZ|SH|BJ)" if market == "cn" else r"\d{1,5}\.HK"
             if re.fullmatch(pattern, symbol) is None:
-                raise ValueError(
-                    f"invalid personal stock symbol for market {market}: {symbol}"
-                )
+                raise ValueError(f"invalid personal stock symbol for market {market}: {symbol}")
             stock_name = str(raw_item.get("name", "")).strip()
             if not stock_name:
                 raise ValueError("personal stock name is required")
@@ -538,9 +530,7 @@ def load_core_etfs(path: str | Path) -> list[dict[str, str]]:
         seen_symbols.add(symbol)
 
         if not canonical.endswith((".SH", ".SZ")):
-            raise ValueError(
-                f"canonical_symbol '{canonical}' must end with .SH or .SZ"
-            )
+            raise ValueError(f"canonical_symbol '{canonical}' must end with .SH or .SZ")
         if canonical in seen_canonical:
             raise ValueError(f"Duplicate canonical_symbol in core_etfs.yaml: {canonical}")
         seen_canonical.add(canonical)
@@ -550,20 +540,21 @@ def load_core_etfs(path: str | Path) -> list[dict[str, str]]:
                 f"Unknown role '{role}' in ETF entry {i}. Allowed: {sorted(allowed_roles)}"
             )
 
-        result.append({
-            "symbol": symbol,
-            "canonical_symbol": canonical,
-            "name": name,
-            "market": str(entry.get("market", "cn")).strip(),
-            "role": role,
-        })
+        result.append(
+            {
+                "symbol": symbol,
+                "canonical_symbol": canonical,
+                "name": name,
+                "market": str(entry.get("market", "cn")).strip(),
+                "role": role,
+            }
+        )
 
     # All four roles must be present and unique
     roles = [r["role"] for r in result if r["role"]]
     if len(roles) != 4 or len(set(roles)) != 4:
         raise ValueError(
-            "Each ETF must have a unique role. "
-            "Required: csi300, csi500, chinext, csi_a500"
+            "Each ETF must have a unique role. Required: csi300, csi500, chinext, csi_a500"
         )
 
     return result

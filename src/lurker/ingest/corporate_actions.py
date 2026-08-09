@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from datetime import date, timedelta
+import re
 from typing import Any, Protocol, cast
 
 import akshare as ak
@@ -58,7 +59,10 @@ def _date(value: Any) -> date | None:
 
 def _number(value: Any) -> float:
     parsed = pd.to_numeric(value, errors="coerce")
-    return 0.0 if pd.isna(parsed) else float(parsed)
+    if not pd.isna(parsed):
+        return float(parsed)
+    numbers = re.findall(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)", str(value))
+    return max((float(number) for number in numbers), default=0.0)
 
 
 def _text(value: Any, fallback: str) -> str:
@@ -91,11 +95,7 @@ def normalize_actions(
             symbol=item.symbol,
             event_type=item.event_type,
             primary_date=item.primary_date,
-            status=(
-                "confirmed"
-                if "confirmed" in {previous.status, item.status}
-                else "expected"
-            ),
+            status=("confirmed" if "confirmed" in {previous.status, item.status} else "expected"),
             summary=preferred.summary,
             record_date=previous.record_date or item.record_date,
             payment_date=previous.payment_date or item.payment_date,
@@ -260,9 +260,7 @@ class CnCorporateActionProvider:
             code = to_akshare_symbol(item.symbol)
             try:
                 distributions = self.distribution_fetcher(code)
-                actions[item.symbol].extend(
-                    self._distribution_actions(item.symbol, distributions)
-                )
+                actions[item.symbol].extend(self._distribution_actions(item.symbol, distributions))
             except Exception as exc:
                 issues[item.symbol].append(_unavailable(item.symbol, "cn", exc))
             try:
@@ -276,7 +274,7 @@ class CnCorporateActionProvider:
                 actions=normalize_actions(
                     actions[item.symbol], items=(item,), report_date=report_date
                 ),
-                complete=False,
+                complete=not issues[item.symbol],
                 issues=tuple(issues[item.symbol]),
                 unsupported_event_types=CN_UNSUPPORTED,
             )
@@ -290,7 +288,10 @@ class CnCorporateActionProvider:
             primary = _date(row.get("除权除息日"))
             if primary is None:
                 continue
-            summary = _text(row.get("分红描述"), "除权除息")
+            summary = _text(row.get("分红描述"), "") or _text(
+                row.get("现金分红-现金分红比例描述"),
+                "除权除息",
+            )
             common = {
                 "symbol": symbol,
                 "primary_date": primary,
@@ -302,7 +303,7 @@ class CnCorporateActionProvider:
             if _number(row.get("现金分红-现金分红比例")) > 0:
                 result.append(CorporateAction(event_type="dividend", **common))
             if _number(row.get("送转股份-送转总比例")) > 0:
-                result.append(CorporateAction(event_type="split", **common))
+                result.append(CorporateAction(event_type="dividend", **common))
         return result
 
     @staticmethod
@@ -329,7 +330,7 @@ def _yf_calendar(symbol: str) -> Mapping[str, Any]:
 
 
 def _ak_hk_dividend(symbol: str) -> pd.DataFrame:
-    return ak.stock_hk_dividend_payout_em(symbol=to_akshare_symbol(symbol))
+    return ak.stock_hk_dividend_payout_em(symbol=to_akshare_symbol(symbol).zfill(5))
 
 
 class HkCorporateActionProvider:
@@ -384,7 +385,7 @@ class HkCorporateActionProvider:
                 issues.append(_unavailable(item.symbol, "hk", exc))
             result[item.symbol] = CorporateActionCoverage(
                 actions=normalize_actions(actions, items=(item,), report_date=report_date),
-                complete=False,
+                complete=not issues,
                 issues=tuple(issues),
                 unsupported_event_types=HK_UNSUPPORTED,
             )
@@ -398,9 +399,11 @@ class HkCorporateActionProvider:
             if primary is None:
                 continue
             summary = _text(row.get("分红方案"), "除净")
-            event_type: CorporateEventType = (
-                "split" if any(word in summary for word in ("送", "转增", "拆")) else "dividend"
-            )
+            event_type: CorporateEventType = "dividend"
+            if any(word in summary for word in ("合股", "合并")):
+                event_type = "consolidation"
+            elif any(word in summary for word in ("拆股", "拆细")):
+                event_type = "split"
             result.append(
                 CorporateAction(
                     symbol,

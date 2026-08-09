@@ -85,10 +85,7 @@ def _data_snapshot(
             seed_pool_path=args.seed_pool,
             price_snapshot_dir=args.price_snapshots,
             markets=cli.parse_markets(args.markets),
-            windows=[
-                int(window)
-                for window in cli.parse_markets(args.windows)
-            ],
+            windows=[int(window) for window in cli.parse_markets(args.windows)],
             period=args.period,
             limit_per_market=args.limit,
             markets_path=args.markets_path,
@@ -132,9 +129,7 @@ def _run_daily(
             suppressed_symbols_path=args.suppressed_symbols,
             strategy_config_path=args.strategy_config,
             strategy_names=parse_strategy_names(args.strategies),
-            strategy_cadence=(
-                None if args.cadence == "all" else args.cadence
-            ),
+            strategy_cadence=(None if args.cadence == "all" else args.cadence),
             api_key=api_key,
             model=args.model,
             base_url=args.base_url,
@@ -155,10 +150,7 @@ def _refresh_prices(
             seed_pool_path=args.seed_pool,
             output_dir=args.output_dir,
             markets=cli.parse_markets(args.markets),
-            windows=[
-                int(window)
-                for window in cli.parse_markets(args.windows)
-            ],
+            windows=[int(window) for window in cli.parse_markets(args.windows)],
             period=args.period,
             limit_per_market=args.limit,
             snapshot_date=args.date,
@@ -236,10 +228,7 @@ def _daily_job(
                 flow_snapshot_dir=args.flow_snapshots,
                 report_dir=args.report_dir,
                 markets=cli.parse_markets(args.markets),
-                windows=[
-                    int(window)
-                    for window in cli.parse_markets(args.windows)
-                ],
+                windows=[int(window) for window in cli.parse_markets(args.windows)],
                 period=args.period,
                 limit_per_market=args.limit,
                 report_date=args.date,
@@ -248,12 +237,8 @@ def _daily_job(
                 low_score_watch_limit=args.low_score_watch_limit,
                 suppressed_symbols_path=args.suppressed_symbols,
                 strategy_config_path=args.strategy_config,
-                strategy_names=parse_strategy_names(
-                    args.strategies
-                ),
-                strategy_cadence=(
-                    None if args.cadence == "all" else args.cadence
-                ),
+                strategy_names=parse_strategy_names(args.strategies),
+                strategy_cadence=(None if args.cadence == "all" else args.cadence),
                 api_key=api_key,
                 model=args.model,
                 base_url=args.base_url,
@@ -264,9 +249,7 @@ def _daily_job(
                 temperature_artifact_path=args.temperature_artifact,
                 temperature_replay_path=args.temperature_replay,
             ),
-            report_date=(
-                args.date or cli.shanghai_today().isoformat()
-            ),
+            report_date=(args.date or cli.shanghai_today().isoformat()),
             push=not args.no_push,
             notifier=cli.build_notifier_from_env(),
         ),

@@ -26,6 +26,7 @@ def stock_fact(
     actions=(),
     coverage_complete: bool = True,
     issues=(),
+    unsupported=(),
 ):
     ma5 = MovingAverageFact(5, 102.0, -0.01, "down")
     ma20 = MovingAverageFact(20, 96.0, 0.061, "up")
@@ -65,7 +66,7 @@ def stock_fact(
         actions=actions,
         action_coverage_complete=coverage_complete,
         issues=issues,
-        unsupported_event_types=("rights_issue",) if not coverage_complete else (),
+        unsupported_event_types=unsupported,
     )
 
 
@@ -220,3 +221,71 @@ def test_headline_includes_pullback_and_formal_watchlist_compression():
     assert "1 只持仓位于 MA20 下方或处于回踩/混合" in headline
     assert "1 只 A 股标的进入正式弹簧压紧观察" in headline
     assert "未见优先级更高" not in headline
+
+
+def test_spring_reasons_are_rendered_in_chinese_without_internal_codes():
+    weak = stock_fact(
+        "300308.SZ",
+        "cn",
+        "中际旭创",
+        group="holding",
+        spring_state="weak_excluded",
+    )
+    weak.spring["reasons"] = [
+        "ma20_broken",
+        "third_support_test",
+        "future_internal_code",
+    ]
+
+    report = render_personal_close_report(PersonalReportFacts(date(2026, 8, 10), (weak,), ()))
+
+    assert "连续2日有效跌破 MA20" in report
+    assert "近60日第2次回踩" in report
+    assert "规则原因暂不可用" in report
+    assert "ma20_broken" not in report
+    assert "third_support_test" not in report
+    assert "future_internal_code" not in report
+
+
+def test_hk_unknown_reason_is_rendered_as_chinese_data_reason():
+    hk = stock_fact(
+        "00700.HK",
+        "hk",
+        "腾讯控股",
+        group="watchlist",
+        spring_state="unknown",
+        experimental=True,
+    )
+    hk.spring["reasons"] = ["hk_insufficient_turnover"]
+
+    report = render_personal_close_report(PersonalReportFacts(date(2026, 8, 10), (), (hk,)))
+
+    assert "港股实验弹簧：不可判断：流动性不足" in report
+    assert "hk_insufficient_turnover" not in report
+
+
+def test_unsupported_actions_are_chinese_and_deduplicated_by_market():
+    first = stock_fact(
+        "300308.SZ",
+        "cn",
+        "中际旭创",
+        group="holding",
+        unsupported=("additional_issuance", "consolidation"),
+    )
+    second = stock_fact(
+        "600519.SH",
+        "cn",
+        "贵州茅台",
+        group="watchlist",
+        unsupported=("consolidation", "additional_issuance"),
+    )
+
+    report = render_personal_close_report(
+        PersonalReportFacts(date(2026, 8, 10), (first,), (second,))
+    )
+
+    assert report.count("A股：公司行动数据暂未覆盖增发、合股") == 1
+    assert "additional_issuance" not in report
+    assert "consolidation" not in report
+    assert "部分数据不完整" not in report
+    assert report.count("未来两周：已支持类型暂无已知事件") == 2

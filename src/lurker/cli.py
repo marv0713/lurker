@@ -87,10 +87,7 @@ def _send_daily_failure_notification(
     notifier.send(
         title=f"[故障] 职业资金雷达日报 {report_date}",
         markdown_content=(
-            "# 日报任务故障\n\n"
-            f"- 日期：{report_date}\n"
-            f"- 阶段：{stage}\n"
-            f"- 原因：{reason}\n"
+            f"# 日报任务故障\n\n- 日期：{report_date}\n- 阶段：{stage}\n- 原因：{reason}\n"
         ),
     )
 
@@ -125,8 +122,7 @@ def _flow_degradation_reasons(flow_snapshot: dict | None) -> list[str]:
     reasons: list[str] = []
     failures = snapshot.get("failures", [])
     if any(
-        isinstance(failure, dict)
-        and str(failure.get("source", "")) in NON_BLOCKING_FLOW_SOURCES
+        isinstance(failure, dict) and str(failure.get("source", "")) in NON_BLOCKING_FLOW_SOURCES
         for failure in failures
     ):
         reasons.append("部分非关键资金源不可用")
@@ -136,10 +132,7 @@ def _flow_degradation_reasons(flow_snapshot: dict | None) -> list[str]:
         reasons.append("核心 ETF 采集不完整")
 
     margin = snapshot.get("margin")
-    if (
-        isinstance(margin, dict)
-        and margin.get("availability") not in {None, "fresh"}
-    ):
+    if isinstance(margin, dict) and margin.get("availability") not in {None, "fresh"}:
         reasons.append("两融数据非当日")
     return reasons
 
@@ -203,8 +196,7 @@ def _check_temperature_gate(
     if set(distribution) != set(statuses):
         return False, "状态分布格式错误"
     if any(
-        isinstance(distribution[status], bool)
-        or not isinstance(distribution[status], int)
+        isinstance(distribution[status], bool) or not isinstance(distribution[status], int)
         for status in statuses
     ):
         return False, "状态分布格式错误"
@@ -230,10 +222,7 @@ def _check_temperature_gate(
         return False, "回放日期格式错误"
     if len(replay_dates) != len(replay_records):
         return False, "回放日期格式错误"
-    if any(
-        current <= previous
-        for previous, current in zip(replay_dates, replay_dates[1:])
-    ):
+    if any(current <= previous for previous, current in zip(replay_dates, replay_dates[1:])):
         return False, "回放日期必须严格递增且不重复"
     non_trading_dates = [
         replay_date.isoformat()
@@ -262,10 +251,7 @@ def _check_temperature_gate(
     if replay_rows:
         actual_start = replay_rows[0]["date"]
         actual_end = replay_rows[-1]["date"]
-        if (
-            artifact.get("replay_start") != actual_start
-            or artifact.get("replay_end") != actual_end
-        ):
+        if artifact.get("replay_start") != actual_start or artifact.get("replay_end") != actual_end:
             return False, "回放日期范围与 artifact 不一致"
 
     leading_status = max(actual_distribution, key=actual_distribution.get)
@@ -285,15 +271,10 @@ def _validate_rollout_provenance(replay_path: Path) -> None:
     if not isinstance(records, list) or not records:
         raise ValueError("回放文件格式错误")
     for record in records:
-        market_flow = (
-            record.get("market_flow")
-            if isinstance(record, dict)
-            else None
-        )
+        market_flow = record.get("market_flow") if isinstance(record, dict) else None
         if (
             not isinstance(market_flow, dict)
-            or market_flow.get("source")
-            != "eastmoney_market_flow_history"
+            or market_flow.get("source") != "eastmoney_market_flow_history"
         ):
             raise ValueError("大盘历史资金来源不可审计")
 
@@ -462,11 +443,7 @@ def load_suppressed_symbols(path: Path | None) -> set[str]:
     else:
         raw_symbols = []
 
-    return {
-        str(symbol).strip().upper()
-        for symbol in raw_symbols
-        if str(symbol).strip()
-    }
+    return {str(symbol).strip().upper() for symbol in raw_symbols if str(symbol).strip()}
 
 
 def build_demo_report(report_date: str) -> DailyReport:
@@ -506,7 +483,9 @@ def build_demo_report(report_date: str) -> DailyReport:
         report_date=report_date,
         main_cards=[card],
         secondary_leads=["中际旭创 (300308.SZ, CN)：总分 75，【升级】推荐，保留观察"],
-        low_score_watch_samples=["北方华创 (002371.SZ, CN)：总分 50，个股分 40，【观察】，低分观察"],
+        low_score_watch_samples=[
+            "北方华创 (002371.SZ, CN)：总分 50，个股分 40，【观察】，低分观察"
+        ],
         watchlist_changes=[],
         risk_alerts=[],
     )
@@ -519,6 +498,7 @@ def build_demo_report(report_date: str) -> DailyReport:
 
 def save_symbols_to_db(seed_pool: dict, session) -> None:
     from lurker.storage.models import Symbol
+
     markets = seed_pool.get("markets", {})
     symbol_names = seed_pool.get("symbol_names", {})
     for market_code, market_pool in markets.items():
@@ -526,11 +506,7 @@ def save_symbols_to_db(seed_pool: dict, session) -> None:
         for sym in symbols:
             name = symbol_names.get(sym, sym)
             db_symbol = Symbol(
-                symbol=sym,
-                name=name,
-                market=market_code,
-                asset_type="stock",
-                is_active=True
+                symbol=sym, name=name, market=market_code, asset_type="stock", is_active=True
             )
             session.merge(db_symbol)
 
@@ -560,6 +536,7 @@ def build_data_snapshot(
         seed_symbols = load_resolved_theme_seed_symbols(themes_path)
 
     from lurker.config import load_markets
+
     markets_cfg = load_markets(markets_path) if markets_path else None
 
     snapshots = collect_price_snapshots(
@@ -587,11 +564,13 @@ def refresh_prices(
 ) -> str:
     seed_pool = load_resolved_seed_pool(seed_pool_path)
     from lurker.config import load_markets
+
     markets_cfg = load_markets(markets_path) if markets_path else None
 
     session = None
     if db_path:
         from lurker.storage.db import init_db, create_session
+
         engine = init_db(db_path)
         session = create_session(engine)
         save_symbols_to_db(seed_pool, session)
@@ -629,20 +608,23 @@ def refresh_flows(
 ) -> str:
     if db_path:
         from lurker.storage.db import init_db
+
         init_db(db_path)
     batch = collect_flow_snapshot()
     output_path = FileFlowSnapshotStore(output_dir).save(
         batch,
         snapshot_date=snapshot_date or date.today().isoformat(),
     )
-    return (
-        f"Wrote flow snapshot to {output_path} "
-        f"(failures={len(batch.get('failures', []))})"
-    )
+    return f"Wrote flow snapshot to {output_path} (failures={len(batch.get('failures', []))})"
 
 
 def build_attributor(api_key: str | None, model: str | None, base_url: str | None):
-    from lurker.ai.attributor import GEMINI_BASE_URL, GEMINI_DEFAULT_MODEL, GeminiAttributor, StubAttributor
+    from lurker.ai.attributor import (
+        GEMINI_BASE_URL,
+        GEMINI_DEFAULT_MODEL,
+        GeminiAttributor,
+        StubAttributor,
+    )
 
     if api_key:
         return GeminiAttributor(
@@ -677,11 +659,7 @@ def build_candidate_history(
             "name": (symbol_names or {}).get(str(snapshot.get("symbol", "")).upper()),
             "market": snapshot.get("market"),
             "latest_close": snapshot.get("latest_close"),
-            "returns": {
-                key: value
-                for key, value in snapshot.items()
-                if key.startswith("return_")
-            },
+            "returns": {key: value for key, value in snapshot.items() if key.startswith("return_")},
         }
         for snapshot in snapshot_batch.get("snapshots", [])
     ]
@@ -729,9 +707,7 @@ def append_report_archive_index(
         "failure_count": failure_count,
     }
     reports = [
-        report
-        for report in index_data.get("reports", [])
-        if report.get("date") != report_date
+        report for report in index_data.get("reports", []) if report.get("date") != report_date
     ]
     reports.append(entry)
     reports.sort(key=lambda report: report.get("date", ""))
@@ -815,7 +791,6 @@ def build_strategy_report(
     )
     results = run_strategies(context=context, configs=selected_configs)
     return render_strategy_results(report_date=report_date, results=results)
-
 
 
 def _env_bool(value: str | None, *, default: bool) -> bool:
@@ -1001,8 +976,7 @@ def _validated_report_date(
     requested = parse_iso_date(report_date) if report_date else today
     if requested > today:
         raise FutureReportDateError(
-            f"future report date {requested.isoformat()} exceeds "
-            f"Shanghai today {today.isoformat()}"
+            f"future report date {requested.isoformat()} exceeds Shanghai today {today.isoformat()}"
         )
     return requested
 
@@ -1063,20 +1037,19 @@ def daily_job(
         calendar=calendar,
     )
     if resolution.effective is None:
-        return (
-            "Skipped daily job: cn market closed on "
-            f"{resolution.requested.isoformat()}."
-        )
+        return f"Skipped daily job: cn market closed on {resolution.requested.isoformat()}."
     job_date = resolution.effective.isoformat()
 
     seed_pool = load_resolved_seed_pool(seed_pool_path)
 
     from lurker.config import load_markets
+
     markets_cfg = load_markets(markets_path) if markets_path else None
 
     session = None
     if db_path:
         from lurker.storage.db import init_db, create_session
+
         engine = init_db(db_path)
         session = create_session(engine)
         # Populate symbols from seed pool
@@ -1106,7 +1079,9 @@ def daily_job(
     flow_snapshot_path = None
     if strategy_config_path is not None or strategy_names is not None:
         flow_snapshot = collect_flow_snapshot()
-        resolved_flow_snapshot_dir = flow_snapshot_dir or ROOT / "data" / "processed" / "flow_snapshots"
+        resolved_flow_snapshot_dir = (
+            flow_snapshot_dir or ROOT / "data" / "processed" / "flow_snapshots"
+        )
         flow_snapshot_path = FileFlowSnapshotStore(resolved_flow_snapshot_dir).save(
             flow_snapshot,
             snapshot_date=job_date,
@@ -1115,6 +1090,7 @@ def daily_job(
     suppressed_symbols = load_suppressed_symbols(suppressed_symbols_path)
 
     from lurker.config import load_scoring
+
     scoring = {}
     if scoring_config_path and scoring_config_path.exists():
         scoring = load_scoring(scoring_config_path)
@@ -1140,12 +1116,10 @@ def daily_job(
         from lurker.application.temperature_replay import current_rules_fingerprint
 
         resolved_artifact_path = (
-            temperature_artifact_path
-            or ROOT / "data" / "processed" / "temperature_rollout.json"
+            temperature_artifact_path or ROOT / "data" / "processed" / "temperature_rollout.json"
         )
         resolved_replay_path = (
-            temperature_replay_path
-            or ROOT / "tests" / "fixtures" / "etf_60d_replay.json"
+            temperature_replay_path or ROOT / "tests" / "fixtures" / "etf_60d_replay.json"
         )
         temperature_gate_allowed, temperature_gate_reason = _check_temperature_gate(
             resolved_artifact_path,
@@ -1201,11 +1175,16 @@ def daily_job(
         try:
             from lurker.storage.models import Report
             import datetime
+
             t_date = datetime.datetime.strptime(job_date, "%Y-%m-%d").date()
-            db_report = session.query(Report).filter_by(
-                report_date=t_date,
-                report_type="daily",
-            ).first()
+            db_report = (
+                session.query(Report)
+                .filter_by(
+                    report_date=t_date,
+                    report_type="daily",
+                )
+                .first()
+            )
             if db_report:
                 db_report.content = report.content_md
             else:
@@ -1308,9 +1287,7 @@ def daily_job(
                 )
         except Exception as exc:
             raise DailyJobFailed(
-                "DAILY_JOB_STATUS=FAILED "
-                'stage="notification" '
-                f'reason="{type(exc).__name__}: {exc}"'
+                f'DAILY_JOB_STATUS=FAILED stage="notification" reason="{type(exc).__name__}: {exc}"'
             ) from exc
     elif not is_valid:
         if push:
@@ -1325,8 +1302,7 @@ def daily_job(
             except Exception:
                 pass
         raise DailyJobFailed(
-            "DAILY_JOB_STATUS=FAILED "
-            f'stage="validation" reason="{validation_error}"'
+            f'DAILY_JOB_STATUS=FAILED stage="validation" reason="{validation_error}"'
         )
     else:
         push_msg = "\nSkipped pushing report (--no-push)."
@@ -1353,8 +1329,15 @@ def daily_job(
     )
 
 
-def resolve_seed_pool(*, themes_path: Path, output_path: Path, markets_path: Path | None = None, db_path: Path | None = None) -> str:
+def resolve_seed_pool(
+    *,
+    themes_path: Path,
+    output_path: Path,
+    markets_path: Path | None = None,
+    db_path: Path | None = None,
+) -> str:
     import inspect
+
     sig = inspect.signature(build_resolved_seed_pool)
     if "markets_path" in sig.parameters:
         pool = build_resolved_seed_pool(themes_path, markets_path=markets_path)
@@ -1364,6 +1347,7 @@ def resolve_seed_pool(*, themes_path: Path, output_path: Path, markets_path: Pat
 
     if db_path:
         from lurker.storage.db import init_db, create_session
+
         engine = init_db(db_path)
         with create_session(engine) as session:
             save_symbols_to_db(pool, session)
@@ -1413,16 +1397,14 @@ def build_run_daily(
         calendar=calendar,
     )
     if resolution.effective is None:
-        return (
-            "Skipped run-daily: cn market closed on "
-            f"{resolution.requested.isoformat()}."
-        )
+        return f"Skipped run-daily: cn market closed on {resolution.requested.isoformat()}."
     job_date = resolution.effective.isoformat()
 
     theme_mapping = {}
     symbol_names = {}
     if seed_pool and seed_pool.exists():
         import json
+
         pool_data = json.loads(seed_pool.read_text(encoding="utf-8"))
         theme_mapping = pool_data.get("theme_mapping", {})
         symbol_names = pool_data.get("symbol_names", {})
@@ -1431,6 +1413,7 @@ def build_run_daily(
     suppressed_symbols = load_suppressed_symbols(suppressed_symbols_path)
 
     from lurker.config import load_scoring
+
     scoring = {}
     if scoring_config_path and scoring_config_path.exists():
         scoring = load_scoring(scoring_config_path)
@@ -1438,11 +1421,18 @@ def build_run_daily(
     session = None
     if db_path:
         from lurker.storage.db import init_db, create_session
+
         engine = init_db(db_path)
         session = create_session(engine)
         # Populate symbols just in case
         if theme_mapping:
-            save_symbols_to_db({"markets": {"cn": {"symbols": list(theme_mapping.keys())}}, "symbol_names": symbol_names}, session)
+            save_symbols_to_db(
+                {
+                    "markets": {"cn": {"symbols": list(theme_mapping.keys())}},
+                    "symbol_names": symbol_names,
+                },
+                session,
+            )
 
     try:
         if strategy_config_path is None and strategy_names is None:
@@ -1461,9 +1451,7 @@ def build_run_daily(
             ).content_md
         flow_snapshot = None
         if flow_snapshot_dir is not None:
-            flow_snapshot = FileFlowSnapshotStore(
-                flow_snapshot_dir
-            ).load_on_or_before(job_date)
+            flow_snapshot = FileFlowSnapshotStore(flow_snapshot_dir).load_on_or_before(job_date)
         return build_strategy_report(
             snapshot_batch=snapshot_batch,
             flow_snapshot=flow_snapshot,
@@ -1486,7 +1474,6 @@ def build_run_daily(
             session.close()
 
 
-
 def weekly_report(
     *,
     flow_snapshot_dir: Path,
@@ -1501,6 +1488,7 @@ def weekly_report(
     calendar: CnTradingCalendar | None = None,
 ) -> str:
     from lurker.application.weekly_flow_report import build_weekly_flow_report
+
     resolved_today = today or shanghai_today()
     resolved_calendar = calendar or build_default_cn_calendar()
     resolution = resolve_weekly_date(
@@ -1533,10 +1521,13 @@ def weekly_report(
         from lurker.storage.db import init_db, create_session
         from lurker.storage.models import Report
         import datetime
+
         t_date = datetime.datetime.strptime(job_date, "%Y-%m-%d").date()
         engine = init_db(db_path)
         with create_session(engine) as session:
-            db_report = session.query(Report).filter_by(report_date=t_date, report_type="weekly").first()
+            db_report = (
+                session.query(Report).filter_by(report_date=t_date, report_type="weekly").first()
+            )
             if db_report:
                 db_report.content = report.content_md
             else:
@@ -1686,9 +1677,7 @@ def _last_cn_trading_day(
     end = date(year, month, monthrange(year, month)[1])
     sessions = calendar.sessions_in_range(start, end)
     if not sessions:
-        raise TradingCalendarUnavailable(
-            f"no confirmed CN trading session in {report_month}"
-        )
+        raise TradingCalendarUnavailable(f"no confirmed CN trading session in {report_month}")
     return sessions[-1]
 
 
@@ -1734,9 +1723,7 @@ def monthly_macro_flow_job(
         raw_dir=raw_dir,
         today=resolved_today,
     )
-    snapshot_path = MonthlyMacroSnapshotStore(snapshot_dir).save(
-        snapshot
-    )
+    snapshot_path = MonthlyMacroSnapshotStore(snapshot_dir).save(snapshot)
     weekly_summary = weekly_summary_builder(
         flow_snapshot_dir=(
             flow_snapshot_dir
@@ -1756,9 +1743,7 @@ def monthly_macro_flow_job(
         or strategy.lifecycle != "active"
         or strategy.cadence != "monthly"
     ):
-        raise ValueError(
-            "monthly_macro_flow strategy is not enabled for monthly cadence"
-        )
+        raise ValueError("monthly_macro_flow strategy is not enabled for monthly cadence")
     context = StrategyContext(
         snapshot_batch={"snapshots": []},
         theme_mapping={},
@@ -1797,9 +1782,6 @@ def monthly_macro_flow_job(
     )
 
 
-
-
-
 def _print_with_calendar_errors(parser: argparse.ArgumentParser, action: Any) -> None:
     try:
         print(action())
@@ -1824,11 +1806,7 @@ def _load_project_env() -> None:
         key, value = line.split("=", 1)
         key = key.strip()
         value = value.strip()
-        if (
-            len(value) >= 2
-            and value[0] == value[-1]
-            and value[0] in {"\"", "'"}
-        ):
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
             value = value[1:-1]
         if key and key not in os.environ:
             os.environ[key] = value

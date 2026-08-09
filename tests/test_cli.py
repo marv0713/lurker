@@ -59,11 +59,7 @@ class FakeCalendar:
 
 class FakeMonthlyCalendar(FakeCalendar):
     def sessions_in_range(self, start, end):
-        return tuple(
-            item
-            for item in self.sessions
-            if start <= item <= end
-        )
+        return tuple(item for item in self.sessions if start <= item <= end)
 
 
 def _write_flow_snapshot(path, *, snapshot_date, sector_name):
@@ -217,7 +213,9 @@ def test_resolve_seed_pool_writes_cache(monkeypatch, tmp_path):
 def test_parser_has_resolve_seeds_command():
     parser = build_parser()
 
-    args = parser.parse_args(["resolve-seeds", "--output", "data/processed/resolved_seed_pool.json"])
+    args = parser.parse_args(
+        ["resolve-seeds", "--output", "data/processed/resolved_seed_pool.json"]
+    )
 
     assert args.command == "resolve-seeds"
     assert str(args.output) == "data/processed/resolved_seed_pool.json"
@@ -451,7 +449,11 @@ def test_daily_job_refreshes_prices_and_writes_report(monkeypatch, tmp_path):
         assert kwargs["signal_threshold"] == 55
         assert kwargs["main_limit"] == 8
         assert kwargs["suppressed_symbols"] == {"300308.SZ"}
-        return DailyReport(report_date="2026-05-18", main_candidates_count=1, content_md="# 大趋势雷达日报\n\n日报内容")
+        return DailyReport(
+            report_date="2026-05-18",
+            main_candidates_count=1,
+            content_md="# 大趋势雷达日报\n\n日报内容",
+        )
 
     monkeypatch.setattr("lurker.cli.collect_price_snapshot_batch", fake_collector)
     monkeypatch.setattr("lurker.cli.run_daily", fake_run_daily)
@@ -667,7 +669,11 @@ def test_daily_job_candidate_history_includes_symbol_names(monkeypatch, tmp_path
 
     def fake_run_daily(**kwargs):
         assert kwargs["symbol_names"] == {"300308.SZ": "中际旭创"}
-        return DailyReport(report_date="2026-05-18", main_candidates_count=1, content_md="# 大趋势雷达日报\n\n日报内容")
+        return DailyReport(
+            report_date="2026-05-18",
+            main_candidates_count=1,
+            content_md="# 大趋势雷达日报\n\n日报内容",
+        )
 
     monkeypatch.setattr("lurker.cli.collect_price_snapshot_batch", fake_collector)
     monkeypatch.setattr("lurker.cli.run_daily", fake_run_daily)
@@ -1253,9 +1259,7 @@ def test_parser_has_personal_close_defaults_and_mutually_exclusive_push_flags():
     assert args.no_push is False
     assert args.force_push is False
     with pytest.raises(SystemExit):
-        build_parser().parse_args(
-            ["personal-close-report", "--no-push", "--force-push"]
-        )
+        build_parser().parse_args(["personal-close-report", "--no-push", "--force-push"])
 
 
 def test_parser_rejects_non_2y_personal_period():
@@ -1316,19 +1320,13 @@ def test_personal_close_facade_rejects_future_and_historical_force_before_depend
         "today": date(2026, 8, 10),
     }
     with pytest.raises(ValueError, match="future"):
-        personal_close_report(
-            **common, report_date="2026-08-11", force_push=False
-        )
+        personal_close_report(**common, report_date="2026-08-11", force_push=False)
     with pytest.raises(ValueError, match="historical"):
-        personal_close_report(
-            **common, report_date="2026-08-09", force_push=True
-        )
+        personal_close_report(**common, report_date="2026-08-09", force_push=True)
 
 
 def test_parser_has_monthly_macro_flow_defaults():
-    args = build_parser().parse_args(
-        ["monthly-macro-flow", "--month", "2025-01", "--no-push"]
-    )
+    args = build_parser().parse_args(["monthly-macro-flow", "--month", "2025-01", "--no-push"])
     assert args.command == "monthly-macro-flow"
     assert args.month == "2025-01"
     assert args.no_push is True
@@ -1900,9 +1898,7 @@ def test_main_reports_calendar_error_without_traceback(monkeypatch, capsys):
     )
     monkeypatch.setattr(
         "lurker.cli.weekly_report",
-        lambda **kwargs: (_ for _ in ()).throw(
-            FutureReportDateError("future report date")
-        ),
+        lambda **kwargs: (_ for _ in ()).throw(FutureReportDateError("future report date")),
     )
     with pytest.raises(SystemExit) as exc:
         main()

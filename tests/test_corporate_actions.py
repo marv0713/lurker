@@ -148,7 +148,7 @@ def test_cn_provider_uses_latest_disclosure_date_and_actual_is_confirmed():
     assert (second.primary_date, second.status) == (date(2026, 8, 16), "confirmed")
 
 
-def test_cn_provider_normalizes_dividend_split_and_rights_issue():
+def test_cn_provider_normalizes_cash_and_stock_distributions_as_dividend():
     distributions = pd.DataFrame(
         [
             {
@@ -162,9 +162,7 @@ def test_cn_provider_normalizes_dividend_split_and_rights_issue():
             }
         ]
     )
-    allotments = pd.DataFrame(
-        [{"除权基准日": "2026-08-12", "公告日期": "2026-08-02"}]
-    )
+    allotments = pd.DataFrame([{"除权基准日": "2026-08-12", "公告日期": "2026-08-02"}])
     provider = CnCorporateActionProvider(
         disclosure_fetcher=lambda period: pd.DataFrame(),
         distribution_fetcher=lambda symbol: distributions,
@@ -178,10 +176,9 @@ def test_cn_provider_normalizes_dividend_split_and_rights_issue():
 
     assert [item.event_type for item in coverage.actions] == [
         "dividend",
-        "split",
         "rights_issue",
     ]
-    assert coverage.complete is False
+    assert coverage.complete is True
     assert coverage.unsupported_event_types == ("additional_issuance", "consolidation")
 
 
@@ -239,9 +236,9 @@ def test_hk_provider_normalizes_calendar_and_dividend_with_explicit_unsupported_
     assert [item.event_type for item in coverage.actions] == [
         "earnings",
         "dividend",
-        "split",
+        "dividend",
     ]
-    assert coverage.complete is False
+    assert coverage.complete is True
     assert coverage.unsupported_event_types == (
         "additional_issuance",
         "consolidation",
@@ -250,11 +247,88 @@ def test_hk_provider_normalizes_calendar_and_dividend_with_explicit_unsupported_
     assert coverage.actions[1].payment_date == date(2026, 8, 20)
 
 
+def test_distribution_text_ratios_are_not_silently_dropped():
+    distributions = pd.DataFrame(
+        [
+            {
+                "除权除息日": "2026-08-11",
+                "现金分红-现金分红比例": "10派3.5",
+                "送转股份-送转总比例": "--",
+                "分红描述": "10派3.5元",
+            },
+            {
+                "除权除息日": "2026-08-12",
+                "现金分红-现金分红比例": "--",
+                "送转股份-送转总比例": "10送2",
+                "分红描述": "10送2股",
+            },
+        ]
+    )
+    provider = CnCorporateActionProvider(
+        disclosure_fetcher=lambda period: pd.DataFrame(),
+        distribution_fetcher=lambda symbol: distributions,
+        allotment_fetcher=lambda symbol, start, end: pd.DataFrame(),
+        disclosure_periods=lambda report_date: (),
+    )
+
+    coverage = provider.fetch_many(
+        (PersonalStockConfig("300308.SZ", "cn", "中际旭创"),), REPORT_DATE
+    )["300308.SZ"]
+
+    assert [(item.event_type, item.primary_date) for item in coverage.actions] == [
+        ("dividend", date(2026, 8, 11)),
+        ("dividend", date(2026, 8, 12)),
+    ]
+    assert coverage.complete is True
+
+
+def test_cn_distribution_uses_current_akshare_description_column():
+    distributions = pd.DataFrame(
+        [
+            {
+                "除权除息日": "2026-08-11",
+                "现金分红-现金分红比例": 4.0,
+                "送转股份-送转总比例": None,
+                "现金分红-现金分红比例描述": "10派4.00元(含税)",
+            }
+        ]
+    )
+    provider = CnCorporateActionProvider(
+        disclosure_fetcher=lambda period: pd.DataFrame(),
+        distribution_fetcher=lambda symbol: distributions,
+        allotment_fetcher=lambda symbol, start, end: pd.DataFrame(),
+        disclosure_periods=lambda report_date: (),
+    )
+
+    action = provider.fetch_many(
+        (PersonalStockConfig("300308.SZ", "cn", "中际旭创"),), REPORT_DATE
+    )["300308.SZ"].actions[0]
+
+    assert action.summary == "10派4.00元(含税)"
+
+
+def test_hk_real_split_keywords_remain_split_not_stock_dividend():
+    payouts = pd.DataFrame(
+        [
+            {"除净日": "2026-08-13", "分红方案": "每1股拆细为5股"},
+            {"除净日": "2026-08-14", "分红方案": "每10股合并为1股"},
+        ]
+    )
+    provider = HkCorporateActionProvider(
+        calendar_fetcher=lambda symbol: {},
+        dividend_fetcher=lambda symbol: payouts,
+    )
+
+    actions = provider.fetch_many(
+        (PersonalStockConfig("00700.HK", "hk", "腾讯控股"),), REPORT_DATE
+    )["00700.HK"].actions
+
+    assert [item.event_type for item in actions] == ["split", "consolidation"]
+
+
 def test_hk_provider_keeps_yfinance_ex_dividend_when_detail_source_has_no_row():
     provider = HkCorporateActionProvider(
-        calendar_fetcher=lambda symbol: {
-            "Ex-Dividend Date": pd.Timestamp("2026-08-13")
-        },
+        calendar_fetcher=lambda symbol: {"Ex-Dividend Date": pd.Timestamp("2026-08-13")},
         dividend_fetcher=lambda symbol: pd.DataFrame(),
     )
 
