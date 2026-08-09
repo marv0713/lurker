@@ -170,11 +170,11 @@ def collect_corporate_actions(
 def default_disclosure_periods(report_date: date) -> tuple[str, ...]:
     year = report_date.year
     if report_date.month <= 4:
-        return (f"{year - 1}年报", f"{year}一季报")
+        return (f"{year - 1}年报", f"{year}一季")
     if report_date.month <= 8:
-        return (f"{year}中报",)
+        return (f"{year}半年报",)
     if report_date.month <= 10:
-        return (f"{year}三季报",)
+        return (f"{year}三季",)
     return (f"{year}年报",)
 
 

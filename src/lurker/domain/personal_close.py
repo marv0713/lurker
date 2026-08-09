@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Literal, Mapping
-
-import pandas as pd
 
 from lurker.config import PersonalStockConfig
 
@@ -138,11 +136,19 @@ def _moving_average_fact(
     )
 
 
-def analyze_personal_trend(prices: pd.DataFrame) -> TrendAnalysis:
-    if prices.empty:
+def _as_date(value: Any) -> date:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(str(value)[:10])
+
+
+def analyze_personal_trend(prices: Any) -> TrendAnalysis:
+    if len(prices) == 0:
         return TrendAnalysis("data_insufficient", None, None, None, None, None)
     closes = [float(value) for value in prices["close"]]
-    as_of = pd.Timestamp(prices.iloc[-1]["trade_date"]).date()
+    as_of = _as_date(prices.iloc[-1]["trade_date"])
     ma5 = _moving_average_fact(closes, window=5, lookback=3)
     ma20 = _moving_average_fact(closes, window=20, lookback=5)
     ma200 = _moving_average_fact(closes, window=200, lookback=20)
@@ -193,12 +199,12 @@ def analyze_personal_trend(prices: pd.DataFrame) -> TrendAnalysis:
 
 def project_first_bullish_quality(
     spring: Mapping[str, Any],
-    prices: pd.DataFrame,
+    prices: Any,
 ) -> FirstBullishQuality | None:
     if spring.get("state") != "first_bullish_confirmed" or len(prices) < 2:
         return None
     as_of = str(spring.get("as_of") or "")
-    latest_date = pd.Timestamp(prices.iloc[-1]["trade_date"]).date().isoformat()
+    latest_date = _as_date(prices.iloc[-1]["trade_date"]).isoformat()
     if as_of != latest_date:
         return None
     previous_close = float(prices.iloc[-2]["close"])

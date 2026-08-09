@@ -8,11 +8,21 @@ from lurker.ingest.corporate_actions import (
     CnCorporateActionProvider,
     HkCorporateActionProvider,
     collect_corporate_actions,
+    default_disclosure_periods,
     normalize_actions,
 )
 
 
 REPORT_DATE = date(2026, 8, 10)
+
+
+def test_default_disclosure_periods_use_akshare_supported_names():
+    assert default_disclosure_periods(date(2026, 4, 1)) == (
+        "2025年报",
+        "2026一季",
+    )
+    assert default_disclosure_periods(date(2026, 8, 1)) == ("2026半年报",)
+    assert default_disclosure_periods(date(2026, 10, 1)) == ("2026三季",)
 
 
 def action(offset: int, *, symbol: str = "300308.SZ", event_type: str = "earnings"):
