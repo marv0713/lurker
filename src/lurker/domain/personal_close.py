@@ -6,6 +6,8 @@ from typing import Any, Literal, Mapping
 
 import pandas as pd
 
+from lurker.config import PersonalStockConfig
+
 
 MovingAverageDirection = Literal["up", "down", "flat"]
 TrendLabel = Literal[
@@ -80,6 +82,30 @@ class CorporateActionCoverage:
     complete: bool
     issues: tuple[DataQualityIssue, ...] = ()
     unsupported_event_types: tuple[CorporateEventType, ...] = ()
+
+
+@dataclass(frozen=True)
+class PersonalStockReportFact:
+    config: PersonalStockConfig
+    group: Literal["holding", "watchlist"]
+    market_open: bool
+    as_of: date | None
+    adjusted_close: float | None
+    trend: TrendAnalysis | None
+    spring: Mapping[str, Any] | None
+    bullish_quality: FirstBullishQuality | None
+    actions: tuple[CorporateAction, ...]
+    action_coverage_complete: bool
+    issues: tuple[DataQualityIssue, ...] = ()
+    unsupported_event_types: tuple[CorporateEventType, ...] = ()
+
+
+@dataclass(frozen=True)
+class PersonalReportFacts:
+    report_date: date
+    holdings: tuple[PersonalStockReportFact, ...]
+    watchlist: tuple[PersonalStockReportFact, ...]
+    issues: tuple[DataQualityIssue, ...] = ()
 
 
 def _moving_average(closes: list[float], end: int, window: int) -> float:
