@@ -25,7 +25,7 @@ Run the test suite:
 No API keys or local run outputs are committed to git.
 
 - Gemini: set `GEMINI_API_KEY`, pass `--api-key`, or place a local `key` file in the project root.
-- HiThink/同花顺: set `HITHINK_FINANCE_API_KEY` (official A-share daily K with forward adjustment). If it is not set, A-share prices skip it and fall back to Tushare.
+- HiThink/同花顺: set `HITHINK_FINANCE_API_KEY` for official A-share daily K with forward adjustment and preferred A-share cash/stock-dividend ex-dates. Prices fall back to Tushare; corporate actions fall back to AkShare while retaining the existing AkShare earnings-disclosure and rights-issue sources.
 - Tushare: set `TUSHARE_TOKEN` when available. If it is not set, A-share prices fall back to AkShare/Eastmoney and then BaoStock.
 - PushPlus: set `PUSHPLUS_TOKEN` before wiring the push adapter into a scheduled job.
 

@@ -130,13 +130,11 @@ def normalize_tushare_cn_price_frame(raw: pd.DataFrame, symbol: str) -> pd.DataF
     normalized["symbol"] = symbol
     normalized["trade_date"] = pd.to_datetime(normalized["trade_date"]).dt.date
     normalized["adj_close"] = normalized["close"]
-    result = normalized[PRICE_COLUMNS].sort_values("trade_date").reset_index(drop=True)
     if "amount" in normalized.columns:
         # Tushare daily 成交额单位为千元，统一转为元。
-        result["amount"] = (
-            pd.to_numeric(normalized["amount"], errors="coerce") * 1000.0
-        )
-    return result
+        normalized["amount"] = pd.to_numeric(normalized["amount"], errors="coerce") * 1000.0
+    columns = [*PRICE_COLUMNS, *(["amount"] if "amount" in normalized.columns else [])]
+    return normalized[columns].sort_values("trade_date").reset_index(drop=True)
 
 
 def normalize_baostock_cn_price_frame(raw: pd.DataFrame, symbol: str) -> pd.DataFrame:
@@ -357,6 +355,7 @@ def fetch_hithink_cn_prices(
     items: list[dict[str, object]] = []
     seen_dates: set[int] = set()
     offset = 0
+    pagination_complete = False
     for _ in range(_HITHINK_MAX_PAGES):
         page_items = _hithink_request_page(
             symbol=symbol,
@@ -366,13 +365,17 @@ def fetch_hithink_cn_prices(
             token=resolved_token,
         )
         if not page_items:
+            pagination_complete = True
             break
         fresh = [item for item in page_items if item.get("date_ms") not in seen_dates]
         if not fresh:
+            pagination_complete = True
             break
         seen_dates.update(int(item["date_ms"]) for item in fresh)
         items.extend(fresh)
         offset += len(fresh)
+    if not pagination_complete:
+        raise RuntimeError("hithink pagination limit reached")
     if not items:
         raise ValueError("empty hithink price data")
     return normalize_hithink_cn_price_frame(pd.DataFrame(items), symbol=symbol)

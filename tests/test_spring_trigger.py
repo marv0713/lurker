@@ -119,7 +119,7 @@ def test_trigger_fired_when_all_three_conditions_meet():
     opens = [26.3] * 58 + [26.3, 26.5]
     lows = [26.0] * 58 + [26.1, 26.6]
     highs = [26.8] * 58 + [26.6, 27.2]
-    amounts = [500_000_000.0] * 59 + [1_600_000_000.0]  # 扳机日 16 亿
+    amounts = [1_200_000_000.0] * 57 + [500_000_000.0] * 2 + [1_600_000_000.0]
 
     result = analyze_spring_trigger(
         make_bars(closes=closes, opens=opens, lows=lows, highs=highs, amounts=amounts),
@@ -135,7 +135,9 @@ def test_trigger_fired_when_all_three_conditions_meet():
     trigger = result["trigger"]
     assert trigger["gain_pct"] == pytest.approx(0.025)
     assert trigger["turnover"] == 1_600_000_000.0
-    assert trigger["volume_ratio"] == pytest.approx(3.2)
+    assert trigger["volume_ratio"] == pytest.approx(1_600_000_000.0 / 920_000_000.0)
+    assert result["shrink"]["consecutive_days"] == 2
+    assert result["shrink"]["latest_turnover"] == 1_600_000_000.0
     assert result["entry_plan"]["entry_reference"] == 27.06
     assert result["entry_plan"]["stop_price"] == 26.6
 

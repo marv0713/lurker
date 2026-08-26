@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from datetime import date, timedelta
+import os
 import re
+import time
 from typing import Any, Protocol, cast
 
 import akshare as ak
 import pandas as pd
+import requests
 import yfinance as yf
 
 from lurker.config import PersonalStockConfig
@@ -16,7 +19,7 @@ from lurker.domain.personal_close import (
     CorporateEventType,
     DataQualityIssue,
 )
-from lurker.ingest.prices import to_akshare_symbol, to_yfinance_symbol
+from lurker.ingest.prices import HITHINK_BASE_URL, to_akshare_symbol, to_yfinance_symbol
 
 
 EVENT_ORDER: dict[str, int] = {
@@ -63,6 +66,16 @@ def _number(value: Any) -> float:
         return float(parsed)
     numbers = re.findall(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)", str(value))
     return max((float(number) for number in numbers), default=0.0)
+
+
+def _epoch_ms_date(value: Any) -> date | None:
+    parsed = pd.to_numeric(value, errors="coerce")
+    if pd.isna(parsed):
+        return None
+    timestamp = pd.to_datetime(parsed, unit="ms", utc=True, errors="coerce")
+    if pd.isna(timestamp):
+        return None
+    return pd.Timestamp(timestamp).tz_convert("Asia/Shanghai").date()
 
 
 def _text(value: Any, fallback: str) -> str:
@@ -190,16 +203,105 @@ def _ak_allotment(symbol: str, start: str, end: str) -> pd.DataFrame:
     return ak.stock_allotment_cninfo(symbol=symbol, start_date=start, end_date=end)
 
 
+def fetch_hithink_cn_corporate_actions(
+    symbol: str,
+    report_date: date,
+    *,
+    token: str | None = None,
+) -> tuple[CorporateAction, ...]:
+    resolved_token = token or os.environ.get("HITHINK_FINANCE_API_KEY", "")
+    if not resolved_token:
+        raise ValueError("HITHINK_FINANCE_API_KEY is not set")
+
+    params = {
+        "thscode": symbol,
+        "from": report_date.isoformat(),
+        "to": (report_date + timedelta(days=13)).isoformat(),
+    }
+    last_error: Exception | None = None
+    for attempt in range(3):
+        try:
+            response = requests.get(
+                f"{HITHINK_BASE_URL}/api/a-share/corporate-actions/adjustment-factors",
+                params=params,
+                headers={"X-api-key": resolved_token},
+                timeout=15,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except (requests.RequestException, ValueError) as exc:
+            last_error = exc
+        else:
+            if not isinstance(payload, Mapping):
+                raise RuntimeError("hithink malformed corporate-action response")
+            code = payload.get("code")
+            if code == 4001:
+                last_error = RuntimeError(
+                    f"hithink rate limited: {payload.get('message')}"
+                )
+            elif code == 3002 and str(payload.get("message", "")).startswith(
+                "No adjustment events"
+            ):
+                return ()
+            elif code != 0:
+                raise RuntimeError(
+                    f"hithink corporate-action error {code}: {payload.get('message')}"
+                )
+            else:
+                data = payload.get("data")
+                if not isinstance(data, Mapping):
+                    raise RuntimeError("hithink missing corporate-action data")
+                items = data.get("item")
+                if not isinstance(items, list):
+                    raise RuntimeError("hithink missing corporate-action item list")
+                actions: list[CorporateAction] = []
+                for item in items:
+                    if not isinstance(item, Mapping):
+                        raise RuntimeError("hithink malformed corporate-action item")
+                    primary_date = _epoch_ms_date(item.get("ex_date_ms"))
+                    cash = _number(item.get("dividend_per_share"))
+                    bonus = _number(item.get("per_share_bonus"))
+                    if primary_date is None or (cash <= 0 and bonus <= 0):
+                        continue
+                    summary_parts: list[str] = []
+                    if cash > 0:
+                        summary_parts.append(f"每股现金分红 {cash:g} 元")
+                    if bonus > 0:
+                        summary_parts.append(f"每股送股 {bonus:g} 股")
+                    actions.append(
+                        CorporateAction(
+                            symbol,
+                            "dividend",
+                            primary_date,
+                            "confirmed",
+                            "；".join(summary_parts),
+                        )
+                    )
+                return tuple(actions)
+        if attempt < 2:
+            time.sleep(0.5 * (2**attempt))
+    raise RuntimeError(f"hithink corporate-action request failed: {last_error}")
+
+
 class CnCorporateActionProvider:
     def __init__(
         self,
         *,
         disclosure_fetcher: Callable[[str], pd.DataFrame] = _ak_disclosures,
+        hithink_distribution_fetcher: Callable[
+            [str, date], Sequence[CorporateAction]
+        ]
+        | None = None,
         distribution_fetcher: Callable[[str], pd.DataFrame] = _ak_distribution,
         allotment_fetcher: Callable[[str, str, str], pd.DataFrame] = _ak_allotment,
         disclosure_periods: Callable[[date], Sequence[str]] = default_disclosure_periods,
     ) -> None:
         self.disclosure_fetcher = disclosure_fetcher
+        self.hithink_distribution_fetcher = (
+            fetch_hithink_cn_corporate_actions
+            if hithink_distribution_fetcher is None and distribution_fetcher is _ak_distribution
+            else hithink_distribution_fetcher
+        )
         self.distribution_fetcher = distribution_fetcher
         self.allotment_fetcher = allotment_fetcher
         self.disclosure_periods = disclosure_periods
@@ -208,6 +310,7 @@ class CnCorporateActionProvider:
     def empty(cls) -> CnCorporateActionProvider:
         return cls(
             disclosure_fetcher=lambda period: pd.DataFrame(),
+            hithink_distribution_fetcher=lambda symbol, report_date: (),
             distribution_fetcher=lambda symbol: pd.DataFrame(),
             allotment_fetcher=lambda symbol, start, end: pd.DataFrame(),
             disclosure_periods=lambda report_date: (),
@@ -258,11 +361,21 @@ class CnCorporateActionProvider:
         end = (report_date + timedelta(days=13)).strftime("%Y%m%d")
         for item in items:
             code = to_akshare_symbol(item.symbol)
-            try:
-                distributions = self.distribution_fetcher(code)
-                actions[item.symbol].extend(self._distribution_actions(item.symbol, distributions))
-            except Exception as exc:
-                issues[item.symbol].append(_unavailable(item.symbol, "cn", exc))
+            use_fallback = self.hithink_distribution_fetcher is None
+            if self.hithink_distribution_fetcher is not None:
+                try:
+                    hithink_actions = self.hithink_distribution_fetcher(
+                        item.symbol, report_date
+                    )
+                    actions[item.symbol].extend(hithink_actions)
+                except Exception:
+                    use_fallback = True
+            if use_fallback:
+                try:
+                    fallback = self.distribution_fetcher(code)
+                    actions[item.symbol].extend(self._distribution_actions(item.symbol, fallback))
+                except Exception as exc:
+                    issues[item.symbol].append(_unavailable(item.symbol, "cn", exc))
             try:
                 allotments = self.allotment_fetcher(code, start, end)
                 actions[item.symbol].extend(self._allotment_actions(item.symbol, allotments))

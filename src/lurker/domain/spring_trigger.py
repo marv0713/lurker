@@ -166,6 +166,7 @@ def _analyze_trigger(
             state = "trigger_fired"
             conditions["volume_shrunk"] = True
             conditions["trigger_day"] = True
+            shrink["consecutive_days"] = shrink_streak_ending(fired - 1)
             base = sum(amounts[fired - 5 : fired]) / 5
             trigger = {
                 "trade_date": bars[fired].trade_date.isoformat(),

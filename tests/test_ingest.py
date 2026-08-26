@@ -269,6 +269,25 @@ def test_normalize_tushare_cn_price_frame_converts_amount_to_yuan():
     assert result.iloc[0]["amount"] == 108_000_000
 
 
+def test_tushare_amount_stays_attached_to_date_after_sorting():
+    raw = pd.DataFrame(
+        {
+            "trade_date": ["20260516", "20260515"],
+            "open": [20, 10],
+            "high": [21, 11],
+            "low": [19, 9],
+            "close": [20, 10],
+            "vol": [2, 1],
+            "amount": [200, 100],
+        }
+    )
+
+    result = normalize_tushare_cn_price_frame(raw, symbol="000001.SZ")
+
+    assert list(result["trade_date"]) == [date(2026, 5, 15), date(2026, 5, 16)]
+    assert list(result["amount"]) == [100_000.0, 200_000.0]
+
+
 def test_normalize_baostock_cn_price_frame_outputs_required_columns():
     raw = pd.DataFrame(
         {
@@ -638,6 +657,26 @@ def test_fetch_hithink_cn_prices_paginates_until_short_page(monkeypatch):
 
     assert calls == [0, 10, 13]
     assert len(result) == 13
+
+
+def test_fetch_hithink_cn_prices_rejects_truncated_pagination(monkeypatch):
+    monkeypatch.setattr("lurker.ingest.prices._HITHINK_MAX_PAGES", 2)
+
+    def fake_get(url, params, headers, timeout):
+        day = 1 + params["offset"]
+        return _FakeResponse(
+            {
+                "code": 0,
+                "message": "ok",
+                "request_id": "r",
+                "data": {"timestamp": 1, "item": [_hithink_bar(f"2024-08-{day:02d}")]},
+            }
+        )
+
+    monkeypatch.setattr("lurker.ingest.prices.requests.get", fake_get)
+
+    with pytest.raises(RuntimeError, match="hithink pagination limit reached"):
+        fetch_hithink_cn_prices("300308.SZ", "6mo", token="test-key")
 
 
 def test_fetch_hithink_cn_prices_retries_on_rate_limit(monkeypatch):
