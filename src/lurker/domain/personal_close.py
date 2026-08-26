@@ -92,8 +92,9 @@ class PersonalStockReportFact:
     trend: TrendAnalysis | None
     spring: Mapping[str, Any] | None
     bullish_quality: FirstBullishQuality | None
-    actions: tuple[CorporateAction, ...]
-    action_coverage_complete: bool
+    spring_trigger: Mapping[str, Any] | None = None
+    actions: tuple[CorporateAction, ...] = ()
+    action_coverage_complete: bool = True
     issues: tuple[DataQualityIssue, ...] = ()
     unsupported_event_types: tuple[CorporateEventType, ...] = ()
 

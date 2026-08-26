@@ -9,6 +9,7 @@ from lurker.config import (
     HkExperimentalSpringConfig,
     PersonalStockConfig,
     PersonalWatchConfig,
+    SpringTriggerConfig,
 )
 from lurker.domain.personal_close import CorporateActionCoverage
 
@@ -267,6 +268,71 @@ def test_spring_unknown_enters_data_quality_and_marks_conclusion_incomplete(tmp_
     )
 
     assert "A股正式弹簧不可判断" in result.content_md
+    assert "部分数据不完整，详见数据质量" in result.content_md
+
+
+def trigger_watch_config() -> PersonalWatchConfig:
+    return PersonalWatchConfig(
+        holdings=(),
+        watchlist=(
+            PersonalStockConfig(
+                "002001.SZ",
+                "cn",
+                "新和成",
+                spring_trigger=SpringTriggerConfig(support_low=75.0, support_high=90.0),
+            ),
+        ),
+        hk_experimental_spring=HkExperimentalSpringConfig(),
+    )
+
+
+def prices_with_amount(symbol, market, report_date, period):
+    days = pd.bdate_range(end=report_date, periods=220)
+    close = pd.Series([80 + index * 0.1 for index in range(220)], dtype=float)
+    return pd.DataFrame(
+        {
+            "trade_date": days.date,
+            "open": close - 0.2,
+            "high": close + 0.5,
+            "low": close - 0.5,
+            "close": close,
+            "adj_close": close,
+            "raw_close": close,
+            "volume": [1_000_000.0] * 220,
+            "amount": [500_000_000.0] * 220,
+        }
+    )
+
+
+def test_spring_trigger_computed_when_configured_with_amount(tmp_path):
+    result = run_personal_close(
+        **kwargs(
+            tmp_path,
+            config_loader=lambda path: trigger_watch_config(),
+            calendars={"cn": Calendar(True)},
+            price_loader=prices_with_amount,
+            action_providers={"cn": CompleteProvider()},
+            no_push=True,
+        )
+    )
+
+    assert "扳机信号：压紧就绪" in result.content_md
+    assert "弹簧扳机信号不可判断" not in result.content_md
+
+
+def test_spring_trigger_unknown_without_amount_enters_data_quality(tmp_path):
+    result = run_personal_close(
+        **kwargs(
+            tmp_path,
+            config_loader=lambda path: trigger_watch_config(),
+            calendars={"cn": Calendar(True)},
+            action_providers={"cn": CompleteProvider()},
+            no_push=True,
+        )
+    )
+
+    assert "扳机信号：不可判断（成交额数据缺失）" in result.content_md
+    assert "弹簧扳机信号不可判断" in result.content_md
     assert "部分数据不完整，详见数据质量" in result.content_md
 
 

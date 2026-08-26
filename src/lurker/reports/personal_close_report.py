@@ -27,6 +27,22 @@ SPRING_LABELS = {
     "weak_excluded": "弱弹簧排除",
     "unknown": "不可判断",
 }
+TRIGGER_STATE_LABELS = {
+    "unknown": "不可判断",
+    "support_holding": "支撑横住",
+    "primed": "压紧就绪",
+    "trigger_fired": "扳机扣动",
+    "support_broken": "支撑跌破",
+}
+TRIGGER_REASON_LABELS = {
+    "support_broken": "收盘跌破支撑",
+    "insufficient_history": "历史日线不足",
+    "turnover_unavailable": "成交额数据缺失",
+    "invalid_trade_date": "交易日期无效",
+    "duplicate_trade_date": "交易日期重复",
+    "invalid_price_data": "价格数据无效",
+    "invalid_volume_data": "成交量数据无效",
+}
 ACTION_STATUS = {"expected": "预计", "confirmed": "已确认"}
 QUALITY_LABELS = {"micro": "微弱首阳", "standard": "标准首阳", "strong": "强首阳"}
 DIRECTION_SYMBOLS = {"up": "↗", "down": "↘", "flat": "→"}
@@ -125,6 +141,84 @@ def _quality_line(quality: FirstBullishQuality | None) -> str | None:
     )
 
 
+def _turnover_yi(value: float) -> str:
+    return f"{value / 1e8:.1f} 亿"
+
+
+def _trigger_line(trigger: Mapping[str, object] | None) -> str | None:
+    if trigger is None:
+        return None
+    state = str(trigger.get("state", "unknown"))
+    label = TRIGGER_STATE_LABELS.get(state, state)
+    result = f"扳机信号：{label}"
+    if state == "unknown":
+        reasons = trigger.get("reasons")
+        labels = (
+            [
+                TRIGGER_REASON_LABELS.get(str(reason), "规则原因暂不可用")
+                for reason in reasons
+            ]
+            if isinstance(reasons, list)
+            else []
+        )
+        return result + ("（" + "；".join(labels) + "）" if labels else "")
+    support = trigger.get("support")
+    shrink = trigger.get("shrink")
+    if isinstance(support, Mapping):
+        low = support.get("low")
+        high = support.get("high")
+        window = support.get("window_days")
+        min_close = support.get("min_close_in_window")
+        zone_days = support.get("days_in_zone")
+        details: list[str] = []
+        if isinstance(low, (int, float)) and isinstance(high, (int, float)):
+            details.append(f"支撑 {float(low):.2f}-{float(high):.2f}")
+        if isinstance(min_close, (int, float)) and isinstance(window, int):
+            details.append(f"近{window}日最低收盘 {float(min_close):.2f}")
+        if isinstance(zone_days, int) and isinstance(window, int):
+            details.append(f"区间内 {zone_days}/{window} 日")
+        if details:
+            result += "｜" + "｜".join(details)
+    if isinstance(shrink, Mapping) and isinstance(shrink.get("consecutive_days"), int):
+        result += f"｜连续缩量 {shrink['consecutive_days']} 日"
+        latest = shrink.get("latest_turnover")
+        if isinstance(latest, (int, float)):
+            result += f"（最新 {_turnover_yi(float(latest))}）"
+    if state == "trigger_fired":
+        trigger_day = trigger.get("trigger")
+        if isinstance(trigger_day, Mapping):
+            gain = trigger_day.get("gain_pct")
+            turnover = trigger_day.get("turnover")
+            trade_date = trigger_day.get("trade_date")
+            parts: list[str] = []
+            if isinstance(gain, (int, float)):
+                parts.append(f"涨幅 {float(gain):+.1%}")
+            if isinstance(turnover, (int, float)):
+                parts.append(f"成交额 {_turnover_yi(float(turnover))}")
+            if parts and isinstance(trade_date, str):
+                parts.append(f"日期 {trade_date}")
+            if parts:
+                result += "｜扳机日 " + "、".join(parts)
+    return result
+
+
+def _entry_plan_lines(fact: PersonalStockReportFact) -> list[str]:
+    trigger = fact.spring_trigger
+    if not isinstance(trigger, Mapping) or trigger.get("state") != "trigger_fired":
+        return []
+    plan = trigger.get("entry_plan")
+    if not isinstance(plan, Mapping):
+        return []
+    entry = plan.get("entry_reference")
+    stop = plan.get("stop_price")
+    if not isinstance(entry, (int, float)) or not isinstance(stop, (int, float)):
+        return []
+    return [
+        f"- 参与参考：试探价 {float(entry):.2f}｜止损 {float(stop):.2f}"
+        "（阳线低点下方；收盘跌破次日开盘无条件执行，两个隔夜止损）"
+    ]
+
+
 def _actions_line(fact: PersonalStockReportFact) -> str:
     if fact.actions:
         rendered = "；".join(_render_action(action) for action in fact.actions)
@@ -198,6 +292,16 @@ def _one_line(facts: PersonalReportFacts) -> str:
         and fact.spring.get("state") == "compressed_watch"
         for fact in (*holdings, *facts.watchlist)
     )
+    trigger_fired = sum(
+        fact.spring_trigger is not None
+        and fact.spring_trigger.get("state") == "trigger_fired"
+        for fact in (*holdings, *facts.watchlist)
+    )
+    trigger_primed = sum(
+        fact.spring_trigger is not None
+        and fact.spring_trigger.get("state") == "primed"
+        for fact in (*holdings, *facts.watchlist)
+    )
     action_count = sum(len(fact.actions) for fact in (*holdings, *facts.watchlist))
     hk_observations = sum(
         fact.config.market == "hk"
@@ -220,6 +324,10 @@ def _one_line(facts: PersonalReportFacts) -> str:
         clauses.append(f"{remaining_confirmed} 只 A 股观察标的出现正式弹簧首阳确认")
     if formal_compressed:
         clauses.append(f"{formal_compressed} 只 A 股标的进入正式弹簧压紧观察")
+    if trigger_fired:
+        clauses.append(f"{trigger_fired} 只标的弹簧扳机扣动")
+    elif trigger_primed:
+        clauses.append(f"{trigger_primed} 只标的压紧就绪、等待扳机")
     if hk_observations:
         clauses.append(f"另有 {hk_observations} 只港股实验弹簧观察")
     incomplete = _is_incomplete(facts)
@@ -255,6 +363,10 @@ def _render_stock(fact: PersonalStockReportFact) -> list[str]:
     quality = _quality_line(fact.bullish_quality)
     if quality:
         lines.append(f"- {quality}")
+    trigger_line = _trigger_line(fact.spring_trigger)
+    if trigger_line:
+        lines.append(f"- {trigger_line}")
+    lines.extend(_entry_plan_lines(fact))
     lines.append(f"- {_actions_line(fact)}")
     return lines
 

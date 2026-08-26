@@ -25,6 +25,10 @@ from lurker.domain.personal_close import (
     project_first_bullish_quality,
 )
 from lurker.domain.spring import analyze_hk_experimental_spring, analyze_spring_bars
+from lurker.domain.spring_trigger import (
+    analyze_spring_trigger,
+    unknown_spring_trigger_result,
+)
 from lurker.ingest.corporate_actions import (
     CnCorporateActionProvider,
     CorporateActionProvider,
@@ -140,6 +144,21 @@ def _analyze_stock(
                 min_positive_volume_ratio_60d=thresholds.min_positive_volume_ratio_60d,
             )
         bullish_quality = project_first_bullish_quality(spring, prices)
+        spring_trigger = None
+        if item.market == "cn" and item.spring_trigger is not None:
+            try:
+                spring_trigger = analyze_spring_trigger(records, item.spring_trigger)
+            except Exception:
+                spring_trigger = unknown_spring_trigger_result("invalid_price_data")
+            if spring_trigger.get("state") == "unknown":
+                issues.append(
+                    DataQualityIssue(
+                        "spring_trigger_unknown",
+                        "弹簧扳机信号不可判断",
+                        symbol=item.symbol,
+                        market=item.market,
+                    )
+                )
         as_of = trend.as_of
         adjusted_close = trend.adjusted_close
         if spring.get("state") == "unknown":
@@ -183,6 +202,7 @@ def _analyze_stock(
         trend = None
         spring = None
         bullish_quality = None
+        spring_trigger = None
         as_of = None
         adjusted_close = None
         issues.append(_price_issue(item, exc))
@@ -195,6 +215,7 @@ def _analyze_stock(
         trend=trend,
         spring=spring,
         bullish_quality=bullish_quality,
+        spring_trigger=spring_trigger,
         actions=coverage.actions,
         action_coverage_complete=coverage.complete,
         issues=tuple(issues),

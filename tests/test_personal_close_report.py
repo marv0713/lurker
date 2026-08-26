@@ -27,6 +27,7 @@ def stock_fact(
     coverage_complete: bool = True,
     issues=(),
     unsupported=(),
+    spring_trigger=None,
 ):
     ma5 = MovingAverageFact(5, 102.0, -0.01, "down")
     ma20 = MovingAverageFact(20, 96.0, 0.061, "up")
@@ -63,6 +64,7 @@ def stock_fact(
             if spring_state == "first_bullish_confirmed"
             else None
         ),
+        spring_trigger=spring_trigger,
         actions=actions,
         action_coverage_complete=coverage_complete,
         issues=issues,
@@ -289,3 +291,134 @@ def test_unsupported_actions_are_chinese_and_deduplicated_by_market():
     assert "consolidation" not in report
     assert "部分数据不完整" not in report
     assert report.count("未来两周：已支持类型暂无已知事件") == 2
+
+
+def _fired_trigger() -> dict:
+    return {
+        "rule_version": "spring-trigger-v1",
+        "state": "trigger_fired",
+        "as_of": "2026-08-10",
+        "conditions": {
+            "support_holding": True,
+            "volume_shrunk": True,
+            "trigger_day": True,
+        },
+        "support": {
+            "low": 26.0,
+            "high": 27.0,
+            "window_days": 10,
+            "min_close_in_window": 26.3,
+            "days_in_zone": 8,
+        },
+        "shrink": {
+            "consecutive_days": 2,
+            "latest_turnover": 850_000_000.0,
+            "max_turnover": 1_000_000_000.0,
+        },
+        "trigger": {
+            "trade_date": "2026-08-10",
+            "gain_pct": 0.031,
+            "turnover": 1_600_000_000.0,
+            "volume_ratio": 3.0,
+        },
+        "entry_plan": {
+            "entry_reference": 27.4,
+            "stop_price": 26.8,
+            "stop_rule": "two_night_stop",
+        },
+        "reasons": [],
+    }
+
+
+def test_report_renders_spring_trigger_fired_with_entry_plan_and_headline():
+    fact = stock_fact(
+        "002001.SZ",
+        "cn",
+        "新和成",
+        group="watchlist",
+        spring_trigger=_fired_trigger(),
+    )
+
+    report = render_personal_close_report(PersonalReportFacts(date(2026, 8, 10), (), (fact,)))
+
+    headline = report.split("一句话结论：", 1)[1].split("\n", 1)[0]
+    assert "1 只标的弹簧扳机扣动" in headline
+    assert "扳机信号：扳机扣动" in report
+    assert "支撑 26.00-27.00｜近10日最低收盘 26.30｜区间内 8/10 日" in report
+    assert "连续缩量 2 日（最新 8.5 亿）" in report
+    assert "扳机日 涨幅 +3.1%、成交额 16.0 亿、日期 2026-08-10" in report
+    assert "参与参考：试探价 27.40｜止损 26.80" in report
+    assert "收盘跌破次日开盘无条件执行，两个隔夜止损" in report
+
+
+def test_report_renders_spring_trigger_unknown_reason_without_internal_code():
+    trigger = {
+        "rule_version": "spring-trigger-v1",
+        "state": "unknown",
+        "as_of": None,
+        "conditions": {
+            "support_holding": False,
+            "volume_shrunk": False,
+            "trigger_day": False,
+        },
+        "support": None,
+        "shrink": None,
+        "trigger": None,
+        "entry_plan": None,
+        "reasons": ["turnover_unavailable"],
+    }
+    fact = stock_fact(
+        "002001.SZ",
+        "cn",
+        "新和成",
+        group="watchlist",
+        spring_trigger=trigger,
+    )
+
+    report = render_personal_close_report(PersonalReportFacts(date(2026, 8, 10), (), (fact,)))
+
+    assert "扳机信号：不可判断（成交额数据缺失）" in report
+    assert "turnover_unavailable" not in report
+    assert "参与参考" not in report
+
+
+def test_report_renders_primed_headline_without_trigger():
+    trigger = {
+        "rule_version": "spring-trigger-v1",
+        "state": "primed",
+        "as_of": "2026-08-10",
+        "conditions": {
+            "support_holding": True,
+            "volume_shrunk": True,
+            "trigger_day": False,
+        },
+        "support": {
+            "low": 26.0,
+            "high": 27.0,
+            "window_days": 10,
+            "min_close_in_window": 26.4,
+            "days_in_zone": 9,
+        },
+        "shrink": {
+            "consecutive_days": 3,
+            "latest_turnover": 800_000_000.0,
+            "max_turnover": 1_000_000_000.0,
+        },
+        "trigger": None,
+        "entry_plan": None,
+        "reasons": [],
+    }
+    fact = stock_fact(
+        "002001.SZ",
+        "cn",
+        "新和成",
+        group="watchlist",
+        spring_trigger=trigger,
+    )
+
+    report = render_personal_close_report(PersonalReportFacts(date(2026, 8, 10), (), (fact,)))
+
+    headline = report.split("一句话结论：", 1)[1].split("\n", 1)[0]
+    assert "1 只标的压紧就绪、等待扳机" in headline
+    assert "扳机信号：压紧就绪" in report
+    assert "连续缩量 3 日（最新 8.0 亿）" in report
