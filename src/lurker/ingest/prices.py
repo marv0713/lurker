@@ -90,12 +90,16 @@ def normalize_cn_price_frame(raw: pd.DataFrame, symbol: str) -> pd.DataFrame:
             "最低": "low",
             "收盘": "close",
             "成交量": "volume",
+            "成交额": "amount",
         }
     ).copy()
     normalized["symbol"] = symbol
     normalized["trade_date"] = pd.to_datetime(normalized["trade_date"]).dt.date
     normalized["adj_close"] = normalized["close"]
-    return normalized[PRICE_COLUMNS]
+    result = normalized[PRICE_COLUMNS].copy()
+    if "amount" in normalized.columns:
+        result["amount"] = pd.to_numeric(normalized["amount"], errors="coerce")
+    return result
 
 
 def _resolve_cn_index_columns(raw: pd.DataFrame) -> dict[str, str]:
@@ -125,17 +129,27 @@ def normalize_tushare_cn_price_frame(raw: pd.DataFrame, symbol: str) -> pd.DataF
     normalized["symbol"] = symbol
     normalized["trade_date"] = pd.to_datetime(normalized["trade_date"]).dt.date
     normalized["adj_close"] = normalized["close"]
-    return normalized[PRICE_COLUMNS].sort_values("trade_date").reset_index(drop=True)
+    result = normalized[PRICE_COLUMNS].sort_values("trade_date").reset_index(drop=True)
+    if "amount" in normalized.columns:
+        # Tushare daily 成交额单位为千元，统一转为元。
+        result["amount"] = (
+            pd.to_numeric(normalized["amount"], errors="coerce") * 1000.0
+        )
+    return result
 
 
 def normalize_baostock_cn_price_frame(raw: pd.DataFrame, symbol: str) -> pd.DataFrame:
     normalized = raw.rename(columns={"date": "trade_date"}).copy()
-    for column in ["open", "high", "low", "close", "volume"]:
-        normalized[column] = pd.to_numeric(normalized[column], errors="coerce")
+    for column in ["open", "high", "low", "close", "volume", "amount"]:
+        if column in normalized.columns:
+            normalized[column] = pd.to_numeric(normalized[column], errors="coerce")
     normalized["symbol"] = symbol
     normalized["trade_date"] = pd.to_datetime(normalized["trade_date"]).dt.date
     normalized["adj_close"] = normalized["close"]
-    return normalized[PRICE_COLUMNS].dropna(subset=["close"]).reset_index(drop=True)
+    result = normalized[PRICE_COLUMNS].copy()
+    if "amount" in normalized.columns:
+        result["amount"] = normalized["amount"]
+    return result.dropna(subset=["close"]).reset_index(drop=True)
 
 
 def fetch_yfinance_prices(
@@ -252,7 +266,7 @@ def fetch_baostock_cn_prices(
     try:
         result = bs.query_history_k_data_plus(
             to_baostock_symbol(symbol),
-            "date,code,open,high,low,close,volume",
+            "date,code,open,high,low,close,volume,amount",
             start_date=pd.to_datetime(period_to_start_date(period, end_date=end_date)).strftime(
                 "%Y-%m-%d"
             ),

@@ -61,6 +61,21 @@ def test_cn_prices_are_already_adjusted():
     assert normalized.iloc[-1]["raw_close"] == 10.0
 
 
+def test_amount_is_carried_through_when_present():
+    raw = _frame()
+    raw["amount"] = [120_000_000.0] * len(raw)
+
+    normalized = normalize_personal_prices(raw, market="cn", report_date=REPORT_DATE)
+
+    assert list(normalized["amount"]) == [120_000_000.0] * len(normalized)
+
+
+def test_amount_column_is_absent_when_source_lacks_it():
+    normalized = normalize_personal_prices(_frame(), market="cn", report_date=REPORT_DATE)
+
+    assert "amount" not in normalized.columns
+
+
 def test_duplicate_trade_date_is_rejected_not_deduplicated():
     raw = _frame()
     raw.loc[1, "trade_date"] = raw.loc[0, "trade_date"]

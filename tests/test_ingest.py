@@ -229,6 +229,44 @@ def test_normalize_tushare_cn_price_frame_outputs_required_columns():
     assert result.iloc[0]["volume"] == 1000
 
 
+def test_normalize_cn_price_frame_carries_amount_when_present():
+    raw = pd.DataFrame(
+        {
+            "日期": ["2026-05-15"],
+            "开盘": [100],
+            "最高": [110],
+            "最低": [98],
+            "收盘": [108],
+            "成交量": [1000000],
+            "成交额": [108000000],
+        }
+    )
+
+    result = normalize_cn_price_frame(raw, symbol="300308.SZ")
+
+    assert list(result.columns) == [*PRICE_COLUMNS, "amount"]
+    assert result.iloc[0]["amount"] == 108_000_000
+
+
+def test_normalize_tushare_cn_price_frame_converts_amount_to_yuan():
+    raw = pd.DataFrame(
+        {
+            "trade_date": ["20260515"],
+            "open": [100],
+            "high": [110],
+            "low": [98],
+            "close": [108],
+            "vol": [1000],
+            "amount": [108000],
+        }
+    )
+
+    result = normalize_tushare_cn_price_frame(raw, symbol="300308.SZ")
+
+    assert list(result.columns) == [*PRICE_COLUMNS, "amount"]
+    assert result.iloc[0]["amount"] == 108_000_000
+
+
 def test_normalize_baostock_cn_price_frame_outputs_required_columns():
     raw = pd.DataFrame(
         {

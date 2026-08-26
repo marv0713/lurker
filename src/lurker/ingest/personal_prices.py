@@ -51,6 +51,8 @@ def normalize_personal_prices(
 
     for column in (*_RAW_PRICE_COLUMNS, "adj_close", "volume"):
         normalized[column] = pd.to_numeric(normalized[column], errors="coerce")
+    if "amount" in normalized.columns:
+        normalized["amount"] = pd.to_numeric(normalized["amount"], errors="coerce")
     if normalized.empty:
         return normalized.assign(raw_close=pd.Series(dtype=float))
     if normalized[list(_RAW_PRICE_COLUMNS)].map(_finite_positive).eq(False).any().any():
@@ -85,18 +87,19 @@ def normalize_personal_prices(
     if not valid_ranges.all():
         raise ValueError("invalid_adjusted_price_data")
     normalized["raw_close"] = raw_close
-    return normalized[
-        [
-            "trade_date",
-            "open",
-            "high",
-            "low",
-            "close",
-            "adj_close",
-            "raw_close",
-            "volume",
-        ]
+    columns = [
+        "trade_date",
+        "open",
+        "high",
+        "low",
+        "close",
+        "adj_close",
+        "raw_close",
+        "volume",
     ]
+    if "amount" in normalized.columns:
+        columns.append("amount")
+    return normalized[columns]
 
 
 def load_personal_prices(
