@@ -367,7 +367,17 @@ def fetch_hithink_cn_prices(
         if not page_items:
             pagination_complete = True
             break
-        fresh = [item for item in page_items if item.get("date_ms") not in seen_dates]
+        fresh: list[dict[str, object]] = []
+        for item in page_items:
+            try:
+                date_ms = int(item["date_ms"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise RuntimeError("hithink invalid date_ms") from exc
+            if date_ms in seen_dates:
+                continue
+            normalized_item = dict(item)
+            normalized_item["date_ms"] = date_ms
+            fresh.append(normalized_item)
         if not fresh:
             pagination_complete = True
             break

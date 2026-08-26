@@ -690,6 +690,31 @@ def test_fetch_hithink_cn_prices_advances_offset_by_server_page_size(monkeypatch
     ]
 
 
+def test_fetch_hithink_cn_prices_deduplicates_string_and_integer_dates(monkeypatch):
+    first = _hithink_bar("2024-08-01")
+    duplicate = {**first, "date_ms": str(first["date_ms"])}
+    pages = {0: [first], 1: [duplicate]}
+    calls = []
+
+    def fake_get(url, params, headers, timeout):
+        calls.append(params["offset"])
+        return _FakeResponse(
+            {
+                "code": 0,
+                "message": "ok",
+                "request_id": "r",
+                "data": {"timestamp": 1, "item": pages.get(params["offset"], [])},
+            }
+        )
+
+    monkeypatch.setattr("lurker.ingest.prices.requests.get", fake_get)
+
+    result = fetch_hithink_cn_prices("300308.SZ", "6mo", token="test-key")
+
+    assert calls == [0, 1]
+    assert len(result) == 1
+
+
 def test_fetch_hithink_cn_prices_rejects_truncated_pagination(monkeypatch):
     monkeypatch.setattr("lurker.ingest.prices._HITHINK_MAX_PAGES", 2)
 
