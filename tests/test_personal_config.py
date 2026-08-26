@@ -176,3 +176,133 @@ watchlist:
 
     with pytest.raises(ValueError, match=message):
         load_personal_watch(path)
+
+
+def test_personal_watch_parses_spring_trigger_defaults_and_per_stock_merge(tmp_path):
+    path = _write_yaml(
+        tmp_path,
+        """
+defaults:
+  spring_trigger:
+    trigger_min_gain_pct: 0.03
+holdings: []
+watchlist:
+  - symbol: 002001.SZ
+    market: cn
+    name: 新和成
+    spring_trigger:
+      support_low: 26.0
+      support_high: 27.0
+""",
+    )
+
+    config = load_personal_watch(path)
+
+    trigger = config.watchlist[0].spring_trigger
+    assert trigger is not None
+    assert trigger.support_low == 26.0
+    assert trigger.support_high == 27.0
+    assert trigger.shrink_max_turnover == 1_000_000_000.0
+    assert trigger.shrink_min_days == 2
+    assert trigger.trigger_min_gain_pct == 0.03
+    assert trigger.trigger_min_turnover == 1_500_000_000.0
+    assert trigger.trigger_min_volume_ratio == 1.5
+    assert trigger.support_window_days == 10
+    assert trigger.trigger_active_days == 3
+
+
+def test_personal_watch_spring_trigger_is_none_without_config(tmp_path):
+    path = _write_yaml(
+        tmp_path,
+        """
+holdings: []
+watchlist:
+  - {symbol: 300308.SZ, market: cn, name: 中际旭创}
+""",
+    )
+
+    config = load_personal_watch(path)
+
+    assert config.watchlist[0].spring_trigger is None
+
+
+def test_personal_watch_spring_trigger_requires_support_zone(tmp_path):
+    path = _write_yaml(
+        tmp_path,
+        """
+holdings: []
+watchlist:
+  - {symbol: 300308.SZ, market: cn, name: 中际旭创, spring_trigger: {support_low: 30.0}}
+""",
+    )
+
+    with pytest.raises(ValueError, match="support_high is required"):
+        load_personal_watch(path)
+
+
+def test_personal_watch_spring_trigger_rejects_support_high_below_low(tmp_path):
+    path = _write_yaml(
+        tmp_path,
+        """
+holdings: []
+watchlist:
+  - {symbol: 300308.SZ, market: cn, name: 中际旭创, spring_trigger: {support_low: 30.0, support_high: 29.0}}
+""",
+    )
+
+    with pytest.raises(ValueError, match="support_high must be greater than support_low"):
+        load_personal_watch(path)
+
+
+def test_personal_watch_spring_trigger_rejects_unknown_fields(tmp_path):
+    path = _write_yaml(
+        tmp_path,
+        """
+holdings: []
+watchlist:
+  - {symbol: 300308.SZ, market: cn, name: 中际旭创, spring_trigger: {support_low: 30.0, support_high: 32.0, entry_price: 31.0}}
+""",
+    )
+
+    with pytest.raises(ValueError, match="unknown personal stock spring_trigger field: entry_price"):
+        load_personal_watch(path)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("shrink_min_days", 0, "must be an integer >= 1"),
+        ("trigger_min_gain_pct", 0, "must be within \\(0, 1]"),
+        ("trigger_min_volume_ratio", 1.0, "must be greater than 1"),
+        ("support_window_days", 2, "must be an integer >= 3"),
+    ],
+)
+def test_personal_watch_validates_spring_trigger_thresholds(tmp_path, field, value, message):
+    path = _write_yaml(
+        tmp_path,
+        f"""
+defaults:
+  spring_trigger:
+    {field}: {value}
+holdings: []
+watchlist:
+  - {{symbol: 300308.SZ, market: cn, name: 中际旭创, spring_trigger: {{support_low: 30.0, support_high: 32.0}}}}
+""",
+    )
+
+    with pytest.raises(ValueError, match=message):
+        load_personal_watch(path)
+
+
+def test_personal_watch_rejects_spring_trigger_on_hk(tmp_path):
+    path = _write_yaml(
+        tmp_path,
+        """
+holdings: []
+watchlist:
+  - {symbol: 00700.HK, market: hk, name: 腾讯控股, spring_trigger: {support_low: 400.0, support_high: 420.0}}
+""",
+    )
+
+    with pytest.raises(ValueError, match="spring_trigger is only supported for cn stocks"):
+        load_personal_watch(path)

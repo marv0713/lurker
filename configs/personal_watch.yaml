@@ -2,6 +2,16 @@ defaults:
   hk_experimental_spring:
     min_avg_turnover_hkd_20d: 10000000
     min_positive_volume_ratio_60d: 0.95
+  # 弹簧扳机信号全局默认值（成交额单位：元）。
+  # 条件：① 横住不创新低（收盘不低于支撑下限）② 连续缩量到阈值以下 ③ 放量中阳（涨幅与成交额双达标）。
+  spring_trigger:
+    shrink_max_turnover: 1000000000   # 连续缩量成交额上限：10 亿
+    shrink_min_days: 2                # 连续缩量天数（2-3 天）
+    trigger_min_gain_pct: 0.02        # 扳机日涨幅下限：+2%
+    trigger_min_turnover: 1500000000  # 扳机日成交额下限：15 亿
+    trigger_min_volume_ratio: 1.5     # 扳机日成交额 / 前 5 日均额下限（放量）
+    support_window_days: 10           # 不创新低观察窗口（交易日）
+    trigger_active_days: 3            # 扳机信号保持有效的交易日数
 
 # 持仓与观察池按此文件中的顺序展示；每次运行都会重新读取。
 holdings: []
@@ -55,6 +65,9 @@ watchlist:
   - symbol: 002001.SZ
     market: cn
     name: 新和成
+    spring_trigger:
+      support_low: 26.0
+      support_high: 27.0
   - symbol: 09992.HK
     market: hk
     name: 泡泡玛特

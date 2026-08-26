@@ -54,10 +54,24 @@ class WatchlistConfig:
 
 
 @dataclass(frozen=True)
+class SpringTriggerConfig:
+    support_low: float
+    support_high: float
+    shrink_max_turnover: float = 1_000_000_000.0
+    shrink_min_days: int = 2
+    trigger_min_gain_pct: float = 0.02
+    trigger_min_turnover: float = 1_500_000_000.0
+    trigger_min_volume_ratio: float = 1.5
+    support_window_days: int = 10
+    trigger_active_days: int = 3
+
+
+@dataclass(frozen=True)
 class PersonalStockConfig:
     symbol: str
     market: str
     name: str
+    spring_trigger: SpringTriggerConfig | None = None
 
 
 @dataclass(frozen=True)
@@ -86,13 +100,33 @@ _WATCHLIST_TOP_LEVEL_FIELDS = {"defaults", "watchlist"}
 _WATCHLIST_ITEM_FIELDS = {"symbol", "market", "name", "overrides"}
 _WATCHLIST_RULE_FIELDS = set(_WATCHLIST_DEFAULTS)
 _PERSONAL_TOP_LEVEL_FIELDS = {"defaults", "holdings", "watchlist"}
-_PERSONAL_DEFAULT_FIELDS = {"hk_experimental_spring"}
+_PERSONAL_DEFAULT_FIELDS = {"hk_experimental_spring", "spring_trigger"}
 _PERSONAL_HK_SPRING_FIELDS = {
     "min_avg_turnover_hkd_20d",
     "min_positive_volume_ratio_60d",
 }
-_PERSONAL_STOCK_FIELDS = {"symbol", "market", "name"}
+_PERSONAL_STOCK_FIELDS = {"symbol", "market", "name", "spring_trigger"}
 _PERSONAL_MARKETS = {"cn", "hk"}
+_TRIGGER_FIELDS = {
+    "support_low",
+    "support_high",
+    "shrink_max_turnover",
+    "shrink_min_days",
+    "trigger_min_gain_pct",
+    "trigger_min_turnover",
+    "trigger_min_volume_ratio",
+    "support_window_days",
+    "trigger_active_days",
+}
+_TRIGGER_DEFAULTS = {
+    "shrink_max_turnover": 1_000_000_000.0,
+    "shrink_min_days": 2,
+    "trigger_min_gain_pct": 0.02,
+    "trigger_min_turnover": 1_500_000_000.0,
+    "trigger_min_volume_ratio": 1.5,
+    "support_window_days": 10,
+    "trigger_active_days": 3,
+}
 
 
 def load_yaml(path: str | Path) -> dict[str, Any]:
@@ -409,6 +443,60 @@ def load_watchlist(path: str | Path) -> WatchlistConfig:
     return WatchlistConfig(items=tuple(items))
 
 
+def _parse_spring_trigger(
+    value: Any,
+    context: str,
+    defaults: dict[str, Any],
+) -> SpringTriggerConfig | None:
+    if value is None:
+        return None
+    raw = _mapping(value, context)
+    _reject_unknown_fields(raw, _TRIGGER_FIELDS, context)
+    merged = {**_TRIGGER_DEFAULTS, **defaults, **raw}
+    if merged.get("support_low") is None:
+        raise ValueError(f"{context}.support_low is required")
+    if merged.get("support_high") is None:
+        raise ValueError(f"{context}.support_high is required")
+    support_low = _positive_float(merged.get("support_low"), f"{context}.support_low")
+    support_high = _positive_float(merged.get("support_high"), f"{context}.support_high")
+    if not support_high > support_low:
+        raise ValueError(f"{context}.support_high must be greater than support_low")
+    volume_ratio = _positive_float(
+        merged.get("trigger_min_volume_ratio"),
+        "trigger_min_volume_ratio",
+    )
+    if not volume_ratio > 1.0:
+        raise ValueError("trigger_min_volume_ratio must be greater than 1")
+    return SpringTriggerConfig(
+        support_low=support_low,
+        support_high=support_high,
+        shrink_max_turnover=_positive_float(
+            merged.get("shrink_max_turnover"),
+            "shrink_max_turnover",
+        ),
+        shrink_min_days=_integer(merged.get("shrink_min_days"), "shrink_min_days", minimum=1),
+        trigger_min_gain_pct=_ratio(
+            merged.get("trigger_min_gain_pct"),
+            "trigger_min_gain_pct",
+        ),
+        trigger_min_turnover=_positive_float(
+            merged.get("trigger_min_turnover"),
+            "trigger_min_turnover",
+        ),
+        trigger_min_volume_ratio=volume_ratio,
+        support_window_days=_integer(
+            merged.get("support_window_days"),
+            "support_window_days",
+            minimum=3,
+        ),
+        trigger_active_days=_integer(
+            merged.get("trigger_active_days"),
+            "trigger_active_days",
+            minimum=1,
+        ),
+    )
+
+
 def load_personal_watch(path: str | Path) -> PersonalWatchConfig:
     data = load_yaml(path)
     _reject_unknown_fields(data, _PERSONAL_TOP_LEVEL_FIELDS, "personal top-level")
@@ -434,6 +522,11 @@ def load_personal_watch(path: str | Path) -> PersonalWatchConfig:
             "min_positive_volume_ratio_60d",
         ),
     )
+    trigger_defaults = _mapping(
+        defaults.get("spring_trigger"),
+        "personal spring_trigger",
+    )
+    _reject_unknown_fields(trigger_defaults, _TRIGGER_FIELDS, "personal spring_trigger")
 
     seen: set[str] = set()
 
@@ -463,12 +556,20 @@ def load_personal_watch(path: str | Path) -> PersonalWatchConfig:
             stock_name = str(raw_item.get("name", "")).strip()
             if not stock_name:
                 raise ValueError("personal stock name is required")
+            spring_trigger = _parse_spring_trigger(
+                raw_item.get("spring_trigger"),
+                "personal stock spring_trigger",
+                trigger_defaults,
+            )
+            if spring_trigger is not None and market != "cn":
+                raise ValueError("spring_trigger is only supported for cn stocks")
             seen.add(symbol)
             items.append(
                 PersonalStockConfig(
                     symbol=symbol,
                     market=market,
                     name=stock_name,
+                    spring_trigger=spring_trigger,
                 )
             )
         return tuple(items)
