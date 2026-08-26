@@ -15,11 +15,13 @@ from lurker.ingest.prices import (
     PRICE_COLUMNS,
     fetch_akshare_cn_prices,
     fetch_cn_prices,
+    fetch_hithink_cn_prices,
     fetch_watchlist_history,
     fetch_yfinance_prices,
     normalize_baostock_cn_price_frame,
     normalize_cn_index_price_frame,
     normalize_cn_price_frame,
+    normalize_hithink_cn_price_frame,
     normalize_price_frame,
     normalize_tushare_cn_price_frame,
     to_akshare_symbol,
@@ -530,3 +532,176 @@ themes:
     )
 
     assert result["cn"] == ["300308.SZ", "002230.SZ"]
+
+
+def _shanghai_ms(day: str) -> int:
+    return int(pd.Timestamp(day, tz="Asia/Shanghai").timestamp() * 1000)
+
+
+class _FakeResponse:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self.payload
+
+
+def test_normalize_hithink_cn_price_frame_maps_fields_and_dates():
+    raw = pd.DataFrame(
+        {
+            "date_ms": [_shanghai_ms("2024-08-28"), _shanghai_ms("2024-08-29")],
+            "open_price": [100.0, 101.0],
+            "high_price": [110.0, 111.0],
+            "low_price": [98.0, 99.0],
+            "close_price": [108.0, 109.0],
+            "volume": [1000000, 1200000],
+            "turnover": [108000000, 130000000],
+        }
+    )
+
+    result = normalize_hithink_cn_price_frame(raw, symbol="300308.SZ")
+
+    assert list(result.columns) == [*PRICE_COLUMNS, "amount"]
+    assert str(result.iloc[0]["trade_date"]) == "2024-08-28"
+    assert str(result.iloc[-1]["trade_date"]) == "2024-08-29"
+    assert result.iloc[0]["symbol"] == "300308.SZ"
+    assert result.iloc[0]["adj_close"] == 108.0
+    assert result.iloc[-1]["close"] == 109.0
+    assert result.iloc[-1]["amount"] == 130_000_000
+
+
+def test_fetch_hithink_cn_prices_requires_token(monkeypatch):
+    monkeypatch.delenv("HITHINK_FINANCE_API_KEY", raising=False)
+
+    with pytest.raises(ValueError, match="HITHINK_FINANCE_API_KEY is not set"):
+        fetch_hithink_cn_prices("300308.SZ", "6mo")
+
+
+def _hithink_bar(day: str) -> dict:
+    return {
+        "date_ms": _shanghai_ms(day),
+        "open_price": 100.0,
+        "high_price": 110.0,
+        "low_price": 98.0,
+        "close_price": 108.0,
+        "volume": 1000000,
+        "turnover": 108000000,
+    }
+
+
+def test_fetch_hithink_cn_prices_parses_envelope_and_builds_frame(monkeypatch):
+    calls = []
+
+    def fake_get(url, params, headers, timeout):
+        calls.append((url, dict(params), dict(headers)))
+        if params["offset"] == 0:
+            data = {"timestamp": _shanghai_ms("2024-08-29"), "item": [_hithink_bar("2024-08-29")]}
+        else:
+            data = {"timestamp": _shanghai_ms("2024-08-29"), "item": []}
+        return _FakeResponse({"code": 0, "message": "ok", "request_id": "r1", "data": data})
+
+    monkeypatch.setattr("lurker.ingest.prices.requests.get", fake_get)
+
+    result = fetch_hithink_cn_prices("300308.SZ", "6mo", token="test-key")
+
+    assert len(calls) == 2
+    url, params, headers = calls[0]
+    assert url == "https://fuyao.aicubes.cn/api/a-share/prices/historical"
+    assert params["thscode"] == "300308.SZ"
+    assert params["interval"] == "1d"
+    assert params["adjust"] == "forward"
+    assert params["offset"] == 0
+    assert calls[1][1]["offset"] == 1
+    assert headers == {"X-api-key": "test-key"}
+    assert result.iloc[0]["close"] == 108.0
+    assert result.iloc[0]["amount"] == 108_000_000
+    assert str(result.iloc[0]["trade_date"]) == "2024-08-29"
+
+
+def test_fetch_hithink_cn_prices_paginates_until_short_page(monkeypatch):
+    full_page = [_hithink_bar(f"2024-08-{day:02d}") for day in range(1, 11)]
+    pages = [full_page, [_hithink_bar(f"2024-08-{day:02d}") for day in (11, 12, 13)], []]
+    calls = []
+
+    def fake_get(url, params, headers, timeout):
+        calls.append(params["offset"])
+        return _FakeResponse(
+            {"code": 0, "message": "ok", "request_id": "r", "data": {"timestamp": 1, "item": pages[params["offset"] // 10]}}
+        )
+
+    monkeypatch.setattr("lurker.ingest.prices.requests.get", fake_get)
+
+    result = fetch_hithink_cn_prices("300308.SZ", "6mo", token="test-key")
+
+    assert calls == [0, 10, 13]
+    assert len(result) == 13
+
+
+def test_fetch_hithink_cn_prices_retries_on_rate_limit(monkeypatch):
+    responses = iter(
+        [
+            _FakeResponse({"code": 4001, "message": "too fast", "request_id": "r", "data": None}),
+            _FakeResponse(
+                {
+                    "code": 0,
+                    "message": "ok",
+                    "request_id": "r",
+                    "data": {"timestamp": 1, "item": [_hithink_bar("2024-08-29")]},
+                }
+            ),
+            _FakeResponse({"code": 0, "message": "ok", "request_id": "r", "data": {"timestamp": 1, "item": []}}),
+        ]
+    )
+    monkeypatch.setattr("lurker.ingest.prices.time.sleep", lambda seconds: None)
+
+    def fake_get(url, params, headers, timeout):
+        return next(responses)
+
+    monkeypatch.setattr("lurker.ingest.prices.requests.get", fake_get)
+
+    result = fetch_hithink_cn_prices("300308.SZ", "6mo", token="test-key")
+
+    assert result.iloc[0]["close"] == 108.0
+
+
+def test_fetch_hithink_cn_prices_null_data_is_error(monkeypatch):
+    def fake_get(url, params, headers, timeout):
+        return _FakeResponse({"code": 0, "message": "ok", "request_id": "r", "data": None})
+
+    monkeypatch.setattr("lurker.ingest.prices.requests.get", fake_get)
+
+    with pytest.raises(RuntimeError, match="empty data payload"):
+        fetch_hithink_cn_prices("300308.SZ", "6mo", token="test-key")
+
+
+def test_fetch_cn_prices_skips_hithink_without_key(monkeypatch):
+    monkeypatch.delenv("HITHINK_FINANCE_API_KEY", raising=False)
+    calls = []
+
+    def akshare_fetcher(symbol, period):
+        calls.append(("akshare", symbol, period))
+        return pd.DataFrame(
+            {
+                "trade_date": [date(2024, 8, 29)],
+                "open": [100.0],
+                "high": [110.0],
+                "low": [98.0],
+                "close": [108.0],
+                "adj_close": [108.0],
+                "volume": [1000000],
+                "symbol": ["300308.SZ"],
+            }
+        )[PRICE_COLUMNS]
+
+    result = fetch_cn_prices(
+        "300308.SZ",
+        "6mo",
+        fetchers=[fetch_hithink_cn_prices, akshare_fetcher],
+        sleep_seconds=0,
+    )
+
+    assert calls == [("akshare", "300308.SZ", "6mo")]
+    assert result.iloc[0]["close"] == 108.0

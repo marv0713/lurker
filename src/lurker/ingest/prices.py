@@ -5,6 +5,7 @@ from datetime import date, timedelta
 
 import pandas as pd
 import akshare as ak
+import requests
 import yfinance as yf
 
 
@@ -240,16 +241,141 @@ def fetch_tushare_cn_prices(
 
     import tushare as ts
 
+    ts.set_token(resolved_token)
     raw = ts.pro_bar(
         ts_code=symbol,
         adj="qfq",
         start_date=period_to_start_date(period, end_date=end_date),
         end_date=today_yyyymmdd(end_date),
-        token=resolved_token,
     )
     if raw is None or raw.empty:
         raise ValueError("empty tushare price data")
     return normalize_tushare_cn_price_frame(raw, symbol=symbol)
+
+
+HITHINK_BASE_URL = "https://fuyao.aicubes.cn"
+_HITHINK_MAX_PAGES = 20
+_HITHINK_RETRIES = 3
+_HITHINK_RETRY_BASE_SLEEP = 0.5
+_HITHINK_TIMEOUT_SECONDS = 15
+
+
+def normalize_hithink_cn_price_frame(raw: pd.DataFrame, symbol: str) -> pd.DataFrame:
+    normalized = raw.rename(
+        columns={
+            "date_ms": "trade_date",
+            "open_price": "open",
+            "high_price": "high",
+            "low_price": "low",
+            "close_price": "close",
+            "turnover": "amount",
+        }
+    ).copy()
+    normalized["trade_date"] = (
+        pd.to_datetime(normalized["trade_date"], unit="ms", utc=True)
+        .dt.tz_convert("Asia/Shanghai")
+        .dt.date
+    )
+    normalized["symbol"] = symbol
+    normalized["adj_close"] = normalized["close"]
+    for column in ["open", "high", "low", "close", "volume", "amount"]:
+        normalized[column] = pd.to_numeric(normalized[column], errors="coerce")
+    return (
+        normalized[PRICE_COLUMNS + ["amount"]]
+        .sort_values("trade_date")
+        .reset_index(drop=True)
+    )
+
+
+def _hithink_epoch_ms(day: str) -> int:
+    return int(pd.Timestamp(day, tz="Asia/Shanghai").timestamp() * 1000)
+
+
+def _hithink_request_page(
+    *,
+    symbol: str,
+    start_ms: int,
+    end_ms: int,
+    offset: int,
+    token: str,
+) -> list[dict[str, object]]:
+    params = {
+        "thscode": symbol,
+        "interval": "1d",
+        "start": start_ms,
+        "end": end_ms,
+        "adjust": "forward",
+        "offset": offset,
+    }
+    headers = {"X-api-key": token}
+    last_error: Exception | None = None
+    for attempt in range(_HITHINK_RETRIES):
+        try:
+            response = requests.get(
+                f"{HITHINK_BASE_URL}/api/a-share/prices/historical",
+                params=params,
+                headers=headers,
+                timeout=_HITHINK_TIMEOUT_SECONDS,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except (requests.RequestException, ValueError) as exc:
+            last_error = exc
+        else:
+            code = payload.get("code")
+            if code == 4001:
+                last_error = RuntimeError(f"hithink rate limited: {payload.get('message')}")
+            elif code != 0:
+                raise RuntimeError(f"hithink error {code}: {payload.get('message')}")
+            else:
+                data = payload.get("data")
+                if data is None:
+                    raise RuntimeError("hithink empty data payload")
+                item = data.get("item")
+                if not isinstance(item, list):
+                    raise RuntimeError("hithink missing item list")
+                return item
+        if attempt < _HITHINK_RETRIES - 1:
+            time.sleep(_HITHINK_RETRY_BASE_SLEEP * (2**attempt))
+    raise RuntimeError(f"hithink request failed: {last_error}")
+
+
+def fetch_hithink_cn_prices(
+    symbol: str,
+    period: str = "1y",
+    *,
+    token: str | None = None,
+    end_date: date | None = None,
+) -> pd.DataFrame:
+    resolved_token = token or os.environ.get("HITHINK_FINANCE_API_KEY", "")
+    if not resolved_token:
+        raise ValueError("HITHINK_FINANCE_API_KEY is not set")
+
+    start_ms = _hithink_epoch_ms(period_to_start_date(period, end_date=end_date))
+    end_ms = _hithink_epoch_ms(today_yyyymmdd(end_date))
+
+    items: list[dict[str, object]] = []
+    seen_dates: set[int] = set()
+    offset = 0
+    for _ in range(_HITHINK_MAX_PAGES):
+        page_items = _hithink_request_page(
+            symbol=symbol,
+            start_ms=start_ms,
+            end_ms=end_ms,
+            offset=offset,
+            token=resolved_token,
+        )
+        if not page_items:
+            break
+        fresh = [item for item in page_items if item.get("date_ms") not in seen_dates]
+        if not fresh:
+            break
+        seen_dates.update(int(item["date_ms"]) for item in fresh)
+        items.extend(fresh)
+        offset += len(fresh)
+    if not items:
+        raise ValueError("empty hithink price data")
+    return normalize_hithink_cn_price_frame(pd.DataFrame(items), symbol=symbol)
 
 
 def fetch_baostock_cn_prices(
@@ -301,6 +427,7 @@ def fetch_cn_prices(
     providers = list(
         fetchers
         or [
+            fetch_hithink_cn_prices,
             fetch_tushare_cn_prices,
             fetch_akshare_cn_prices,
             fetch_baostock_cn_prices,

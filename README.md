@@ -25,6 +25,7 @@ Run the test suite:
 No API keys or local run outputs are committed to git.
 
 - Gemini: set `GEMINI_API_KEY`, pass `--api-key`, or place a local `key` file in the project root.
+- HiThink/同花顺: set `HITHINK_FINANCE_API_KEY` (official A-share daily K with forward adjustment). If it is not set, A-share prices skip it and fall back to Tushare.
 - Tushare: set `TUSHARE_TOKEN` when available. If it is not set, A-share prices fall back to AkShare/Eastmoney and then BaoStock.
 - PushPlus: set `PUSHPLUS_TOKEN` before wiring the push adapter into a scheduled job.
 
@@ -60,7 +61,7 @@ Fetch a small live seed snapshot. The command prefers `data/processed/resolved_s
 
 A-share seed symbols, supported seed indexes, and mapped theme ETFs use `akshare`; US and HK seed symbols use `yfinance`. A-share `seed_indexes` currently supports core indexes such as 沪深 300, 中证 1000, 科创 50, and 创业板指. A-share `seed_etfs` currently resolves mapped ETF heavy holdings such as 通信 ETF、人工智能 ETF、创新药 ETF、and 生物医药 ETF into stock symbols for the resolved universe.
 
-A-share daily price fetching is stability-first, not speed-first. The default CN fetcher tries `Tushare -> AkShare/Eastmoney -> BaoStock`. Set `TUSHARE_TOKEN` when available; without it, the job skips Tushare and still falls back through AkShare and BaoStock.
+A-share daily price fetching is stability-first, not speed-first. The default CN fetcher tries `HiThink/同花顺 -> Tushare -> AkShare/Eastmoney -> BaoStock`. Set `HITHINK_FINANCE_API_KEY` and `TUSHARE_TOKEN` when available; without a key, the job skips the corresponding provider and still falls back through the rest.
 
 This is a medium/long-term trend research workflow, not a daily trading signal loop. The resolved universe is meant to stay stable between refreshes so reports remain traceable to a specific research universe.
 
