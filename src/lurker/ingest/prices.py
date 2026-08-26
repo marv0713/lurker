@@ -373,7 +373,7 @@ def fetch_hithink_cn_prices(
             break
         seen_dates.update(int(item["date_ms"]) for item in fresh)
         items.extend(fresh)
-        offset += len(fresh)
+        offset += len(page_items)
     if not pagination_complete:
         raise RuntimeError("hithink pagination limit reached")
     if not items:

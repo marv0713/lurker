@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 import pandas as pd
+import pytest
 
 from lurker.config import PersonalStockConfig
 from lurker.domain.personal_close import CorporateAction
@@ -131,6 +132,7 @@ def test_cn_provider_uses_latest_disclosure_date_and_actual_is_confirmed():
     }
     provider = CnCorporateActionProvider(
         disclosure_fetcher=lambda period: disclosures.get(period, pd.DataFrame()),
+        hithink_distribution_fetcher=None,
         distribution_fetcher=lambda symbol: pd.DataFrame(),
         allotment_fetcher=lambda symbol, start, end: pd.DataFrame(),
         disclosure_periods=lambda report_date: ("2026中报",),
@@ -166,6 +168,7 @@ def test_cn_provider_normalizes_cash_and_stock_distributions_as_dividend():
     allotments = pd.DataFrame([{"除权基准日": "2026-08-12", "公告日期": "2026-08-02"}])
     provider = CnCorporateActionProvider(
         disclosure_fetcher=lambda period: pd.DataFrame(),
+        hithink_distribution_fetcher=None,
         distribution_fetcher=lambda symbol: distributions,
         allotment_fetcher=lambda symbol, start, end: allotments,
         disclosure_periods=lambda report_date: (),
@@ -305,6 +308,44 @@ def test_fetch_hithink_cn_corporate_actions_treats_no_events_3002_as_empty(monke
     assert actions == ()
 
 
+def test_fetch_hithink_cn_corporate_actions_rejects_positive_event_without_valid_date(
+    monkeypatch,
+):
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "code": 0,
+                "message": "success",
+                "request_id": "request-3",
+                "data": {
+                    "thscode": "300308.SZ",
+                    "ticker": "300308",
+                    "item": [
+                        {
+                            "ticker": "300308",
+                            "ex_date_ms": "invalid",
+                            "dividend_per_share": 0.5,
+                            "per_share_bonus": 0,
+                        }
+                    ],
+                },
+            }
+
+    monkeypatch.setattr(
+        corporate_actions.requests,
+        "get",
+        lambda *args, **kwargs: FakeResponse(),
+    )
+
+    with pytest.raises(RuntimeError, match="invalid corporate-action date"):
+        corporate_actions.fetch_hithink_cn_corporate_actions(
+            "300308.SZ", REPORT_DATE, token="test-key"
+        )
+
+
 def test_cn_provider_uses_successful_empty_hithink_response_without_fallback():
     provider = CnCorporateActionProvider(
         disclosure_fetcher=lambda period: pd.DataFrame(),
@@ -347,23 +388,36 @@ def test_cn_provider_falls_back_to_akshare_when_hithink_fails():
     assert coverage.issues == ()
 
 
-def test_custom_akshare_distribution_fetcher_disables_ambient_hithink(
-    monkeypatch,
-):
-    calls = []
+def test_custom_akshare_fallback_keeps_default_hithink_enabled(monkeypatch):
+    hithink_calls = []
+    fallback_calls = []
     monkeypatch.setenv("HITHINK_FINANCE_API_KEY", "ambient-key")
 
-    def unexpected_get(*args, **kwargs):
-        calls.append(args[0])
-        raise RuntimeError("must not call live HiThink from an injected provider")
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
 
-    monkeypatch.setattr(corporate_actions.requests, "get", unexpected_get)
-    distributions = pd.DataFrame(
-        [{"除权除息日": "2026-08-11", "现金分红-现金分红比例": 0.5}]
-    )
+        def json(self):
+            return {
+                "code": 3002,
+                "message": "No adjustment events for thscode=300308.SZ",
+                "request_id": "request-4",
+                "data": None,
+            }
+
+    def fake_get(*args, **kwargs):
+        hithink_calls.append(args[0])
+        return FakeResponse()
+
+    monkeypatch.setattr(corporate_actions.requests, "get", fake_get)
+
+    def fallback(symbol):
+        fallback_calls.append(symbol)
+        return pd.DataFrame()
+
     provider = CnCorporateActionProvider(
         disclosure_fetcher=lambda period: pd.DataFrame(),
-        distribution_fetcher=lambda symbol: distributions,
+        distribution_fetcher=fallback,
         allotment_fetcher=lambda symbol, start, end: pd.DataFrame(),
         disclosure_periods=lambda report_date: (),
     )
@@ -372,8 +426,9 @@ def test_custom_akshare_distribution_fetcher_disables_ambient_hithink(
         (PersonalStockConfig("300308.SZ", "cn", "中际旭创"),), REPORT_DATE
     )["300308.SZ"]
 
-    assert [item.primary_date for item in coverage.actions] == [date(2026, 8, 11)]
-    assert calls == []
+    assert coverage.actions == ()
+    assert len(hithink_calls) == 1
+    assert fallback_calls == []
 
 
 def test_cn_provider_marks_incomplete_when_both_dividend_sources_fail():
@@ -403,6 +458,7 @@ def test_cn_endpoint_failure_marks_coverage_incomplete_and_preserves_other_actio
 
     provider = CnCorporateActionProvider(
         disclosure_fetcher=lambda period: pd.DataFrame(),
+        hithink_distribution_fetcher=None,
         distribution_fetcher=fail,
         allotment_fetcher=lambda symbol, start, end: pd.DataFrame(),
         disclosure_periods=lambda report_date: (),
@@ -481,6 +537,7 @@ def test_distribution_text_ratios_are_not_silently_dropped():
     )
     provider = CnCorporateActionProvider(
         disclosure_fetcher=lambda period: pd.DataFrame(),
+        hithink_distribution_fetcher=None,
         distribution_fetcher=lambda symbol: distributions,
         allotment_fetcher=lambda symbol, start, end: pd.DataFrame(),
         disclosure_periods=lambda report_date: (),
@@ -510,6 +567,7 @@ def test_cn_distribution_uses_current_akshare_description_column():
     )
     provider = CnCorporateActionProvider(
         disclosure_fetcher=lambda period: pd.DataFrame(),
+        hithink_distribution_fetcher=None,
         distribution_fetcher=lambda symbol: distributions,
         allotment_fetcher=lambda symbol, start, end: pd.DataFrame(),
         disclosure_periods=lambda report_date: (),

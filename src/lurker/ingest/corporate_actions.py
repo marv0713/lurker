@@ -39,6 +39,7 @@ HK_UNSUPPORTED: tuple[CorporateEventType, ...] = (
     "consolidation",
     "rights_issue",
 )
+_DEFAULT_HITHINK_DISTRIBUTION = object()
 
 
 class CorporateActionProvider(Protocol):
@@ -258,11 +259,13 @@ def fetch_hithink_cn_corporate_actions(
                 for item in items:
                     if not isinstance(item, Mapping):
                         raise RuntimeError("hithink malformed corporate-action item")
-                    primary_date = _epoch_ms_date(item.get("ex_date_ms"))
                     cash = _number(item.get("dividend_per_share"))
                     bonus = _number(item.get("per_share_bonus"))
-                    if primary_date is None or (cash <= 0 and bonus <= 0):
+                    if cash <= 0 and bonus <= 0:
                         continue
+                    primary_date = _epoch_ms_date(item.get("ex_date_ms"))
+                    if primary_date is None:
+                        raise RuntimeError("hithink invalid corporate-action date")
                     summary_parts: list[str] = []
                     if cash > 0:
                         summary_parts.append(f"每股现金分红 {cash:g} 元")
@@ -291,16 +294,22 @@ class CnCorporateActionProvider:
         hithink_distribution_fetcher: Callable[
             [str, date], Sequence[CorporateAction]
         ]
-        | None = None,
+        | None
+        | object = _DEFAULT_HITHINK_DISTRIBUTION,
         distribution_fetcher: Callable[[str], pd.DataFrame] = _ak_distribution,
         allotment_fetcher: Callable[[str, str, str], pd.DataFrame] = _ak_allotment,
         disclosure_periods: Callable[[date], Sequence[str]] = default_disclosure_periods,
     ) -> None:
         self.disclosure_fetcher = disclosure_fetcher
-        self.hithink_distribution_fetcher = (
+        self.hithink_distribution_fetcher: Callable[
+            [str, date], Sequence[CorporateAction]
+        ] | None = (
             fetch_hithink_cn_corporate_actions
-            if hithink_distribution_fetcher is None and distribution_fetcher is _ak_distribution
-            else hithink_distribution_fetcher
+            if hithink_distribution_fetcher is _DEFAULT_HITHINK_DISTRIBUTION
+            else cast(
+                Callable[[str, date], Sequence[CorporateAction]] | None,
+                hithink_distribution_fetcher,
+            )
         )
         self.distribution_fetcher = distribution_fetcher
         self.allotment_fetcher = allotment_fetcher
